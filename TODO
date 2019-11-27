@@ -1,0 +1,2 @@
+* add registration tokens
+* generate self-signed certificate and send public key to the server after registration
