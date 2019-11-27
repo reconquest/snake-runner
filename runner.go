@@ -74,7 +74,7 @@ func (runner *Runner) register() error {
 	}
 
 	method := "POST"
-	url := runner.getConnectURL("/runner:register")
+	url := runner.getConnectURL("/runner/register")
 
 	context := karma.Describe("method", method).
 		Describe("url", url).
@@ -88,8 +88,10 @@ func (runner *Runner) register() error {
 		)
 	}
 
+	runner.addHeaderContentTypeJSON(request)
 	runner.addHeaderToken(request)
 	runner.addHeaderUserAgent(request)
+	runner.addHeaderCSRF(request)
 
 	response, err := runner.client.Do(request)
 	if err != nil {
@@ -138,4 +140,12 @@ func (runner *Runner) addHeaderUserAgent(request *http.Request) {
 
 func (runner *Runner) addHeaderToken(request *http.Request) {
 	request.Header.Set("X-Snake-Token", "TODO")
+}
+
+func (runner *Runner) addHeaderCSRF(request *http.Request) {
+	request.Header.Set("X-Atlassian-Token", "no-check")
+}
+
+func (runner *Runner) addHeaderContentTypeJSON(request *http.Request) {
+	request.Header.Set("Content-Type", "application/json")
 }
