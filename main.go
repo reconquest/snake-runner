@@ -49,6 +49,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.Log.Debug {
+		log.SetDebug(true)
+	}
+
 	runner := NewRunner(config)
 	go runner.Start()
 

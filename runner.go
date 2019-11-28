@@ -1,10 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -15,7 +11,7 @@ import (
 )
 
 const (
-	SnakeCenterAPI = "/rest/snake/1.0"
+	MasterPrefixAPI = "/rest/snake/1.0"
 )
 
 var (
@@ -25,13 +21,30 @@ var (
 type Runner struct {
 	client *http.Client
 	config *Config
+
+	hostname string
 }
 
 func NewRunner(config *Config) *Runner {
-	return &Runner{config: config, client: http.DefaultClient}
+	// TODO: move http work to a function
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+
+	return &Runner{
+		config:   config,
+		client:   http.DefaultClient,
+		hostname: hostname,
+	}
 }
 
 func (runner *Runner) Start() {
+	runner.mustRegister()
+	runner.startHeartbeats()
+}
+
+func (runner *Runner) mustRegister() {
 	for {
 		err := runner.register()
 		if err != nil {
@@ -50,102 +63,55 @@ func (runner *Runner) Start() {
 	}
 }
 
-func (runner *Runner) register() error {
-	// TODO: move http work to a function
-	hostname, err := os.Hostname()
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to obtain system hostname",
-		)
-	}
+func (runner *Runner) startHeartbeats() {
+	go func() {
+		for {
+			err := runner.heartbeat()
+			if err != nil {
+				log.Errorf(err, "unable to send heartbeat")
+			}
 
-	log.Infof(karma.Describe("name", hostname), "sending registration request")
-
-	buffer := bytes.NewBuffer(nil)
-	err = json.NewEncoder(buffer).Encode(map[string]interface{}{
-		"name": hostname,
-	})
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to marshal request",
-		)
-	}
-
-	method := "POST"
-	url := runner.getConnectURL("/runner/register")
-
-	context := karma.Describe("method", method).
-		Describe("url", url).
-		Describe("payload", buffer.String())
-
-	request, err := http.NewRequest(method, url, buffer)
-	if err != nil {
-		return context.Format(
-			err,
-			"unable to create new request",
-		)
-	}
-
-	runner.addHeaderContentTypeJSON(request)
-	runner.addHeaderToken(request)
-	runner.addHeaderUserAgent(request)
-	runner.addHeaderCSRF(request)
-
-	response, err := runner.client.Do(request)
-	if err != nil {
-		return context.Format(
-			err,
-			"unable to make http request",
-		)
-	}
-
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return context.Format(
-			err,
-			"unable to read response body",
-		)
-	}
-
-	log.Debugf(context.Describe("status_code", response.StatusCode), "%s", string(data))
-
-	defer response.Body.Close()
-
-	if response.StatusCode >= 400 {
-		var errResponse responseError
-		if err := json.Unmarshal(data, &errResponse); err == nil {
-			return errors.New(errResponse.Error)
-		} else {
-			return karma.Describe("status_code", response.StatusCode).Reason(err)
+			time.Sleep(runner.config.HeartbeatInterval)
 		}
+	}()
+}
+
+func (runner *Runner) heartbeat() error {
+	log.Infof(karma.Describe("name", runner.hostname), "sending heartbeat request")
+
+	err := runner.request().
+		POST().Path("/runner/heartbeat").
+		Payload(runnerHeartbeatRequest{Name: runner.hostname}).
+		Do()
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (runner *Runner) getConnectURL(path string) string {
-	address := runner.config.ConnectAddress
-	if !strings.Contains(runner.config.ConnectAddress, "://") {
-		address = "http://" + address
+func (runner *Runner) register() error {
+	log.Infof(karma.Describe("name", runner.hostname), "sending registration request")
+
+	err := runner.request().
+		POST().Path("/runner/register").
+		Payload(runnerRegisterRequest{Name: runner.hostname}).
+		Do()
+	if err != nil {
+		return err
 	}
 
-	return strings.TrimSuffix(address, "/") + SnakeCenterAPI + path
+	return nil
 }
 
-func (runner *Runner) addHeaderUserAgent(request *http.Request) {
-	request.Header.Set("User-Agent", "snake-runner/"+version)
-}
+func (runner *Runner) request() *Request {
+	master := strings.TrimSuffix(runner.config.MasterAddress, "/")
 
-func (runner *Runner) addHeaderToken(request *http.Request) {
-	request.Header.Set("X-Snake-Token", "TODO")
-}
-
-func (runner *Runner) addHeaderCSRF(request *http.Request) {
-	request.Header.Set("X-Atlassian-Token", "no-check")
-}
-
-func (runner *Runner) addHeaderContentTypeJSON(request *http.Request) {
-	request.Header.Set("Content-Type", "application/json")
+	return NewRequest(http.DefaultClient).
+		BaseURL(master+MasterPrefixAPI).
+		UserAgent("snake-runner/"+version).
+		// required for authentication by snake master
+		Header("X-Snake-Token", "TODO").
+		// required by bitbucket itself
+		Header("X-Atlassian-Token", "no-check")
 }

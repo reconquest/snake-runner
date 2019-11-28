@@ -1,14 +1,22 @@
 package main
 
 import (
+	"time"
+
 	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
 
 type Config struct {
-	ListenAddress  string `yaml:"listen_address"  env:"SNAKE_RUNNER_LISTEN_ADDRESS"  required:"true" default:":8585" `
-	ConnectAddress string `yaml:"connect_address" env:"SNAKE_RUNNER_CONNECT_ADDRESS" required:"true"`
+	ListenAddress string `yaml:"listen_address"  env:"SNAKE_RUNNER_LISTEN_ADDRESS" required:"true" default:":8585" `
+	MasterAddress string `yaml:"connect_address" env:"SNAKE_RUNNER_MASTER_ADDRESS" required:"true"`
+
+	Log struct {
+		Debug bool `yaml:"trace" env:"SNAKE_RUNNER_LOG_DEBUG" required:"false"`
+	}
+
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"5s"`
 }
 
 func LoadConfig(path string) (*Config, error) {
