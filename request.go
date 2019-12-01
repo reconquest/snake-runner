@@ -127,7 +127,7 @@ func (request *Request) Do() error {
 
 	debugContext := context
 	for key, value := range request.headers {
-		debugContext = debugContext.Describe("header"+key, value)
+		debugContext = debugContext.Describe("header "+key, value)
 		httpRequest.Header.Set(key, value)
 	}
 
@@ -168,7 +168,7 @@ func (request *Request) Do() error {
 			if err := json.Unmarshal(data, &errResponse); err == nil {
 				return context.Reason(errors.New(errResponse.Error))
 			} else {
-				return context.Describe("body", data).
+				return context.Describe("body", string(data)).
 					Format(
 						err,
 						"unable to unmarshal error as JSON error response",
@@ -176,6 +176,17 @@ func (request *Request) Do() error {
 			}
 		} else if len(request.expectedStatuses) > 0 {
 			return context.Reason("unexpected status code")
+		}
+	}
+
+	if request.dstResponse != nil {
+		err = json.Unmarshal(data, request.dstResponse)
+		if err != nil {
+			return context.Describe("body", string(data)).
+				Format(
+					err,
+					"unable to unmarshal JSON response",
+				)
 		}
 	}
 
