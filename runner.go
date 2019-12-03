@@ -14,7 +14,8 @@ import (
 
 const (
 	MasterPrefixAPI = "/rest/snake/1.0"
-	TokenHeader     = "X-Snake-Token"
+	TokenHeader     = "X-Snake-Runner-Token"
+	NameHeader      = "X-Snake-Runner-Name"
 )
 
 var (
@@ -126,8 +127,8 @@ func (runner *Runner) heartbeat() error {
 	log.Infof(karma.Describe("name", runner.hostname), "sending heartbeat request")
 
 	err := runner.request().
-		POST().Path("/runner/heartbeat").
-		Payload(runnerHeartbeatRequest{Name: runner.hostname}).
+		POST().Path("/gate/heartbeat").
+		Payload(runnerHeartbeatRequest{}).
 		Header(TokenHeader, runner.config.Token).
 		Do()
 	if err != nil {
@@ -142,7 +143,7 @@ func (runner *Runner) register() (string, error) {
 
 	var response registerResponse
 	err := runner.request().
-		POST().Path("/runner/register").
+		POST().Path("/gate/register").
 		Payload(registerRequest{Name: runner.hostname}).
 		Response(&response).
 		Do()
