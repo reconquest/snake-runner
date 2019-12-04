@@ -129,7 +129,6 @@ func (runner *Runner) heartbeat() error {
 	err := runner.request().
 		POST().Path("/gate/heartbeat").
 		Payload(runnerHeartbeatRequest{}).
-		Header(TokenHeader, runner.config.Token).
 		Do()
 	if err != nil {
 		return err
@@ -161,5 +160,7 @@ func (runner *Runner) request() *Request {
 		BaseURL(master+MasterPrefixAPI).
 		UserAgent("snake-runner/"+version).
 		// required by bitbucket itself
+		Header(NameHeader, runner.hostname).
+		Header(TokenHeader, runner.config.Token).
 		Header("X-Atlassian-Token", "no-check")
 }
