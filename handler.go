@@ -1,7 +1,10 @@
 package main
 
-import "github.com/reconquest/pkg/web"
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/reconquest/pkg/web"
+)
 
 type WebHandler struct {
 	web    *web.Web

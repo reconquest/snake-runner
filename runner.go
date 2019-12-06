@@ -15,9 +15,7 @@ const (
 	NameHeader      = "X-Snake-Runner-Name"
 )
 
-var (
-	FailedRegisterRepeatTimeout = time.Second * 10
-)
+var FailedRegisterRepeatTimeout = time.Second * 10
 
 type Runner struct {
 	client *http.Client
