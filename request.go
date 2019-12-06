@@ -40,6 +40,14 @@ func (request *Request) BaseURL(url string) *Request {
 	return request
 }
 
+func (request *Request) PUT() *Request {
+	return request.Method("PUT")
+}
+
+func (request *Request) GET() *Request {
+	return request.Method("GET")
+}
+
 func (request *Request) POST() *Request {
 	return request.Method("POST")
 }
