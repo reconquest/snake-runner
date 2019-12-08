@@ -20,7 +20,7 @@ func (runner *Runner) startHeartbeats() {
 }
 
 func (runner *Runner) heartbeat() error {
-	log.Infof(nil, "sending heartbeat request")
+	log.Debugf(nil, "sending heartbeat request")
 
 	err := runner.request().
 		POST().Path("/gate/heartbeat").

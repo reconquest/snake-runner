@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -10,10 +9,17 @@ import (
 )
 
 func (runner *Runner) startScheduler() {
-	scheduler := &RunnerScheduler{
-		spots:  make(chan struct{}, 2),
-		runner: runner,
+	cloud, err := NewCloud()
+	if err != nil {
+		log.Fatalf(err, "unable to initialize container provider")
 	}
+
+	scheduler := &RunnerScheduler{
+		spots:  make(chan struct{}, 5),
+		runner: runner,
+		cloud:  cloud,
+	}
+
 	go scheduler.loop()
 
 	log.Infof(nil, "scheduler started")
@@ -22,6 +28,7 @@ func (runner *Runner) startScheduler() {
 type RunnerScheduler struct {
 	spots  chan struct{}
 	runner *Runner
+	cloud  *Cloud
 }
 
 func (scheduler *RunnerScheduler) lockSpot() {
@@ -43,9 +50,9 @@ func (scheduler *RunnerScheduler) loop() {
 		go func() {
 			defer scheduler.unlockSpot()
 
-			err := scheduler.schedule()
+			err := scheduler.startProcess()
 			if err != nil {
-				log.Errorf(err, "an error occurred during task scheduling")
+				log.Errorf(err, "an error occurred during task running")
 			}
 		}()
 
@@ -53,7 +60,7 @@ func (scheduler *RunnerScheduler) loop() {
 	}
 }
 
-func (scheduler *RunnerScheduler) schedule() error {
+func (scheduler *RunnerScheduler) startProcess() error {
 	log.Debugf(nil, "retrieving a task")
 
 	task, err := scheduler.runner.getTask()
@@ -64,8 +71,24 @@ func (scheduler *RunnerScheduler) schedule() error {
 		)
 	}
 
-	fmt.Fprintf(os.Stderr, "XXXXXX runner_scheduler.go:64 task: %#v\n", task)
-	time.Sleep(time.Second * 10)
+	// no task @ no problem
+	if task.Pipeline.ID == 0 {
+		log.Debugf(nil, "no tasks received")
+		return nil
+	}
+
+	token := fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)
+
+	process := &Process{
+		runner: scheduler.runner,
+		log:    log.NewChildWithPrefix(token),
+		task:   task,
+	}
+
+	err = process.run()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

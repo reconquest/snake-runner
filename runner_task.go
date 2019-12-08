@@ -1,12 +1,12 @@
 package main
 
-type RunnerTask struct {
-	Pipeline *Pipeline
-	Jobs     *[]PipelineJob
+type Task struct {
+	Pipeline Pipeline
+	Jobs     []PipelineJob
 }
 
-func (runner *Runner) getTask() (*RunnerTask, error) {
-	var response RunnerTask
+func (runner *Runner) getTask() (*Task, error) {
+	var response Task
 
 	err := runner.request().
 		GET().
