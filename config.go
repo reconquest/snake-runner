@@ -21,10 +21,13 @@ type Config struct {
 		Debug bool `yaml:"trace" env:"SNAKE_LOG_DEBUG"`
 	}
 
+	Name string `yaml:"name" env:"SNAKE_NAME"`
+
 	Token     string `yaml:"token" env:"SNAKE_TOKEN"`
 	TokenPath string `yaml:"token_path" env:"SNAKE_TOKEN_PATH" default:"/etc/snake-runner/token"`
 
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"5s"`
+	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -21,20 +21,24 @@ type Runner struct {
 	client *http.Client
 	config *Config
 
-	hostname string
+	name string
 }
 
 func NewRunner(config *Config) *Runner {
-	// TODO: move http work to a function
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic(err)
+	name := config.Name
+	if name == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+
+		name = hostname
 	}
 
 	return &Runner{
-		config:   config,
-		client:   http.DefaultClient,
-		hostname: hostname,
+		config: config,
+		client: http.DefaultClient,
+		name:   name,
 	}
 }
 
@@ -77,7 +81,7 @@ func (runner *Runner) request() *Request {
 		BaseURL(master+MasterPrefixAPI).
 		UserAgent("snake-runner/"+version).
 		// required by bitbucket itself
-		Header(NameHeader, runner.hostname).
+		Header(NameHeader, runner.name).
 		Header(TokenHeader, runner.config.Token).
 		Header("X-Atlassian-Token", "no-check")
 }

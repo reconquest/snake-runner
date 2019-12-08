@@ -3,7 +3,6 @@ package main
 import (
 	"time"
 
-	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
 
@@ -21,7 +20,7 @@ func (runner *Runner) startHeartbeats() {
 }
 
 func (runner *Runner) heartbeat() error {
-	log.Infof(karma.Describe("name", runner.hostname), "sending heartbeat request")
+	log.Infof(nil, "sending heartbeat request")
 
 	err := runner.request().
 		POST().Path("/gate/heartbeat").

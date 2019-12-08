@@ -30,12 +30,12 @@ func (runner *Runner) mustRegister() string {
 }
 
 func (runner *Runner) register() (string, error) {
-	log.Infof(karma.Describe("name", runner.hostname), "sending registration request")
+	log.Infof(nil, "sending registration request")
 
 	var response registerResponse
 	err := runner.request().
 		POST().Path("/gate/register").
-		Payload(registerRequest{Name: runner.hostname}).
+		Payload(registerRequest{Name: runner.name}).
 		Response(&response).
 		Do()
 	if err != nil {
