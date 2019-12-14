@@ -28,6 +28,8 @@ type Config struct {
 
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"5s"`
 	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
+
+	Virtualization string `yaml:"virtualization" default:"docker" required:"true"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -49,6 +51,11 @@ func LoadConfig(path string) (*Config, error) {
 		}
 
 		config.Token = strings.TrimSpace(string(tokenData))
+	}
+
+	if config.Virtualization == "none" {
+		log.Warningf(nil, "No virtualization is used, all commands will be "+
+			"executed on the local host with current permissions")
 	}
 
 	return &config, nil

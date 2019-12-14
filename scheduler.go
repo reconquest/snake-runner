@@ -14,10 +14,15 @@ func (runner *Runner) startScheduler() {
 		log.Fatalf(err, "unable to initialize container provider")
 	}
 
-	scheduler := &RunnerScheduler{
+	scheduler := &Scheduler{
 		spots:  make(chan struct{}, 5),
 		runner: runner,
 		cloud:  cloud,
+	}
+
+	err = cloud.Cleanup()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	go scheduler.loop()
@@ -25,13 +30,13 @@ func (runner *Runner) startScheduler() {
 	log.Infof(nil, "scheduler started")
 }
 
-type RunnerScheduler struct {
+type Scheduler struct {
 	spots  chan struct{}
 	runner *Runner
 	cloud  *Cloud
 }
 
-func (scheduler *RunnerScheduler) lockSpot() {
+func (scheduler *Scheduler) lockSpot() {
 	// the main idea here of these three components:
 	// chan & writer & reader is that we 'hold' a spot for task by writing an
 	// item into channel which will be blocked if the channel is full already
@@ -39,11 +44,11 @@ func (scheduler *RunnerScheduler) lockSpot() {
 	scheduler.spots <- struct{}{}
 }
 
-func (scheduler *RunnerScheduler) unlockSpot() {
+func (scheduler *Scheduler) unlockSpot() {
 	<-scheduler.spots
 }
 
-func (scheduler *RunnerScheduler) loop() {
+func (scheduler *Scheduler) loop() {
 	for {
 		scheduler.lockSpot()
 
@@ -60,7 +65,7 @@ func (scheduler *RunnerScheduler) loop() {
 	}
 }
 
-func (scheduler *RunnerScheduler) startProcess() error {
+func (scheduler *Scheduler) startProcess() error {
 	log.Debugf(nil, "retrieving a task")
 
 	task, err := scheduler.runner.getTask()
@@ -83,6 +88,7 @@ func (scheduler *RunnerScheduler) startProcess() error {
 		runner: scheduler.runner,
 		log:    log.NewChildWithPrefix(token),
 		task:   task,
+		cloud:  scheduler.cloud,
 	}
 
 	err = process.run()

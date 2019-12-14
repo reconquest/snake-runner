@@ -25,6 +25,7 @@ type Process struct {
 	runner *Runner
 	log    *cog.Logger
 	task   *Task
+	cloud  *Cloud
 }
 
 func (process *Process) run() error {
@@ -35,6 +36,8 @@ func (process *Process) run() error {
 
 	err := process.updatePipeline(StatusRunning)
 	if err != nil {
+		process.fail(-1)
+
 		return karma.Format(
 			err,
 			"unable to update pipeline status",
@@ -47,21 +50,52 @@ func (process *Process) run() error {
 
 		err := process.updateJob(job.ID, StatusRunning)
 		if err != nil {
+			process.fail(-1)
+
 			return karma.Format(
 				err,
 				"unable to update job",
 			)
-
-			// TODO: need to update other jobs and set them as failed due to an
-			// error on this job
-			// options:
-			// * send sequential requests to update jobs
-			// * send bulk update request
-			// * send a special request and java does updates for all other jobs
 		}
+
+		process.doJob(job)
 	}
 
 	return nil
+}
+
+func (process *Process) doJob(job PipelineJob) {
+}
+
+func (process *Process) fail(jobID int) {
+	found := false
+	for _, job := range process.task.Jobs {
+		var status string
+
+		// find a job that was a cause for failing and mark it as failed,
+		// mark other jobs as skipped
+		if !found {
+			if job.ID == jobID {
+				found = true
+
+				status = StatusFailed
+			} else {
+				continue
+			}
+		} else {
+			status = StatusSkipped
+		}
+
+		err := process.updateJob(jobID, status)
+		if err != nil {
+			process.log.Errorf(err, "unable to update job status to %q", status)
+		}
+	}
+
+	err := process.updatePipeline(StatusFailed)
+	if err != nil {
+		process.log.Errorf(err, "unable to update pipeline status to %q", StatusFailed)
+	}
 }
 
 func (process *Process) updatePipeline(status string) error {

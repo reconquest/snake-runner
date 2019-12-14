@@ -54,7 +54,7 @@ func main() {
 	}
 
 	runner := NewRunner(config)
-	go runner.Start()
+	runner.Start()
 
 	handler := NewWebHandler(runner)
 
