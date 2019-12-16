@@ -3,12 +3,14 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/kovetskiy/ko"
+	"github.com/reconquest/executil-go"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
@@ -30,6 +32,8 @@ type Config struct {
 	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
 
 	Virtualization string `yaml:"virtualization" default:"docker" required:"true"`
+
+	SSHKey string `yaml:"ssh_key" default:"/etc/snake-runner/sshkey" required:"true"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -58,5 +62,24 @@ func LoadConfig(path string) (*Config, error) {
 			"executed on the local host with current permissions")
 	}
 
+	if !isFileExists(config.SSHKey) && !isFileExists(config.SSHKey+".pub") {
+		log.Warningf(nil, "ssh key not found at %s, generating it", config.SSHKey)
+
+		_, _, err := executil.Run(
+			exec.Command("ssh-keygen", "-t", "rsa", "-C", "snake-runner", "-f", config.SSHKey),
+		)
+		if err != nil {
+			return nil, karma.Format(
+				err,
+				"unable to generate ssh-key",
+			)
+		}
+	}
+
 	return &config, nil
+}
+
+func isFileExists(path string) bool {
+	stat, err := os.Stat(path)
+	return !os.IsNotExist(err) && !stat.IsDir()
 }

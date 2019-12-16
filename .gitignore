@@ -1,2 +1,4 @@
 /snake-runner
 /conf/token
+conf/sshkey
+conf/sshkey.pub

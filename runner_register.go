@@ -32,10 +32,23 @@ func (runner *Runner) mustRegister() string {
 func (runner *Runner) register() (string, error) {
 	log.Infof(nil, "sending registration request")
 
+	publicKey, err := ioutil.ReadFile(runner.config.SSHKey + ".pub")
+	if err != nil {
+		return "", karma.Format(
+			err,
+			"unable to read ssh key public part",
+		)
+	}
+
+	request := registerRequest{
+		Name:      runner.name,
+		PublicKey: string(publicKey),
+	}
+
 	var response registerResponse
-	err := runner.request().
+	err = runner.request().
 		POST().Path("/gate/register").
-		Payload(registerRequest{Name: runner.name}).
+		Payload(request).
 		Response(&response).
 		Do()
 	if err != nil {
