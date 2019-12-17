@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -42,7 +43,7 @@ func (runner *Runner) register() (string, error) {
 
 	request := registerRequest{
 		Name:      runner.name,
-		PublicKey: string(publicKey),
+		PublicKey: strings.TrimSpace(string(publicKey)),
 	}
 
 	var response registerResponse

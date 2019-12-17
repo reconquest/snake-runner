@@ -101,7 +101,7 @@ func (process *Process) fail(jobID int) {
 func (process *Process) updatePipeline(status string) error {
 	err := process.runner.request().
 		PUT().
-		Path("/gate/task/pipeline/" + strconv.Itoa(process.task.Pipeline.ID)).
+		Path("/gate/pipelines/" + strconv.Itoa(process.task.Pipeline.ID)).
 		Payload(&RunnerTaskUpdateRequest{
 			Status: status,
 		}).
@@ -117,8 +117,8 @@ func (process *Process) updateJob(jobID int, status string) error {
 	err := process.runner.request().
 		PUT().
 		Path(
-			"/gate/task" +
-				"/pipeline/" + strconv.Itoa(process.task.Pipeline.ID) +
+			"/gate" +
+				"/pipelines/" + strconv.Itoa(process.task.Pipeline.ID) +
 				"/jobs/" + strconv.Itoa(process.task.Pipeline.ID),
 		).
 		Payload(&RunnerTaskUpdateRequest{

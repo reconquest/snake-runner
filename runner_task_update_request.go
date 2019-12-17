@@ -1,5 +1,5 @@
 package main
 
 type RunnerTaskUpdateRequest struct {
-	Status string
+	Status string `json:"status"`
 }
