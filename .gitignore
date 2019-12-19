@@ -2,3 +2,6 @@
 /conf/token
 conf/sshkey
 conf/sshkey.pub
+/id_rsa_test
+/id_rsa_test.pub
+/snake-runner.test

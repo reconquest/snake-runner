@@ -1,7 +1,8 @@
 package main
 
+//go:generate gonstructor -type registerRequest
 type registerRequest struct {
-	Name      string `json:"name"` 
+	Name      string `json:"name"`
 	PublicKey string `json:"public_key"`
 }
 

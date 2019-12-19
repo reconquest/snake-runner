@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -30,6 +31,7 @@ func (runner *Runner) startScheduler() {
 	log.Infof(nil, "scheduler started")
 }
 
+//go:generate gonstructor -type Scheduler
 type Scheduler struct {
 	spots  chan struct{}
 	runner *Runner
@@ -89,6 +91,7 @@ func (scheduler *Scheduler) startProcess() error {
 		log:    log.NewChildWithPrefix(token),
 		task:   task,
 		cloud:  scheduler.cloud,
+		ctx:    context.Background(),
 	}
 
 	err = process.run()

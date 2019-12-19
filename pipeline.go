@@ -9,6 +9,7 @@ type Pipeline struct {
 	UpdatedAt    int    `json:"updated_at"`
 	Status       string `json:"status"`
 	Error        string `json:"error"`
+	Filename     string `json:"filename"`
 	// ignore unused
 	// JobsTotal int
 	RunnerID int `json:"runner_id"`

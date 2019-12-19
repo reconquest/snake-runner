@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -12,6 +14,12 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
+
+var SSHConfigWithoutVerification = base64.StdEncoding.EncodeToString([]byte(`
+Host *
+	StrictHostKeyChecking no
+	UserKnownHostsFile /dev/null
+`))
 
 const (
 	ImageLabelKey = "io.reconquest.snake"
@@ -58,6 +66,92 @@ func NewCloud() (*Cloud, error) {
 	return cloud, err
 }
 
+func (cloud *Cloud) PrepareContainer(container string, key string, callback func(string) error) error {
+	readEncode := func(path string) (string, error) {
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+
+		return base64.StdEncoding.EncodeToString(data), nil
+	}
+
+	privateKeyEncoded, err := readEncode(key)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to encode private key",
+		)
+	}
+
+	publicKeyEncoded, err := readEncode(key + ".pub")
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to encode public key",
+		)
+	}
+
+	systemCommands := [][]string{
+		{
+			// note about /sbin/ for apk
+			"apk", "--update", "add", "--no-cache",
+			"ca-certificates", "bash", "git", "openssh",
+		},
+
+		// there must be a ssh-agent and volume binding to SSH_SOCK to the
+		// container
+		{"adduser", "--shell", "/bin/bash", "--disabled-password", "ci"},
+	}
+
+	for _, cmd := range systemCommands {
+		log.Debugf(karma.Describe("container", container), "exec raw: %v", cmd)
+
+		err := cloud.exec(container, types.ExecConfig{
+			Cmd:          cmd,
+			AttachStdout: true,
+			AttachStderr: true,
+		}, callback)
+		if err != nil {
+			return karma.Describe("cmd", cmd).
+				Format(err, "command failed")
+		}
+	}
+
+	userCommands := [][]string{
+		{
+			"mkdir", "/home/ci/.ssh",
+		},
+		{
+			"sh", "-c",
+			"echo '" + privateKeyEncoded + "' | base64 -d > ~/.ssh/id_rsa",
+		},
+		{
+			"sh", "-c",
+			"echo '" + publicKeyEncoded + "' | base64 -d > ~/.ssh/id_rsa.pub",
+		},
+		{
+			"chmod", "0600", ".ssh/id_rsa", ".ssh/id_rsa.pub",
+		},
+		{
+			"sh", "-c",
+			"echo '" + SSHConfigWithoutVerification + "' | base64 -d > ~/.ssh/config",
+		},
+	}
+
+	for _, cmd := range userCommands {
+		log.Debugf(karma.Describe("container", container), "exec user: %v", cmd)
+
+		err := cloud.Exec(container, "/home/ci/", cmd, callback)
+		if err != nil {
+			return karma.Describe("cmd", cmd).
+				Format(err, "command failed")
+		}
+	}
+
+	return nil
+}
+
 func (cloud *Cloud) CreateContainer(
 	ctx context.Context,
 	image string,
@@ -77,7 +171,9 @@ func (cloud *Cloud) CreateContainer(
 		Entrypoint: []string{"/bin/sh"},
 	}
 
-	hostConfig := &container.HostConfig{}
+	hostConfig := &container.HostConfig{
+		NetworkMode: "host",
+	}
 
 	created, err := cloud.client.ContainerCreate(
 		ctx, config,
@@ -126,62 +222,24 @@ func (cloud *Cloud) DestroyContainer(container string) error {
 	return nil
 }
 
-func (cloud *Cloud) Prepare(container string, callback func(string) error) error {
-	commands := [][]string{
-		{
-			"/bin/mkdir", "/ci/",
-		},
-		{
-			// note about /sbin/ for apk
-			"/sbin/apk", "--update", "add", "--no-cache",
-			"ca-certificates", "bash", "git", "openssh",
-		},
-	}
-
-	for _, cmd := range commands {
-		log.Debugf(karma.Describe("container", container), "executing: %v", cmd)
-		exitcode, err := cloud.exec(container, types.ExecConfig{
-			Cmd:          cmd,
-			AttachStdout: true,
-			AttachStderr: true,
-		}, callback)
-		if err != nil {
-			return karma.Describe("cmd", cmd).
-				Format(err, "command failed")
-		}
-
-		if exitcode > 0 {
-			return karma.Describe("cmd", cmd).
-				Format(err, "exitcode: %v", exitcode)
-		}
-	}
-
-	return nil
-}
-
 func (cloud *Cloud) Exec(
 	container string,
+	cwd string,
 	command []string,
 	callback func(string) error,
 ) error {
-	code, err := cloud.exec(container, types.ExecConfig{
+	err := cloud.exec(container, types.ExecConfig{
 		Cmd:          command,
 		Privileged:   false,
 		AttachStdout: true,
 		AttachStderr: true,
-		WorkingDir:   "/ci/",
-		Env:          []string{},
+		// should not be hardcode on this level
+		WorkingDir: cwd,
+		User:       "ci",
+		Env:        []string{},
 	}, callback)
 	if err != nil {
 		return err
-	}
-	if code > 0 {
-		return karma.
-			Describe("exitcode", code).
-			Format(
-				nil,
-				"exitcode is greater than zero",
-			)
 	}
 
 	return nil
@@ -191,12 +249,12 @@ func (cloud *Cloud) exec(
 	container string,
 	config types.ExecConfig,
 	callback func(string) error,
-) (int, error) {
+) error {
 	exec, err := cloud.client.ContainerExecCreate(
 		context.Background(), container, config,
 	)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	response, err := cloud.client.ContainerExecAttach(
@@ -204,25 +262,33 @@ func (cloud *Cloud) exec(
 		types.ExecStartCheck{},
 	)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	writer := logwriter{callback: callback}
 
 	_, err = stdcopy.StdCopy(writer, writer, response.Reader)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	info, err := cloud.client.ContainerExecInspect(context.Background(), exec.ID)
 	if err != nil {
-		return 0, karma.Format(
+		return karma.Format(
 			err,
 			"unable to inspect container",
 		)
 	}
+	if info.ExitCode > 0 {
+		return karma.
+			Describe("exitcode", info.ExitCode).
+			Format(
+				nil,
+				"exitcode is greater than zero",
+			)
+	}
 
-	return info.ExitCode, nil
+	return nil
 }
 
 func (cloud *Cloud) Cleanup() error {
@@ -266,45 +332,3 @@ func (cloud *Cloud) Cleanup() error {
 
 	return nil
 }
-
-// waiter, err := cloud.client.ContainerAttach(ctx, id, types.ContainerAttachOptions{
-//    Stderr: true,
-//    Stdout: true,
-//    Stdin:  true,
-//    Stream: true,
-//})
-
-// outputErrCh := make(chan error)
-// go func() {
-//    scanner := bufio.NewScanner(waiter.Reader)
-//    for scanner.Scan() {
-//        pipe.Output <- scanner.Text()
-//    }
-//    outputErrCh <- scanner.Err()
-//}()
-
-// go func(writer io.WriteCloser) {
-//    for {
-//        data, ok := <-pipe.Input
-//        if !ok {
-//            writer.Close()
-//            return
-//        }
-
-//        writer.Write([]byte(data))
-//    }
-//}(waiter.Conn)
-
-// statusCh, waitErrCh := cloud.client.ContainerWait(ctx, id, container.WaitConditionNotRunning)
-// select {
-// case err := <-outputErrCh:
-//    if err != nil {
-//        return err
-//    }
-// case err := <-waitErrCh:
-//    if err != nil {
-//        return err
-//    }
-// case a := <-statusCh:
-//    fmt.Fprintf(os.Stderr, "XXXXXX cloud.go:153 a: %#v\n", a)
-//}

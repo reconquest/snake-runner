@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
@@ -18,6 +23,7 @@ const (
 	StatusUnknown  = "UNKNOWN"
 )
 
+//go:generate gonstructor -type Process
 type Process struct {
 	// there should be no whole Runner struct
 	// should be some sort of Client that does what Runner.request() does
@@ -26,6 +32,9 @@ type Process struct {
 	log    *cog.Logger
 	task   *Task
 	cloud  *Cloud
+
+	container string
+	ctx       context.Context
 }
 
 func (process *Process) run() error {
@@ -58,13 +67,104 @@ func (process *Process) run() error {
 			)
 		}
 
-		process.doJob(job)
+		err = process.doJob(job)
+		if err != nil {
+			process.fail(-1)
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (process *Process) doJob(job PipelineJob) {
+func (process *Process) doJob(job PipelineJob) error {
+	err := process.makeContainer(job)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (process *Process) makeContainer(job PipelineJob) error {
+	uniq := time.Now().UnixNano()
+
+	var err error
+	process.container, err = process.cloud.CreateContainer(
+		process.ctx,
+		"alpine",
+		fmt.Sprintf(
+			"pipeline-%d-job-%d-uniq-%v",
+			process.task.Pipeline.ID,
+			job.ID,
+			uniq,
+		),
+	)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to create a container",
+		)
+	}
+
+	callback := func(text string) error {
+		return process.pushLogs(job, text)
+	}
+
+	err = process.cloud.PrepareContainer(process.container, process.runner.config.SSHKey, callback)
+	if err != nil {
+		return err
+	}
+
+	cwd := "/home/ci/"
+	exec := func(cmd ...string) error {
+		return process.cloud.Exec(process.container, cwd, cmd, callback)
+	}
+
+	err = exec("git", "clone", process.task.CloneURL.SSH, "/home/ci/job")
+	if err != nil {
+		return err
+	}
+
+	cwd = "/home/ci/job"
+
+	err = exec("git", "checkout", process.task.Pipeline.Commit)
+	if err != nil {
+		return err
+	}
+
+	yamlContents, err := process.readFile(cwd, process.task.Pipeline.Filename)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stderr, "XXXXXX process.go:132 yamlContents: %#v\n", yamlContents)
+
+	return nil
+}
+
+func (process *Process) readFile(cwd, path string) (string, error) {
+	data := ""
+	callback := func(line string) error {
+		if data == "" {
+			data = line
+		} else {
+			data = data + "\n" + line
+		}
+
+		return nil
+	}
+
+	err := process.cloud.Exec(process.container, cwd, []string{"cat", path}, callback)
+	if err != nil {
+		return "", err
+	}
+
+	return data, nil
+}
+
+func (process *Process) pushLogs(job PipelineJob, text string) error {
+	process.log.Debugf(nil, "%s", strings.TrimRight(text, "\n"))
+	return nil
 }
 
 func (process *Process) fail(jobID int) {
@@ -119,7 +219,7 @@ func (process *Process) updateJob(jobID int, status string) error {
 		Path(
 			"/gate" +
 				"/pipelines/" + strconv.Itoa(process.task.Pipeline.ID) +
-				"/jobs/" + strconv.Itoa(process.task.Pipeline.ID),
+				"/jobs/" + strconv.Itoa(jobID),
 		).
 		Payload(&RunnerTaskUpdateRequest{
 			Status: status,
