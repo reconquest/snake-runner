@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -84,15 +83,13 @@ func (scheduler *Scheduler) startProcess() error {
 		return nil
 	}
 
-	token := fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)
-
-	process := &Process{
-		runner: scheduler.runner,
-		log:    log.NewChildWithPrefix(token),
-		task:   task,
-		cloud:  scheduler.cloud,
-		ctx:    context.Background(),
-	}
+	process := NewProcessPipeline(
+		scheduler.runner,
+		scheduler.runner.config.SSHKey,
+		task,
+		scheduler.cloud,
+		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
+	)
 
 	err = process.run()
 	if err != nil {

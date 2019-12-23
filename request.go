@@ -12,6 +12,10 @@ import (
 	"github.com/reconquest/pkg/log"
 )
 
+type Requester interface {
+	request() *Request
+}
+
 type Request struct {
 	httpClient *http.Client
 

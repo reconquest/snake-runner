@@ -44,7 +44,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	config, err := LoadConfig(options.ConfigPathValue)
+	config, err := LoadRunnerConfig(options.ConfigPathValue)
 	if err != nil {
 		log.Fatal(err)
 	}

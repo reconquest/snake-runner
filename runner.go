@@ -19,12 +19,12 @@ var FailedRegisterRepeatTimeout = time.Second * 10
 
 type Runner struct {
 	client *http.Client
-	config *Config
+	config *RunnerConfig
 
 	name string
 }
 
-func NewRunner(config *Config) *Runner {
+func NewRunner(config *RunnerConfig) *Runner {
 	name := config.Name
 	if name == "" {
 		hostname, err := os.Hostname()
