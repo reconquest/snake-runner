@@ -104,7 +104,7 @@ func (process *ProcessJob) run() error {
 	err = process.cloud.PrepareContainer(
 		process.container,
 		process.sshKey,
-		process.sendLogs,
+		nil,
 	)
 	if err != nil {
 		return err
