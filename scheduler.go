@@ -25,9 +25,9 @@ func (runner *Runner) startScheduler() {
 		log.Fatal(err)
 	}
 
-	go scheduler.loop()
-
 	log.Infof(nil, "scheduler started")
+
+	scheduler.loop()
 }
 
 //go:generate gonstructor -type Scheduler
