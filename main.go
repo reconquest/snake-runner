@@ -56,8 +56,6 @@ func main() {
 	runner := NewRunner(config)
 	runner.Start()
 
-	handler := NewWebHandler(runner)
-
 	server := http.Server{
 		Addr:    config.ListenAddress,
 		Handler: handler,
