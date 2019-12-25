@@ -100,26 +100,26 @@ func (process *ProcessPipeline) runJob(job PipelineJob) error {
 	return subprocess.run()
 }
 
-func (process *ProcessPipeline) fail(jobID int) {
-	found := false
+func (process *ProcessPipeline) fail(failedID int) {
+	foundFailed := false
 	for _, job := range process.task.Jobs {
 		var status string
 
-		// find a job that was a cause for failing and mark it as failed,
-		// mark other jobs as skipped
-		if !found {
-			if job.ID == jobID {
-				found = true
+		switch {
+		case job.ID == failedID:
+			foundFailed = true
+			status = StatusFailed
 
-				status = StatusFailed
-			} else {
-				continue
-			}
-		} else {
+		case !foundFailed:
+			continue
+
+		case foundFailed:
 			status = StatusSkipped
 		}
 
-		err := process.updateJob(jobID, status)
+		process.log.Infof(nil, "updating job status: %d -> %s", job.ID, status)
+
+		err := process.updateJob(job.ID, status)
 		if err != nil {
 			process.log.Errorf(err, "unable to update job status to %q", status)
 		}
