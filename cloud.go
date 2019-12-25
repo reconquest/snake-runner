@@ -66,7 +66,7 @@ func NewCloud() (*Cloud, error) {
 	return cloud, err
 }
 
-func (cloud *Cloud) PrepareContainer(container string, key string, callback func(string) error) error {
+func (cloud *Cloud) PrepareContainer(container string, key string) error {
 	readEncode := func(path string) (string, error) {
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
@@ -104,8 +104,17 @@ func (cloud *Cloud) PrepareContainer(container string, key string, callback func
 		{"adduser", "--shell", "/bin/bash", "--disabled-password", "ci"},
 	}
 
+	callback := func(text string) error {
+		log.Debugf(
+			nil,
+			"%s: %s",
+			container, strings.TrimRight(text, "\n"),
+		)
+		return nil
+	}
+
 	for _, cmd := range systemCommands {
-		log.Debugf(karma.Describe("container", container), "exec raw: %v", cmd)
+		log.Debugf(nil, "%s: %v", container, cmd)
 
 		err := cloud.exec(container, types.ExecConfig{
 			Cmd:          cmd,
