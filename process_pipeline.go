@@ -57,7 +57,7 @@ func (process *ProcessPipeline) run() error {
 
 		err := process.updateJob(job.ID, StatusRunning)
 		if err != nil {
-			process.fail(-1)
+			process.fail(job.ID)
 
 			return karma.Format(
 				err,
@@ -67,13 +67,13 @@ func (process *ProcessPipeline) run() error {
 
 		err = process.runJob(job)
 		if err != nil {
-			process.fail(-1)
+			process.fail(job.ID)
 			return err
 		}
 
 		err = process.updateJob(job.ID, StatusSuccess)
 		if err != nil {
-			process.fail(-1)
+			process.fail(job.ID)
 
 			return karma.Format(
 				err,
