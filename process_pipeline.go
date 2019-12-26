@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/snake-runner/pkg/ptr"
 )
 
 const (
@@ -41,7 +43,11 @@ func (process *ProcessPipeline) run() error {
 		process.log.Infof(nil, "process finished")
 	}()
 
-	err := process.updatePipeline(StatusRunning)
+	err := process.updatePipeline(
+		StatusRunning,
+		ptr.TimePtr(time.Now().UTC()),
+		nil,
+	)
 	if err != nil {
 		process.fail(-1)
 
@@ -55,7 +61,7 @@ func (process *ProcessPipeline) run() error {
 	for index, job := range process.task.Jobs {
 		process.log.Infof(nil, "%d/%d starting job: id=%d", index+1, total, job.ID)
 
-		err := process.updateJob(job.ID, StatusRunning)
+		err := process.updateJob(job.ID, StatusRunning, ptr.TimePtr(time.Now()), nil)
 		if err != nil {
 			process.fail(job.ID)
 
@@ -71,7 +77,7 @@ func (process *ProcessPipeline) run() error {
 			return err
 		}
 
-		err = process.updateJob(job.ID, StatusSuccess)
+		err = process.updateJob(job.ID, StatusSuccess, nil, ptr.TimePtr(time.Now()))
 		if err != nil {
 			process.fail(job.ID)
 
@@ -80,6 +86,16 @@ func (process *ProcessPipeline) run() error {
 				"unable to update job status to success, although job finished successfully",
 			)
 		}
+	}
+
+	err = process.updatePipeline(StatusSuccess, nil, ptr.TimePtr(time.Now()))
+	if err != nil {
+		process.fail(-1)
+
+		return karma.Format(
+			err,
+			"unable to update pipeline status",
+		)
 	}
 
 	return nil
@@ -106,6 +122,9 @@ func (process *ProcessPipeline) fail(failedID int) {
 		var status string
 
 		switch {
+		case failedID == -1:
+			status = StatusFailed
+
 		case job.ID == failedID:
 			foundFailed = true
 			status = StatusFailed
@@ -119,24 +138,30 @@ func (process *ProcessPipeline) fail(failedID int) {
 
 		process.log.Infof(nil, "updating job status: %d -> %s", job.ID, status)
 
-		err := process.updateJob(job.ID, status)
+		err := process.updateJob(job.ID, status, nil, nil)
 		if err != nil {
 			process.log.Errorf(err, "unable to update job status to %q", status)
 		}
 	}
 
-	err := process.updatePipeline(StatusFailed)
+	err := process.updatePipeline(StatusFailed, nil, nil)
 	if err != nil {
 		process.log.Errorf(err, "unable to update pipeline status to %q", StatusFailed)
 	}
 }
 
-func (process *ProcessPipeline) updatePipeline(status string) error {
+func (process *ProcessPipeline) updatePipeline(
+	status string,
+	startedAt *time.Time,
+	finishedAt *time.Time,
+) error {
 	err := process.requester.request().
 		PUT().
 		Path("/gate/pipelines/" + strconv.Itoa(process.task.Pipeline.ID)).
 		Payload(&RunnerTaskUpdateRequest{
-			Status: status,
+			Status:     status,
+			StartedAt:  startedAt,
+			FinishedAt: finishedAt,
 		}).
 		Do()
 	if err != nil {
@@ -146,7 +171,12 @@ func (process *ProcessPipeline) updatePipeline(status string) error {
 	return nil
 }
 
-func (process *ProcessPipeline) updateJob(jobID int, status string) error {
+func (process *ProcessPipeline) updateJob(
+	jobID int,
+	status string,
+	startedAt *time.Time,
+	finishedAt *time.Time,
+) error {
 	err := process.requester.request().
 		PUT().
 		Path(
@@ -155,7 +185,9 @@ func (process *ProcessPipeline) updateJob(jobID int, status string) error {
 				"/jobs/" + strconv.Itoa(jobID),
 		).
 		Payload(&RunnerTaskUpdateRequest{
-			Status: status,
+			Status:     status,
+			StartedAt:  startedAt,
+			FinishedAt: finishedAt,
 		}).
 		Do()
 	if err != nil {
