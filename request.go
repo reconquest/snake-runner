@@ -143,7 +143,7 @@ func (request *Request) Do() error {
 		httpRequest.Header.Set(key, value)
 	}
 
-	log.Debugf(debugContext, "sending http request")
+	log.Tracef(debugContext, "sending http request")
 
 	httpResponse, err := request.httpClient.Do(httpRequest)
 	if err != nil {
@@ -163,7 +163,7 @@ func (request *Request) Do() error {
 
 	defer httpResponse.Body.Close()
 
-	log.Debugf(context.Describe("status_code", httpResponse.StatusCode), "%s", string(data))
+	log.Tracef(context.Describe("status_code", httpResponse.StatusCode), "%s", string(data))
 
 	expectedStatus := false
 	for _, expected := range request.expectedStatuses {

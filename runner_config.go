@@ -20,7 +20,8 @@ type RunnerConfig struct {
 	MasterAddress string `yaml:"master_address" env:"SNAKE_MASTER_ADDRESS" required:"true"`
 
 	Log struct {
-		Debug bool `yaml:"trace" env:"SNAKE_LOG_DEBUG"`
+		Debug bool `yaml:"debug" env:"SNAKE_LOG_DEBUG"`
+		Trace bool `yaml:"trace" env:"SNAKE_LOG_TRACE"`
 	}
 
 	Name string `yaml:"name" env:"SNAKE_NAME"`
@@ -28,7 +29,7 @@ type RunnerConfig struct {
 	Token     string `yaml:"token" env:"SNAKE_TOKEN"`
 	TokenPath string `yaml:"token_path" env:"SNAKE_TOKEN_PATH" default:"/etc/snake-runner/token"`
 
-	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"5s"`
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"30s"`
 	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
 
 	Virtualization string `yaml:"virtualization" default:"docker" required:"true"`

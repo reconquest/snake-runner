@@ -1,8 +1,12 @@
 package main
 
 import (
+	"os"
+	"syscall"
+
 	"github.com/docopt/docopt-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/sign-go"
 )
 
 var (
@@ -44,9 +48,18 @@ func main() {
 	}
 
 	if config.Log.Debug {
-		log.SetDebug(true)
+		log.SetLevel(log.LevelDebug)
+	}
+
+	if config.Log.Trace {
+		log.SetLevel(log.LevelTrace)
 	}
 
 	runner := NewRunner(config)
 	runner.Start()
+
+	sign.Notify(func(signal os.Signal) bool {
+		log.Warningf(nil, "got signal: %s", signal)
+		return false
+	}, syscall.SIGINT, syscall.SIGTERM)
 }

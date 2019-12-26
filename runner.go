@@ -18,8 +18,9 @@ const (
 var FailedRegisterRepeatTimeout = time.Second * 10
 
 type Runner struct {
-	client *http.Client
-	config *RunnerConfig
+	client    *http.Client
+	config    *RunnerConfig
+	scheduler *Scheduler
 
 	name string
 }
@@ -70,8 +71,12 @@ func (runner *Runner) Start() {
 		runner.config.Token = token
 	}
 
+	err := runner.startScheduler()
+	if err != nil {
+		log.Fatalf(err, "unable to start scheduler")
+	}
+
 	runner.startHeartbeats()
-	runner.startScheduler()
 }
 
 func (runner *Runner) request() *Request {

@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
 
-func (runner *Runner) startScheduler() {
+func (runner *Runner) startScheduler() error {
 	cloud, err := NewCloud()
 	if err != nil {
-		log.Fatalf(err, "unable to initialize container provider")
+		return karma.Format(err, "unable to initialize container provider")
 	}
 
 	scheduler := &Scheduler{
@@ -22,19 +23,24 @@ func (runner *Runner) startScheduler() {
 
 	err = cloud.Cleanup()
 	if err != nil {
-		log.Fatal(err)
+		return karma.Format(err, "unable to cleanup old containers")
 	}
 
-	log.Infof(nil, "scheduler started")
+	log.Infof(nil, "task scheduler started")
 
-	scheduler.loop()
+	runner.scheduler = scheduler
+
+	go scheduler.loop()
+
+	return nil
 }
 
 //go:generate gonstructor -type Scheduler
 type Scheduler struct {
-	spots  chan struct{}
-	runner *Runner
-	cloud  *Cloud
+	spots     chan struct{}
+	runner    *Runner
+	cloud     *Cloud
+	pipelines sync.Map
 }
 
 func (scheduler *Scheduler) lockSpot() {
@@ -83,6 +89,8 @@ func (scheduler *Scheduler) startProcess() error {
 		return nil
 	}
 
+	log.Debugf(nil, "starting pipeline: %d", task.Pipeline.ID)
+
 	process := NewProcessPipeline(
 		scheduler.runner,
 		scheduler.runner.config.SSHKey,
@@ -91,10 +99,24 @@ func (scheduler *Scheduler) startProcess() error {
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
 	)
 
+	scheduler.pipelines.Store(task.Pipeline.ID, struct{}{})
+	defer scheduler.pipelines.Delete(task.Pipeline.ID)
+
 	err = process.run()
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (scheduler *Scheduler) getPipelines() []int {
+	result := []int{}
+
+	scheduler.pipelines.Range(func(key interface{}, _ interface{}) bool {
+		result = append(result, key.(int))
+		return true
+	})
+
+	return result
 }
