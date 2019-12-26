@@ -8,6 +8,7 @@ import (
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/snake-runner/pkg/ptr"
+	"github.com/reconquest/snake-runner/pkg/utils"
 )
 
 const (
@@ -45,7 +46,7 @@ func (process *ProcessPipeline) run() error {
 
 	err := process.updatePipeline(
 		StatusRunning,
-		ptr.TimePtr(time.Now().UTC()),
+		ptr.TimePtr(utils.Now().UTC()),
 		nil,
 	)
 	if err != nil {
@@ -61,7 +62,7 @@ func (process *ProcessPipeline) run() error {
 	for index, job := range process.task.Jobs {
 		process.log.Infof(nil, "%d/%d starting job: id=%d", index+1, total, job.ID)
 
-		err := process.updateJob(job.ID, StatusRunning, ptr.TimePtr(time.Now()), nil)
+		err := process.updateJob(job.ID, StatusRunning, ptr.TimePtr(utils.Now()), nil)
 		if err != nil {
 			process.fail(job.ID)
 
@@ -77,7 +78,7 @@ func (process *ProcessPipeline) run() error {
 			return err
 		}
 
-		err = process.updateJob(job.ID, StatusSuccess, nil, ptr.TimePtr(time.Now()))
+		err = process.updateJob(job.ID, StatusSuccess, nil, ptr.TimePtr(utils.Now()))
 		if err != nil {
 			process.fail(job.ID)
 
@@ -88,7 +89,7 @@ func (process *ProcessPipeline) run() error {
 		}
 	}
 
-	err = process.updatePipeline(StatusSuccess, nil, ptr.TimePtr(time.Now()))
+	err = process.updatePipeline(StatusSuccess, nil, ptr.TimePtr(utils.Now()))
 	if err != nil {
 		process.fail(-1)
 
