@@ -24,9 +24,7 @@ func (runner *Runner) heartbeat() error {
 
 	err := runner.request().
 		POST().Path("/gate/heartbeat").
-		Payload(runnerHeartbeatRequest{
-			Pipelines: runner.scheduler.getPipelines(),
-		}).
+		Payload(runnerHeartbeatRequest{}).
 		Do()
 	if err != nil {
 		return err

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -16,9 +17,9 @@ func (runner *Runner) startScheduler() error {
 	}
 
 	scheduler := &Scheduler{
-		spots:  make(chan struct{}, 5),
-		runner: runner,
-		cloud:  cloud,
+		maxPipelines: 2,
+		runner:       runner,
+		cloud:        cloud,
 	}
 
 	err = cloud.Cleanup()
@@ -37,58 +38,59 @@ func (runner *Runner) startScheduler() error {
 
 //go:generate gonstructor -type Scheduler
 type Scheduler struct {
-	spots     chan struct{}
-	runner    *Runner
-	cloud     *Cloud
-	pipelines sync.Map
-}
-
-func (scheduler *Scheduler) lockSpot() {
-	// the main idea here of these three components:
-	// chan & writer & reader is that we 'hold' a spot for task by writing an
-	// item into channel which will be blocked if the channel is full already
-	// and will wait for an unlock from another routine
-	scheduler.spots <- struct{}{}
-}
-
-func (scheduler *Scheduler) unlockSpot() {
-	<-scheduler.spots
+	runner       *Runner
+	cloud        *Cloud
+	pipelinesMap sync.Map
+	pipelines    int64
+	maxPipelines int64
 }
 
 func (scheduler *Scheduler) loop() {
 	for {
-		scheduler.lockSpot()
+		pipelines := atomic.LoadInt64(&scheduler.pipelines)
 
-		go func() {
-			defer scheduler.unlockSpot()
+		task, err := scheduler.runner.getTask(pipelines < scheduler.maxPipelines)
+		if err != nil {
+			log.Errorf(err, "unable to get a task")
+			time.Sleep(scheduler.runner.config.SchedulerInterval)
+			continue
+		}
 
-			err := scheduler.startProcess()
+		if task != nil {
+			err = scheduler.serveTask(task)
 			if err != nil {
-				log.Errorf(err, "an error occurred during task running")
+				log.Errorf(err, "unable to properly serve a task")
+				time.Sleep(scheduler.runner.config.SchedulerInterval)
+				continue
 			}
-		}()
+		}
 
 		time.Sleep(scheduler.runner.config.SchedulerInterval)
 	}
 }
 
-func (scheduler *Scheduler) startProcess() error {
-	log.Debugf(nil, "retrieving a task")
+func (scheduler *Scheduler) serveTask(task interface{}) error {
+	switch task := task.(type) {
+	case TaskPipeline:
+		atomic.AddInt64(&scheduler.pipelines, 1)
 
-	task, err := scheduler.runner.getTask()
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to retrieve task",
-		)
+		go func() {
+			defer atomic.AddInt64(&scheduler.pipelines, -1)
+
+			err := scheduler.startPipeline(task)
+			if err != nil {
+				log.Errorf(err, "an error occurred during task running")
+			}
+		}()
+
+	default:
+		log.Errorf(nil, "unexpected type of task %#v: %T", task, task)
 	}
 
-	// no task @ no problem
-	if task.Pipeline.ID == 0 {
-		log.Debugf(nil, "no tasks received")
-		return nil
-	}
+	return nil
+}
 
+func (scheduler *Scheduler) startPipeline(task TaskPipeline) error {
 	log.Debugf(nil, "starting pipeline: %d", task.Pipeline.ID)
 
 	process := NewProcessPipeline(
@@ -99,10 +101,10 @@ func (scheduler *Scheduler) startProcess() error {
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
 	)
 
-	scheduler.pipelines.Store(task.Pipeline.ID, struct{}{})
-	defer scheduler.pipelines.Delete(task.Pipeline.ID)
+	scheduler.pipelinesMap.Store(task.Pipeline.ID, struct{}{})
+	defer scheduler.pipelinesMap.Delete(task.Pipeline.ID)
 
-	err = process.run()
+	err := process.run()
 	if err != nil {
 		return err
 	}
@@ -113,7 +115,7 @@ func (scheduler *Scheduler) startProcess() error {
 func (scheduler *Scheduler) getPipelines() []int {
 	result := []int{}
 
-	scheduler.pipelines.Range(func(key interface{}, _ interface{}) bool {
+	scheduler.pipelinesMap.Range(func(key interface{}, _ interface{}) bool {
 		result = append(result, key.(int))
 		return true
 	})

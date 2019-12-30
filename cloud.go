@@ -33,6 +33,11 @@ type ContainerState struct {
 	types.ContainerState
 }
 
+type Container struct {
+	name string
+	id   string
+}
+
 func (state *ContainerState) GetError() error {
 	data := []string{}
 	if state.ExitCode != 0 {
@@ -66,7 +71,7 @@ func NewCloud() (*Cloud, error) {
 	return cloud, err
 }
 
-func (cloud *Cloud) PrepareContainer(container string, key string) error {
+func (cloud *Cloud) PrepareContainer(container *Container, key string) error {
 	readEncode := func(path string) (string, error) {
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
@@ -108,13 +113,13 @@ func (cloud *Cloud) PrepareContainer(container string, key string) error {
 		log.Debugf(
 			nil,
 			"%s: %s",
-			container, strings.TrimRight(text, "\n"),
+			container.name, strings.TrimRight(text, "\n"),
 		)
 		return nil
 	}
 
 	for _, cmd := range systemCommands {
-		log.Debugf(nil, "%s: %v", container, cmd)
+		log.Debugf(nil, "%s: %v", container.name, cmd)
 
 		err := cloud.exec(container, types.ExecConfig{
 			Cmd:          cmd,
@@ -149,7 +154,7 @@ func (cloud *Cloud) PrepareContainer(container string, key string) error {
 	}
 
 	for _, cmd := range userCommands {
-		log.Debugf(karma.Describe("container", container), "exec user: %v", cmd)
+		log.Debugf(nil, "%s (user): %v", container.name, cmd)
 
 		err := cloud.Exec(container, "/home/ci/", cmd, callback)
 		if err != nil {
@@ -165,7 +170,7 @@ func (cloud *Cloud) CreateContainer(
 	ctx context.Context,
 	image string,
 	containerName string,
-) (string, error) {
+) (*Container, error) {
 	config := &container.Config{
 		Image: image,
 		Labels: map[string]string{
@@ -189,20 +194,20 @@ func (cloud *Cloud) CreateContainer(
 		hostConfig, nil, containerName,
 	)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	id := created.ID
 
 	err = cloud.client.ContainerStart(ctx, id, types.ContainerStartOptions{})
 	if err != nil {
-		return "", karma.Format(
+		return nil, karma.Format(
 			err,
 			"unable to start created container",
 		)
 	}
 
-	return id, nil
+	return &Container{id: id, name: containerName}, nil
 }
 
 func (cloud *Cloud) InspectContainer(container string) (*ContainerState, error) {
@@ -232,7 +237,7 @@ func (cloud *Cloud) DestroyContainer(container string) error {
 }
 
 func (cloud *Cloud) Exec(
-	container string,
+	container *Container,
 	cwd string,
 	command []string,
 	callback func(string) error,
@@ -255,12 +260,12 @@ func (cloud *Cloud) Exec(
 }
 
 func (cloud *Cloud) exec(
-	container string,
+	container *Container,
 	config types.ExecConfig,
 	callback func(string) error,
 ) error {
 	exec, err := cloud.client.ContainerExecCreate(
-		context.Background(), container, config,
+		context.Background(), container.id, config,
 	)
 	if err != nil {
 		return err
@@ -327,10 +332,12 @@ func (cloud *Cloud) Cleanup() error {
 
 			err := cloud.DestroyContainer(container.ID)
 			if err != nil {
-				return karma.Describe("id", container.ID).Format(
-					err,
-					"unable to destroy container",
-				)
+				return karma.Describe("id", container.ID).
+					Describe("name", container.Names).
+					Format(
+						err,
+						"unable to destroy container",
+					)
 			}
 
 			destroyed++

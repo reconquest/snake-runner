@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/snake-runner/pkg/utils"
 )
 
 type ProcessJob struct {
@@ -15,17 +16,20 @@ type ProcessJob struct {
 
 	requester Requester
 	ctx       context.Context
-	container string
+	container *Container
 	cwd       string
 	sshKey    string
 	config    *Config
-	task      *Task
+	task      TaskPipeline
 
 	job PipelineJob
+	log *cog.Logger
 }
 
 func (process *ProcessJob) sendLogs(text string) error {
 	// here should be a channel with a sort of buffer
+
+	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
 
 	err := process.requester.request().
 		POST().
@@ -91,7 +95,7 @@ func (process *ProcessJob) run() error {
 			"pipeline-%d-job-%d-uniq-%v",
 			process.task.Pipeline.ID,
 			process.job.ID,
-			time.Now().UnixNano(),
+			utils.UniqHash(),
 		),
 	)
 	if err != nil {

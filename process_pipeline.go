@@ -33,7 +33,7 @@ type ProcessPipeline struct {
 	// Runner is here because it works
 	requester Requester
 	sshKey    string
-	task      *Task
+	task      TaskPipeline
 	cloud     *Cloud
 	log       *cog.Logger
 }
@@ -112,6 +112,7 @@ func (process *ProcessPipeline) runJob(job PipelineJob) error {
 		task:      process.task,
 		sshKey:    process.sshKey,
 		job:       job,
+		log:       process.log,
 	}
 
 	return subprocess.run()
