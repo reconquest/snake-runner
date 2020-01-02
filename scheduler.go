@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -22,7 +23,7 @@ func (runner *Runner) startScheduler() error {
 		cloud:        cloud,
 	}
 
-	err = cloud.Cleanup()
+	err = cloud.Cleanup(context.Background())
 	if err != nil {
 		return karma.Format(err, "unable to cleanup old containers")
 	}
@@ -43,11 +44,14 @@ type Scheduler struct {
 	pipelinesMap sync.Map
 	pipelines    int64
 	maxPipelines int64
+	cancels      sync.Map
 }
 
 func (scheduler *Scheduler) loop() {
 	for {
 		pipelines := atomic.LoadInt64(&scheduler.pipelines)
+
+		log.Debugf(nil, "retrieving task")
 
 		task, err := scheduler.runner.getTask(pipelines < scheduler.maxPipelines)
 		if err != nil {
@@ -72,7 +76,7 @@ func (scheduler *Scheduler) loop() {
 
 func (scheduler *Scheduler) serveTask(task interface{}) error {
 	switch task := task.(type) {
-	case TaskPipeline:
+	case TaskPipelineRun:
 		atomic.AddInt64(&scheduler.pipelines, 1)
 
 		go func() {
@@ -84,6 +88,24 @@ func (scheduler *Scheduler) serveTask(task interface{}) error {
 			}
 		}()
 
+	case TaskPipelineCancel:
+		for _, id := range task.Pipelines {
+			cancel, ok := scheduler.cancels.Load(id)
+			if !ok {
+				log.Warningf(
+					nil,
+					"unable to cancel pipeline %d, its context already gone",
+					id,
+				)
+			} else {
+				log.Infof(nil, "canceling pipeline: %d", id)
+				cancel.(context.CancelFunc)()
+
+				scheduler.cancels.Delete(id)
+				scheduler.pipelinesMap.Delete(id)
+			}
+		}
+
 	default:
 		log.Errorf(nil, "unexpected type of task %#v: %T", task, task)
 	}
@@ -91,8 +113,10 @@ func (scheduler *Scheduler) serveTask(task interface{}) error {
 	return nil
 }
 
-func (scheduler *Scheduler) startPipeline(task TaskPipeline) error {
+func (scheduler *Scheduler) startPipeline(task TaskPipelineRun) error {
 	log.Debugf(nil, "starting pipeline: %d", task.Pipeline.ID)
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	process := NewProcessPipeline(
 		scheduler.runner,
@@ -100,14 +124,23 @@ func (scheduler *Scheduler) startPipeline(task TaskPipeline) error {
 		task,
 		scheduler.cloud,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
+		ctx,
 	)
 
 	scheduler.pipelinesMap.Store(task.Pipeline.ID, struct{}{})
 	defer scheduler.pipelinesMap.Delete(task.Pipeline.ID)
 
+	scheduler.cancels.Store(task.Pipeline.ID, cancel)
+	defer scheduler.cancels.Delete(task.Pipeline.ID)
+
 	err := process.run()
 	if err != nil {
-		return err
+		if karma.Contains(err, context.Canceled) {
+			log.Infof(nil, "pipeline %d finished due to cancel", task.Pipeline.ID)
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	return nil

@@ -20,7 +20,7 @@ type ProcessJob struct {
 	cwd       string
 	sshKey    string
 	config    *Config
-	task      TaskPipeline
+	task      TaskPipelineRun
 
 	job PipelineJob
 	log *cog.Logger
@@ -51,6 +51,7 @@ func (process *ProcessJob) sendLogs(text string) error {
 
 func (process *ProcessJob) exec(cmd ...string) error {
 	err := process.cloud.Exec(
+		process.ctx,
 		process.container,
 		process.cwd,
 		cmd,
@@ -106,6 +107,7 @@ func (process *ProcessJob) run() error {
 	}
 
 	err = process.cloud.PrepareContainer(
+		process.ctx,
 		process.container,
 		process.sshKey,
 	)
@@ -185,6 +187,7 @@ func (process *ProcessJob) readFile(cwd, path string) (string, error) {
 	}
 
 	err := process.cloud.Exec(
+		process.ctx,
 		process.container,
 		cwd,
 		[]string{"cat", path},

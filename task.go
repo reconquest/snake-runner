@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
+
+	"github.com/reconquest/pkg/log"
 )
 
 type Task struct {
@@ -11,7 +12,7 @@ type Task struct {
 	Data json.RawMessage `json:"data"`
 }
 
-type TaskPipeline struct {
+type TaskPipelineRun struct {
 	Pipeline Pipeline      `json:"pipeline"`
 	Jobs     []PipelineJob `json:"jobs"`
 	CloneURL struct {
@@ -19,17 +20,25 @@ type TaskPipeline struct {
 	} `json:"clone_url"`
 }
 
-func (runner *Runner) getTask(job bool) (interface{}, error) {
+type TaskPipelineCancel struct {
+	Pipelines []int `json:"pipelines"`
+}
+
+func (runner *Runner) getTask(queryPipeline bool) (interface{}, error) {
 	var response Task
 
-	query := url.Values{}
-	if job {
-		query.Add("pipeline", "1")
+	payload := struct {
+		RunningPipelines []int `json:"running_pipelines"`
+		QueryPipeline    bool  `json:"query_pipeline"`
+	}{
+		RunningPipelines: runner.scheduler.getPipelines(),
+		QueryPipeline:    queryPipeline,
 	}
 
 	err := runner.request().
-		GET().
-		Path("/gate/task?" + query.Encode()).
+		POST().
+		Path("/gate/task").
+		Payload(payload).
 		Response(&response).
 		Do()
 	if err != nil {
@@ -40,15 +49,31 @@ func (runner *Runner) getTask(job bool) (interface{}, error) {
 		return nil, nil
 	}
 
+	log.Debugf(nil, "task kind: %s", response.Kind)
+
 	switch response.Kind {
 	case "pipeline_run":
-		var task TaskPipeline
+		var task TaskPipelineRun
 		err := json.Unmarshal(response.Data, &task)
 		if err != nil {
 			return nil, err
 		}
 
+		log.Debugf(nil, "task: %#v", task)
+
 		return task, nil
+
+	case "pipeline_cancel":
+		var task TaskPipelineCancel
+		err := json.Unmarshal(response.Data, &task)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debugf(nil, "task: %#v", task)
+
+		return task, nil
+
 	default:
 		return nil, fmt.Errorf("unexpected task kind: %q", response.Kind)
 	}

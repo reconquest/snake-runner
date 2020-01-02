@@ -33,9 +33,10 @@ type ProcessPipeline struct {
 	// Runner is here because it works
 	requester Requester
 	sshKey    string
-	task      TaskPipeline
+	task      TaskPipelineRun
 	cloud     *Cloud
 	log       *cog.Logger
+	ctx       context.Context
 }
 
 func (process *ProcessPipeline) run() error {
@@ -74,7 +75,10 @@ func (process *ProcessPipeline) run() error {
 
 		err = process.runJob(job)
 		if err != nil {
-			process.fail(job.ID)
+			if !karma.Contains(err, context.Canceled) {
+				process.fail(job.ID)
+			}
+
 			return err
 		}
 
@@ -107,7 +111,7 @@ func (process *ProcessPipeline) runJob(job PipelineJob) error {
 		cloud: process.cloud,
 
 		requester: process.requester,
-		ctx:       context.Background(),
+		ctx:       process.ctx,
 		cwd:       DefaultContainerCWD,
 		task:      process.task,
 		sshKey:    process.sshKey,

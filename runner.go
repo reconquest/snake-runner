@@ -36,6 +36,8 @@ func NewRunner(config *RunnerConfig) *Runner {
 		name = hostname
 	}
 
+	log.Infof(nil, "starting runner: %s", name)
+
 	return &Runner{
 		config: config,
 		client: http.DefaultClient,
