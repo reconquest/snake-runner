@@ -56,16 +56,17 @@ func (scheduler *Scheduler) loop() {
 			continue
 		}
 
-		if task != nil {
-			err = scheduler.serveTask(task)
-			if err != nil {
-				log.Errorf(err, "unable to properly serve a task")
-				time.Sleep(scheduler.runner.config.SchedulerInterval)
-				continue
-			}
+		if task == nil {
+			time.Sleep(scheduler.runner.config.SchedulerInterval)
+			continue
 		}
 
-		time.Sleep(scheduler.runner.config.SchedulerInterval)
+		err = scheduler.serveTask(task)
+		if err != nil {
+			log.Errorf(err, "unable to properly serve a task")
+			time.Sleep(scheduler.runner.config.SchedulerInterval)
+			continue
+		}
 	}
 }
 
