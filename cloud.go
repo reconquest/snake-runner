@@ -151,6 +151,9 @@ func (cloud *Cloud) PrepareContainer(ctx context.Context, container *Container, 
 			"sh", "-c",
 			"echo '" + SSHConfigWithoutVerification + "' | base64 -d > ~/.ssh/config",
 		},
+		{
+			"git", "config", "--global", "advice.detachedHead", "false",
+		},
 	}
 
 	for _, cmd := range userCommands {
