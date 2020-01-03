@@ -18,6 +18,8 @@ type TaskPipelineRun struct {
 	CloneURL struct {
 		SSH string `json:"ssh"`
 	} `json:"clone_url"`
+
+	Env map[string]string `json:"env"`
 }
 
 type TaskPipelineCancel struct {

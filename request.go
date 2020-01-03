@@ -16,6 +16,10 @@ type Requester interface {
 	request() *Request
 }
 
+type responseError struct {
+	Error string `json:"message"`
+}
+
 type Request struct {
 	httpClient *http.Client
 

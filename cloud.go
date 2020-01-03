@@ -156,7 +156,7 @@ func (cloud *Cloud) PrepareContainer(ctx context.Context, container *Container, 
 	for _, cmd := range userCommands {
 		log.Debugf(nil, "%s (user): %v", container.name, cmd)
 
-		err := cloud.Exec(ctx, container, "/home/ci/", cmd, callback)
+		err := cloud.Exec(ctx, container, []string{}, "/home/ci/", cmd, callback)
 		if err != nil {
 			return karma.Describe("cmd", cmd).
 				Format(err, "command failed")
@@ -239,6 +239,7 @@ func (cloud *Cloud) DestroyContainer(ctx context.Context, container string) erro
 func (cloud *Cloud) Exec(
 	ctx context.Context,
 	container *Container,
+	env []string,
 	cwd string,
 	command []string,
 	callback func(string) error,
@@ -248,10 +249,10 @@ func (cloud *Cloud) Exec(
 		Privileged:   false,
 		AttachStdout: true,
 		AttachStderr: true,
-		// should not be hardcode on this level
+		// should not be hardcoded on this level
 		WorkingDir: cwd,
 		User:       "ci",
-		Env:        []string{},
+		Env:        env,
 	}, callback)
 	if err != nil {
 		return err

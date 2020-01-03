@@ -49,10 +49,24 @@ func (process *ProcessJob) sendLogs(text string) error {
 	return nil
 }
 
-func (process *ProcessJob) exec(cmd ...string) error {
-	err := process.cloud.Exec(
+func (process *ProcessJob) getEnv() []string {
+	env := []string{}
+	for key, value := range process.task.Env {
+		env = append(env, key+"="+value)
+	}
+	return env
+}
+
+func (process *ProcessJob) execSystem(cmd ...string) error {
+	err := process.sendPrompt(cmd...)
+	if err != nil {
+		return err
+	}
+
+	err = process.cloud.Exec(
 		process.ctx,
 		process.container,
+		process.getEnv(),
 		process.cwd,
 		cmd,
 		process.sendLogs,
@@ -65,22 +79,26 @@ func (process *ProcessJob) exec(cmd ...string) error {
 	return nil
 }
 
-func (process *ProcessJob) execSystem(cmd ...string) error {
-	err := process.sendPrompt(cmd...)
-	if err != nil {
-		return err
-	}
-
-	return process.exec(cmd...)
-}
-
 func (process *ProcessJob) execShell(cmd string) error {
 	err := process.sendPrompt(cmd)
 	if err != nil {
 		return err
 	}
 
-	return process.exec("/bin/bash", "-c", cmd)
+	err = process.cloud.Exec(
+		process.ctx,
+		process.container,
+		process.getEnv(),
+		process.cwd,
+		[]string{"/bin/bash", "-c", cmd},
+		process.sendLogs,
+	)
+	if err != nil {
+		return karma.Describe("cmd", fmt.Sprintf("%v", cmd)).
+			Format(err, "command failed")
+	}
+
+	return nil
 }
 
 func (process *ProcessJob) sendPrompt(cmd ...string) error {
@@ -189,6 +207,7 @@ func (process *ProcessJob) readFile(cwd, path string) (string, error) {
 	err := process.cloud.Exec(
 		process.ctx,
 		process.container,
+		[]string{},
 		cwd,
 		[]string{"cat", path},
 		callback,
