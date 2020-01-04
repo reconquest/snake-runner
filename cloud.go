@@ -10,7 +10,9 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/pkg/term"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
@@ -37,6 +39,8 @@ type Container struct {
 	name string
 	id   string
 }
+
+type Callback func(string) error
 
 func (state *ContainerState) GetError() error {
 	data := []string{}
@@ -169,6 +173,38 @@ func (cloud *Cloud) PrepareContainer(ctx context.Context, container *Container, 
 	return nil
 }
 
+func (cloud *Cloud) PullImage(
+	ctx context.Context,
+	reference string,
+	callback Callback,
+) error {
+	reader, err := cloud.client.ImagePull(ctx, reference, types.ImagePullOptions{})
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	logwriter := logwriter{callback: callback}
+
+	termFd, isTerm := term.GetFdInfo(logwriter)
+
+	err = jsonmessage.DisplayJSONMessagesStream(
+		reader,
+		logwriter,
+		termFd,
+		isTerm,
+		nil,
+	)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to read docker pull output",
+		)
+	}
+
+	return nil
+}
+
 func (cloud *Cloud) CreateContainer(
 	ctx context.Context,
 	image string,
@@ -245,7 +281,7 @@ func (cloud *Cloud) Exec(
 	env []string,
 	cwd string,
 	command []string,
-	callback func(string) error,
+	callback Callback,
 ) error {
 	err := cloud.exec(ctx, container, types.ExecConfig{
 		Cmd:          command,
@@ -268,7 +304,7 @@ func (cloud *Cloud) exec(
 	ctx context.Context,
 	container *Container,
 	config types.ExecConfig,
-	callback func(string) error,
+	callback Callback,
 ) error {
 	exec, err := cloud.client.ContainerExecCreate(
 		ctx, container.id, config,

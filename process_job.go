@@ -106,10 +106,19 @@ func (process *ProcessJob) sendPrompt(cmd ...string) error {
 }
 
 func (process *ProcessJob) run() error {
-	var err error
+	image := "alpine:latest"
+
+	err := process.pullImage(image)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to pull image: %s", image,
+		)
+	}
+
 	process.container, err = process.cloud.CreateContainer(
 		process.ctx,
-		"alpine",
+		image,
 		fmt.Sprintf(
 			"pipeline-%d-job-%d-uniq-%v",
 			process.task.Pipeline.ID,
@@ -157,6 +166,23 @@ func (process *ProcessJob) run() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (process *ProcessJob) pullImage(image string) error {
+	err := process.sendPrompt("docker", "pull", image)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to start docker pull",
+		)
+	}
+
+	err = process.cloud.PullImage(process.ctx, image, process.sendLogs)
+	if err != nil {
+		return err
 	}
 
 	return nil

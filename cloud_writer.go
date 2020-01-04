@@ -1,7 +1,7 @@
 package main
 
 type logwriter struct {
-	callback func(string) error
+	callback Callback
 }
 
 func (logwriter logwriter) Write(data []byte) (int, error) {
