@@ -14,13 +14,14 @@ import (
 type ProcessJob struct {
 	cloud *Cloud
 
-	requester Requester
-	ctx       context.Context
-	container *Container
-	cwd       string
-	sshKey    string
-	config    *Config
-	task      TaskPipelineRun
+	requester   Requester
+	ctx         context.Context
+	container   *Container
+	cwd         string
+	sshKey      string
+	config      *Config
+	task        TaskPipelineRun
+	utilization chan *Container
 
 	job PipelineJob
 	log *cog.Logger
@@ -132,6 +133,10 @@ func (process *ProcessJob) run() error {
 			"unable to create a container",
 		)
 	}
+
+	defer func() {
+		process.utilization <- process.container
+	}()
 
 	err = process.cloud.PrepareContainer(
 		process.ctx,

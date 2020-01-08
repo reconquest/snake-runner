@@ -374,12 +374,11 @@ func (cloud *Cloud) Cleanup(ctx context.Context) error {
 
 			err := cloud.DestroyContainer(ctx, container.ID)
 			if err != nil {
-				return karma.Describe("id", container.ID).
-					Describe("name", container.Names).
-					Format(
-						err,
-						"unable to destroy container",
-					)
+				log.Errorf(
+					karma.Describe("id", container.ID).
+						Describe("name", container.Names).Reason(err),
+					"unable to destroy container",
+				)
 			}
 
 			destroyed++

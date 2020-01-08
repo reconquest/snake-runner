@@ -32,4 +32,8 @@ tasks:
     cmds:
       - task: reset
       - task: build
-      - SNAKE_NAME={{ .random_uuid }} ./snake-runner -c ./conf/snake.dev.conf
+      - mkdir -p .runners/{{ .random_uuid }}
+      - SNAKE_NAME={{ .random_uuid }}
+        SNAKE_TOKEN_PATH=.runners/{{.random_uuid}}/token
+        SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa
+        ./snake-runner -c ./conf/snake.dev.conf

@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -32,9 +33,10 @@ type RunnerConfig struct {
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"30s"`
 	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
 
-	Virtualization string `yaml:"virtualization" default:"docker" required:"true"`
+	Virtualization       string `yaml:"virtualization" default:"docker" required:"true"`
+	MaxParallelPipelines int64  `yaml:"max_parallel_pipelines" default:"0" required:"true"`
 
-	SSHKey string `yaml:"ssh_key" default:"/etc/snake-runner/sshkey" required:"true"`
+	SSHKey string `yaml:"ssh_key" env:"SNAKE_SSH_KEY_PATH" default:"/etc/snake-runner/id_rsa" required:"true"`
 }
 
 func LoadRunnerConfig(path string) (*RunnerConfig, error) {
@@ -75,6 +77,16 @@ func LoadRunnerConfig(path string) (*RunnerConfig, error) {
 				"unable to generate ssh-key",
 			)
 		}
+	}
+
+	if config.MaxParallelPipelines == 0 {
+		config.MaxParallelPipelines = int64(runtime.NumCPU())
+
+		log.Warningf(
+			nil,
+			"max_parallel_pipelines is not specified, number of cpu will be used instead: %d",
+			config.MaxParallelPipelines,
+		)
 	}
 
 	return &config, nil

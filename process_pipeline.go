@@ -31,12 +31,13 @@ type ProcessPipeline struct {
 	// there should be no whole Runner struct
 	// should be some sort of Client that does what Runner.request() does
 	// Runner is here because it works
-	requester Requester
-	sshKey    string
-	task      TaskPipelineRun
-	cloud     *Cloud
-	log       *cog.Logger
-	ctx       context.Context
+	requester   Requester
+	sshKey      string
+	task        TaskPipelineRun
+	cloud       *Cloud
+	log         *cog.Logger
+	ctx         context.Context
+	utilization chan *Container
 }
 
 func (process *ProcessPipeline) run() error {
@@ -110,13 +111,14 @@ func (process *ProcessPipeline) runJob(job PipelineJob) error {
 	subprocess := &ProcessJob{
 		cloud: process.cloud,
 
-		requester: process.requester,
-		ctx:       process.ctx,
-		cwd:       DefaultContainerCWD,
-		task:      process.task,
-		sshKey:    process.sshKey,
-		job:       job,
-		log:       process.log,
+		requester:   process.requester,
+		ctx:         process.ctx,
+		cwd:         DefaultContainerCWD,
+		task:        process.task,
+		sshKey:      process.sshKey,
+		job:         job,
+		log:         process.log,
+		utilization: process.utilization,
 	}
 
 	return subprocess.run()

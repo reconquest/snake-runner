@@ -18,9 +18,10 @@ func (runner *Runner) startScheduler() error {
 	}
 
 	scheduler := &Scheduler{
-		maxPipelines: 2,
+		maxPipelines: runner.config.MaxParallelPipelines,
 		runner:       runner,
 		cloud:        cloud,
+		utilization:  make(chan *Container, runner.config.MaxParallelPipelines*2),
 	}
 
 	err = cloud.Cleanup(context.Background())
@@ -33,6 +34,7 @@ func (runner *Runner) startScheduler() error {
 	runner.scheduler = scheduler
 
 	go scheduler.loop()
+	go scheduler.utilize()
 
 	return nil
 }
@@ -45,6 +47,7 @@ type Scheduler struct {
 	pipelines    int64
 	maxPipelines int64
 	cancels      sync.Map
+	utilization  chan *Container
 }
 
 func (scheduler *Scheduler) loop() {
@@ -70,6 +73,25 @@ func (scheduler *Scheduler) loop() {
 			log.Errorf(err, "unable to properly serve a task")
 			time.Sleep(scheduler.runner.config.SchedulerInterval)
 			continue
+		}
+	}
+}
+
+func (scheduler *Scheduler) utilize() {
+	for {
+		select {
+		case container := <-scheduler.utilization:
+			err := scheduler.cloud.DestroyContainer(context.Background(), container.id)
+			if err != nil {
+				log.Errorf(
+					karma.Describe("id", container.id).
+						Describe("name", container.name).
+						Reason(err),
+					"unable to utilize (destroy) container after a job",
+				)
+			}
+
+			log.Debugf(nil, "container utilized: %s %s", container.id, container.name)
 		}
 	}
 }
@@ -125,6 +147,7 @@ func (scheduler *Scheduler) startPipeline(task TaskPipelineRun) error {
 		scheduler.cloud,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
 		ctx,
+		scheduler.utilization,
 	)
 
 	scheduler.pipelinesMap.Store(task.Pipeline.ID, struct{}{})
