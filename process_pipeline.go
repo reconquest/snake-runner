@@ -125,17 +125,22 @@ func (process *ProcessPipeline) runJob(job PipelineJob) error {
 }
 
 func (process *ProcessPipeline) fail(failedID int) {
+	now := ptr.TimePtr(utils.Now())
 	foundFailed := false
+
 	for _, job := range process.task.Jobs {
 		var status string
 
+		var finished *time.Time
 		switch {
 		case failedID == -1:
 			status = StatusFailed
+			finished = now
 
 		case job.ID == failedID:
 			foundFailed = true
 			status = StatusFailed
+			finished = now
 
 		case !foundFailed:
 			continue
@@ -146,13 +151,13 @@ func (process *ProcessPipeline) fail(failedID int) {
 
 		process.log.Infof(nil, "updating job status: %d -> %s", job.ID, status)
 
-		err := process.updateJob(job.ID, status, nil, nil)
+		err := process.updateJob(job.ID, status, nil, finished)
 		if err != nil {
 			process.log.Errorf(err, "unable to update job status to %q", status)
 		}
 	}
 
-	err := process.updatePipeline(StatusFailed, nil, nil)
+	err := process.updatePipeline(StatusFailed, nil, now)
 	if err != nil {
 		process.log.Errorf(err, "unable to update pipeline status to %q", StatusFailed)
 	}
