@@ -42,12 +42,15 @@ type ProcessPipeline struct {
 	log         *cog.Logger
 	ctx         context.Context
 	utilization chan *cloud.Container
+
+	status string
 }
 
 func (process *ProcessPipeline) run() error {
-	process.log.Debugf(nil, "starting process")
+	process.log.Infof(nil, "pipeline started")
+
 	defer func() {
-		process.log.Infof(nil, "process finished")
+		process.log.Infof(nil, "pipeline finished: status="+process.status)
 	}()
 
 	err := process.updatePipeline(
@@ -81,11 +84,23 @@ func (process *ProcessPipeline) run() error {
 		err = process.runJob(job)
 		if err != nil {
 			if !karma.Contains(err, context.Canceled) {
+				process.log.Infof(
+					nil,
+					"%d/%d finished job: id=%d status=%s",
+					index+1, total, job.ID, StatusFailed,
+				)
+
 				process.fail(job.ID)
 			}
 
 			return err
 		}
+
+		process.log.Infof(
+			nil,
+			"%d/%d finished job: id=%d status=%s",
+			index+1, total, job.ID, StatusSuccess,
+		)
 
 		err = process.updateJob(job.ID, StatusSuccess, nil, ptr.TimePtr(utils.Now()))
 		if err != nil {
@@ -172,6 +187,8 @@ func (process *ProcessPipeline) updatePipeline(
 	startedAt *time.Time,
 	finishedAt *time.Time,
 ) error {
+	process.status = status
+
 	err := process.requester.request().
 		PUT().
 		Path("/gate/pipelines/" + strconv.Itoa(process.task.Pipeline.ID)).

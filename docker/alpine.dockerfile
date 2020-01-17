@@ -5,18 +5,11 @@ COPY /snake-runner.docker /bin/snake-runner
 RUN  mkdir /etc/snake-runner/
 COPY /conf/snake-runner.conf /etc/snake-runner/snake-runner.conf
 
-ENV SNAKE_MASTER_ADDRESS         ""
-ENV SNAKE_LOG_DEBUG              ""
-ENV SNAKE_LOG_TRACE              ""
-ENV SNAKE_NAME                   ""
-ENV SNAKE_TOKEN                  ""
-ENV SNAKE_TOKEN_PATH             ""
-ENV SNAKE_VIRTUALIZATION         ""
-ENV SNAKE_MAX_PARALLEL_PIPELINES ""
-ENV SNAKE_SSH_KEY_PATH           ""
+ENV SNAKE_MASTER_ADDRESS="" SNAKE_LOG_DEBUG="" SNAKE_LOG_TRACE="" SNAKE_NAME=""\
+ SNAKE_TOKEN="" SNAKE_TOKEN_PATH="" SNAKE_VIRTUALIZATION=""\
+ SNAKE_MAX_PARALLEL_PIPELINES="" SNAKE_SSH_KEY_PATH=""
 
-VOLUME /var/run/docker.sock
-VOLUME /var/lib/snake-runner/secrets/
+VOLUME /var/run/docker.sock /var/lib/snake-runner/secrets/
 
 CMD ["/bin/snake-runner"]
 
