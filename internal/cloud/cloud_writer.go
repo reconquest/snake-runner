@@ -1,4 +1,4 @@
-package main
+package cloud
 
 type logwriter struct {
 	callback Callback

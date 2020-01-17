@@ -7,8 +7,12 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
-	"github.com/reconquest/snake-runner/pkg/ptr"
-	"github.com/reconquest/snake-runner/pkg/utils"
+	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/ptr"
+	"github.com/reconquest/snake-runner/internal/requests"
+	"github.com/reconquest/snake-runner/internal/snake"
+	"github.com/reconquest/snake-runner/internal/tasks"
+	"github.com/reconquest/snake-runner/internal/utils"
 )
 
 const (
@@ -33,11 +37,11 @@ type ProcessPipeline struct {
 	// Runner is here because it works
 	requester   Requester
 	sshKey      string
-	task        TaskPipelineRun
-	cloud       *Cloud
+	task        tasks.PipelineRun
+	cloud       *cloud.Cloud
 	log         *cog.Logger
 	ctx         context.Context
-	utilization chan *Container
+	utilization chan *cloud.Container
 }
 
 func (process *ProcessPipeline) run() error {
@@ -107,7 +111,7 @@ func (process *ProcessPipeline) run() error {
 	return nil
 }
 
-func (process *ProcessPipeline) runJob(job PipelineJob) error {
+func (process *ProcessPipeline) runJob(job snake.PipelineJob) error {
 	subprocess := &ProcessJob{
 		cloud: process.cloud,
 
@@ -171,7 +175,7 @@ func (process *ProcessPipeline) updatePipeline(
 	err := process.requester.request().
 		PUT().
 		Path("/gate/pipelines/" + strconv.Itoa(process.task.Pipeline.ID)).
-		Payload(&RunnerTaskUpdateRequest{
+		Payload(&requests.TaskUpdate{
 			Status:     status,
 			StartedAt:  startedAt,
 			FinishedAt: finishedAt,
@@ -197,7 +201,7 @@ func (process *ProcessPipeline) updateJob(
 				"/pipelines/" + strconv.Itoa(process.task.Pipeline.ID) +
 				"/jobs/" + strconv.Itoa(jobID),
 		).
-		Payload(&RunnerTaskUpdateRequest{
+		Payload(&requests.TaskUpdate{
 			Status:     status,
 			StartedAt:  startedAt,
 			FinishedAt: finishedAt,

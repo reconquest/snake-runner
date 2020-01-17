@@ -1,0 +1,19 @@
+version: '2'
+
+vars:
+  version:
+    sh: git describe --tags | sed 's/\-/./g'
+
+tasks:
+  generate:
+    cmds:
+      - go generate ./...
+    status:
+      - ls cmd/*/*_gen.go
+
+  build:
+    desc: build go code
+    deps: [generate]
+    cmds:
+      - 'echo Building version: {{ .version }} >&2'
+      - go build -ldflags="-X=main.version={{ .version }}" ./...

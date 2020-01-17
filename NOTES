@@ -1,2 +1,0 @@
-* Currently we send stdin just as as stdout, there should be some separation
-     from stdon in logs or highlighting at least

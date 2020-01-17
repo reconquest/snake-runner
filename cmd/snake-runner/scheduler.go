@@ -9,10 +9,12 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
 func (runner *Runner) startScheduler() error {
-	cloud, err := NewCloud()
+	docker, err := cloud.NewDocker()
 	if err != nil {
 		return karma.Format(err, "unable to initialize container provider")
 	}
@@ -20,11 +22,11 @@ func (runner *Runner) startScheduler() error {
 	scheduler := &Scheduler{
 		maxPipelines: runner.config.MaxParallelPipelines,
 		runner:       runner,
-		cloud:        cloud,
-		utilization:  make(chan *Container, runner.config.MaxParallelPipelines*2),
+		cloud:        docker,
+		utilization:  make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
 	}
 
-	err = cloud.Cleanup(context.Background())
+	err = docker.Cleanup(context.Background())
 	if err != nil {
 		return karma.Format(err, "unable to cleanup old containers")
 	}
@@ -42,12 +44,12 @@ func (runner *Runner) startScheduler() error {
 //go:generate gonstructor -type Scheduler
 type Scheduler struct {
 	runner       *Runner
-	cloud        *Cloud
+	cloud        *cloud.Cloud
 	pipelinesMap sync.Map
 	pipelines    int64
 	maxPipelines int64
 	cancels      sync.Map
-	utilization  chan *Container
+	utilization  chan *cloud.Container
 }
 
 func (scheduler *Scheduler) loop() {
@@ -78,27 +80,24 @@ func (scheduler *Scheduler) loop() {
 }
 
 func (scheduler *Scheduler) utilize() {
-	for {
-		select {
-		case container := <-scheduler.utilization:
-			err := scheduler.cloud.DestroyContainer(context.Background(), container.id)
-			if err != nil {
-				log.Errorf(
-					karma.Describe("id", container.id).
-						Describe("name", container.name).
-						Reason(err),
-					"unable to utilize (destroy) container after a job",
-				)
-			}
-
-			log.Debugf(nil, "container utilized: %s %s", container.id, container.name)
+	for container := range scheduler.utilization {
+		err := scheduler.cloud.DestroyContainer(context.Background(), container.ID)
+		if err != nil {
+			log.Errorf(
+				karma.Describe("id", container.ID).
+					Describe("name", container.Name).
+					Reason(err),
+				"unable to utilize (destroy) container after a job",
+			)
 		}
+
+		log.Debugf(nil, "container utilized: %s %s", container.ID, container.Name)
 	}
 }
 
 func (scheduler *Scheduler) serveTask(task interface{}) error {
 	switch task := task.(type) {
-	case TaskPipelineRun:
+	case tasks.PipelineRun:
 		atomic.AddInt64(&scheduler.pipelines, 1)
 
 		go func() {
@@ -110,7 +109,7 @@ func (scheduler *Scheduler) serveTask(task interface{}) error {
 			}
 		}()
 
-	case TaskPipelineCancel:
+	case tasks.PipelineCancel:
 		for _, id := range task.Pipelines {
 			cancel, ok := scheduler.cancels.Load(id)
 			if !ok {
@@ -135,7 +134,7 @@ func (scheduler *Scheduler) serveTask(task interface{}) error {
 	return nil
 }
 
-func (scheduler *Scheduler) startPipeline(task TaskPipelineRun) error {
+func (scheduler *Scheduler) startPipeline(task tasks.PipelineRun) error {
 	log.Debugf(nil, "starting pipeline: %d", task.Pipeline.ID)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -161,9 +160,9 @@ func (scheduler *Scheduler) startPipeline(task TaskPipelineRun) error {
 		if karma.Contains(err, context.Canceled) {
 			log.Infof(nil, "pipeline %d finished due to cancel", task.Pipeline.ID)
 			return nil
-		} else {
-			return err
 		}
+
+		return err
 	}
 
 	return nil

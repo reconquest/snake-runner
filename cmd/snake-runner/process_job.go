@@ -8,22 +8,26 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
-	"github.com/reconquest/snake-runner/pkg/utils"
+	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/requests"
+	"github.com/reconquest/snake-runner/internal/snake"
+	"github.com/reconquest/snake-runner/internal/tasks"
+	"github.com/reconquest/snake-runner/internal/utils"
 )
 
 type ProcessJob struct {
-	cloud *Cloud
+	cloud *cloud.Cloud
 
 	requester   Requester
 	ctx         context.Context
-	container   *Container
+	container   *cloud.Container
 	cwd         string
 	sshKey      string
 	config      *Config
-	task        TaskPipelineRun
-	utilization chan *Container
+	task        tasks.PipelineRun
+	utilization chan *cloud.Container
 
-	job PipelineJob
+	job snake.PipelineJob
 	log *cog.Logger
 }
 
@@ -39,7 +43,7 @@ func (process *ProcessJob) sendLogs(text string) error {
 				"/jobs/" + strconv.Itoa(process.job.ID) +
 				"/logs",
 		).
-		Payload(&RunnerLogsRequest{
+		Payload(&requests.LogsPush{
 			Data: text,
 		}).
 		Do()

@@ -7,3 +7,5 @@ conf/sshkey.pub
 /snake-runner.test
 /*_gen.go
 /.runners
+/*.test
+*_gen.go

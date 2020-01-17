@@ -9,25 +9,10 @@ vars:
   random_uuid:
     sh: cat /proc/sys/kernel/random/uuid
 
+includes:
+  go: tasks/go.yml
+
 tasks:
-  generate:
-    sources:
-      - '*.go'
-    generates:
-      - '*_gen.go'
-    cmds:
-      - go generate
-
-  build:
-    desc: build go code
-    deps: [generate]
-    cmds:
-      - go build
-
-  reset:
-    cmds:
-      - rm -f conf/token conf/sshkey conf/sshkey.pub
-
   rr:
     cmds:
       - task: reset

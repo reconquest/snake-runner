@@ -1,4 +1,4 @@
-package main
+package cloud
 
 import (
 	"context"
@@ -27,6 +27,7 @@ const (
 	ImageLabelKey = "io.reconquest.snake"
 )
 
+// Someday it will be an interface
 type Cloud struct {
 	client *client.Client
 }
@@ -36,8 +37,8 @@ type ContainerState struct {
 }
 
 type Container struct {
-	name string
-	id   string
+	Name string
+	ID   string
 }
 
 type Callback func(string) error
@@ -60,7 +61,7 @@ func (state *ContainerState) GetError() error {
 	return nil
 }
 
-func NewCloud() (*Cloud, error) {
+func NewDocker() (*Cloud, error) {
 	var err error
 
 	cloud := &Cloud{}
@@ -117,13 +118,13 @@ func (cloud *Cloud) PrepareContainer(ctx context.Context, container *Container, 
 		log.Debugf(
 			nil,
 			"%s: %s",
-			container.name, strings.TrimRight(text, "\n"),
+			container.Name, strings.TrimRight(text, "\n"),
 		)
 		return nil
 	}
 
 	for _, cmd := range systemCommands {
-		log.Debugf(nil, "%s: %v", container.name, cmd)
+		log.Debugf(nil, "%s: %v", container.Name, cmd)
 
 		err := cloud.exec(ctx, container, types.ExecConfig{
 			Cmd:          cmd,
@@ -161,7 +162,7 @@ func (cloud *Cloud) PrepareContainer(ctx context.Context, container *Container, 
 	}
 
 	for _, cmd := range userCommands {
-		log.Debugf(nil, "%s (user): %v", container.name, cmd)
+		log.Debugf(nil, "%s (user): %v", container.Name, cmd)
 
 		err := cloud.Exec(ctx, container, []string{}, "/home/ci/", cmd, callback)
 		if err != nil {
@@ -213,7 +214,7 @@ func (cloud *Cloud) CreateContainer(
 	config := &container.Config{
 		Image: image,
 		Labels: map[string]string{
-			ImageLabelKey: version,
+			ImageLabelKey: "true",
 		},
 		// Env: []string{},
 		AttachStdout: true,
@@ -246,7 +247,7 @@ func (cloud *Cloud) CreateContainer(
 		)
 	}
 
-	return &Container{id: id, name: containerName}, nil
+	return &Container{ID: id, Name: containerName}, nil
 }
 
 func (cloud *Cloud) InspectContainer(ctx context.Context, container string) (*ContainerState, error) {
@@ -307,7 +308,7 @@ func (cloud *Cloud) exec(
 	callback Callback,
 ) error {
 	exec, err := cloud.client.ContainerExecCreate(
-		ctx, container.id, config,
+		ctx, container.ID, config,
 	)
 	if err != nil {
 		return err

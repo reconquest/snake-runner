@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/requests"
 )
 
 func (runner *Runner) startHeartbeats() {
@@ -24,7 +25,7 @@ func (runner *Runner) heartbeat() error {
 
 	err := runner.request().
 		POST().Path("/gate/heartbeat").
-		Payload(runnerHeartbeatRequest{}).
+		Payload(requests.Heartbeat{}).
 		Do()
 	if err != nil {
 		return err
