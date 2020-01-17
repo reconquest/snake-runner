@@ -5,6 +5,7 @@ import (
 	"syscall"
 
 	"github.com/docopt/docopt-go"
+	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/sign-go"
 )
@@ -42,6 +43,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	log.Infof(karma.Describe("version", version), "starting snake-runner")
+
 	config, err := LoadRunnerConfig(options.ConfigPathValue)
 	if err != nil {
 		log.Fatal(err)
@@ -54,6 +57,8 @@ func main() {
 	if config.Log.Trace {
 		log.SetLevel(log.LevelTrace)
 	}
+
+	log.Infof(nil, "runner name: %s", config.Name)
 
 	runner := NewRunner(config)
 	runner.Start()

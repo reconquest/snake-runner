@@ -1,0 +1,13 @@
+version: '2'
+
+vars:
+  version:
+    sh: git describe --tags | sed 's/\-/./g'
+
+tasks:
+  alpine:
+    desc: build docker image based on alpine
+    deps:
+    cmds:
+      - task go:build_docker
+      - docker build -t snake-runner -f docker/alpine.dockerfile .

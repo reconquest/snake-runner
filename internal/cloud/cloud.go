@@ -30,6 +30,8 @@ const (
 // Someday it will be an interface
 type Cloud struct {
 	client *client.Client
+
+	network string
 }
 
 type ContainerState struct {
@@ -61,11 +63,14 @@ func (state *ContainerState) GetError() error {
 	return nil
 }
 
-func NewDocker() (*Cloud, error) {
+func NewDocker(network string) (*Cloud, error) {
 	var err error
 
 	cloud := &Cloud{}
-	cloud.client, err = client.NewEnvClient()
+
+	cloud.network = network
+
+	cloud.client, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, karma.Format(
 			err,
@@ -226,7 +231,7 @@ func (cloud *Cloud) CreateContainer(
 	}
 
 	hostConfig := &container.HostConfig{
-		NetworkMode: "host",
+		NetworkMode: container.NetworkMode(cloud.network),
 	}
 
 	created, err := cloud.client.ContainerCreate(

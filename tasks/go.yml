@@ -16,4 +16,17 @@ tasks:
     deps: [generate]
     cmds:
       - 'echo Building version: {{ .version }} >&2'
-      - go build -ldflags="-X=main.version={{ .version }}" ./...
+      - go build
+          -ldflags="-X=main.version={{.version}}"
+          ./cmd/snake-runner
+
+  build_docker:
+    desc: build go code for docker
+    deps: [generate]
+    cmds:
+      - 'echo Building version: {{ .version }}-docker >&2'
+      - CGO_ENABLED=0 go build
+          -o snake-runner.docker
+          -ldflags="-X=main.version={{.version}}-docker"
+          ./cmd/snake-runner
+

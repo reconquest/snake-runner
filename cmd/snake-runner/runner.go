@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -21,27 +20,12 @@ type Runner struct {
 	client    *http.Client
 	config    *RunnerConfig
 	scheduler *Scheduler
-
-	name string
 }
 
 func NewRunner(config *RunnerConfig) *Runner {
-	name := config.Name
-	if name == "" {
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-
-		name = hostname
-	}
-
-	log.Infof(nil, "starting runner: %s", name)
-
 	return &Runner{
 		config: config,
 		client: http.DefaultClient,
-		name:   name,
 	}
 }
 
@@ -88,7 +72,7 @@ func (runner *Runner) request() *Request {
 		BaseURL(master+MasterPrefixAPI).
 		UserAgent("snake-runner/"+version).
 		// required by bitbucket itself
-		Header(NameHeader, runner.name).
+		Header(NameHeader, runner.config.Name).
 		Header(TokenHeader, runner.config.Token).
 		Header("X-Atlassian-Token", "no-check")
 }

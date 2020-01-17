@@ -14,7 +14,7 @@ import (
 )
 
 func (runner *Runner) startScheduler() error {
-	docker, err := cloud.NewDocker()
+	docker, err := cloud.NewDocker(runner.config.DockerNetwork)
 	if err != nil {
 		return karma.Format(err, "unable to initialize container provider")
 	}

@@ -44,7 +44,7 @@ func (runner *Runner) register() (string, error) {
 	}
 
 	request := requests.RunnerRegister{
-		Name:      runner.name,
+		Name:      runner.config.Name,
 		PublicKey: strings.TrimSpace(string(publicKey)),
 	}
 

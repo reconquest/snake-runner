@@ -18,6 +18,7 @@ require (
 	github.com/kovetskiy/ko v0.0.0-20200107130756-5aeb3d88d1de
 	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
 	github.com/kovetskiy/toml v0.2.0 // indirect
+	github.com/moby/moby v1.13.1
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
@@ -30,7 +31,9 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/vmware/govmomi v0.22.1
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
+	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 	golang.org/x/sys v0.0.0-20200116001909-b77594299b42 // indirect
+	gonum.org/v1/gonum v0.6.2
 	google.golang.org/api v0.15.0 // indirect
 	google.golang.org/grpc v1.26.0 // indirect
 	gopkg.in/yaml.v2 v2.2.7

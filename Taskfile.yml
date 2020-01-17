@@ -11,14 +11,25 @@ vars:
 
 includes:
   go: tasks/go.yml
+  docker: tasks/docker.yml
 
 tasks:
   rr:
     cmds:
-      - task: reset
-      - task: build
+      - task: go:build
       - mkdir -p .runners/{{ .random_uuid }}
       - SNAKE_NAME={{ .random_uuid }}
         SNAKE_TOKEN_PATH=.runners/{{.random_uuid}}/token
         SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa
-        ./snake-runner -c ./conf/snake.dev.conf
+        ./snake-runner -c ./conf/dev.conf
+  dock:
+    deps: [docker:alpine]
+    cmds:
+      - docker run -it
+          -e SNAKE_MASTER_ADDRESS=6.2.0.bitbucket:7990
+          -e SNAKE_DOCKER_NETWORK=bitbucket
+          -v /var/lib/snake-runner/secrets:{{.pwd}}/secrets
+          -v /var/run/docker.sock:/var/run/docker.sock
+          --rm
+          --network bitbucket
+          snake-runner
