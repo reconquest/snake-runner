@@ -12,10 +12,6 @@ import (
 	"github.com/reconquest/pkg/log"
 )
 
-type Requester interface {
-	request() *Request
-}
-
 type responseError struct {
 	Error string `json:"message"`
 }

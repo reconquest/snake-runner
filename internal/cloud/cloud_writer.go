@@ -1,7 +1,7 @@
 package cloud
 
 type logwriter struct {
-	callback Callback
+	callback OutputConsumer
 }
 
 func (logwriter logwriter) Write(data []byte) (int, error) {

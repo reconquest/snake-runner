@@ -7,7 +7,11 @@ vars:
 tasks:
   alpine:
     desc: build docker image based on alpine
-    deps:
     cmds:
       - task go:build_docker
-      - docker build -t snake-runner -f docker/alpine.dockerfile .
+      - docker build -t snake-runner -f docker/snake-runner/alpine/Dockerfile .
+
+  sidecar:
+    desc: build docker image for sidecar image based on alpine
+    cmds:
+      - docker build -t reconquest/snake-runner-sidecar -f docker/snake-runner-sidecar/alpine/Dockerfile .

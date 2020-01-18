@@ -6,10 +6,14 @@ vars:
 
 tasks:
   generate:
+    desc: run go generate
     cmds:
-      - go generate ./...
-    status:
-      - ls cmd/*/*_gen.go
+      - go generate -v ./...
+    sources:
+      - '**/*.go'
+    generates:
+      - '**/*_gen.go'
+    method: checksum
 
   build:
     desc: build go code

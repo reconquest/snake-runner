@@ -10,7 +10,6 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/requests"
-	"github.com/reconquest/snake-runner/internal/responses"
 )
 
 func (runner *Runner) mustRegister() string {
@@ -48,12 +47,7 @@ func (runner *Runner) register() (string, error) {
 		PublicKey: strings.TrimSpace(string(publicKey)),
 	}
 
-	var response responses.RunnerRegister
-	err = runner.request().
-		POST().Path("/gate/register").
-		Payload(request).
-		Response(&response).
-		Do()
+	response, err := runner.client.Register(request)
 	if err != nil {
 		return "", err
 	}

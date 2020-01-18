@@ -8,4 +8,5 @@ conf/sshkey.pub
 /*_gen.go
 /.runners
 /*.test
-*_gen.go
+/snake-runner.docker
+/.task

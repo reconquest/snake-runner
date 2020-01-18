@@ -14,16 +14,16 @@ import (
 )
 
 func (runner *Runner) startScheduler() error {
-	docker, err := cloud.NewDocker(runner.config.DockerNetwork)
+	docker, err := cloud.NewDocker(runner.config.Docker.Network)
 	if err != nil {
 		return karma.Format(err, "unable to initialize container provider")
 	}
 
 	scheduler := &Scheduler{
-		maxPipelines: runner.config.MaxParallelPipelines,
-		runner:       runner,
-		cloud:        docker,
-		utilization:  make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
+		client:      runner.client,
+		cloud:       docker,
+		utilization: make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
+		config:      runner.config,
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -43,13 +43,13 @@ func (runner *Runner) startScheduler() error {
 
 //go:generate gonstructor -type Scheduler
 type Scheduler struct {
-	runner       *Runner
+	client       *Client
 	cloud        *cloud.Cloud
 	pipelinesMap sync.Map
 	pipelines    int64
-	maxPipelines int64
 	cancels      sync.Map
 	utilization  chan *cloud.Container
+	config       *RunnerConfig
 }
 
 func (scheduler *Scheduler) loop() {
@@ -58,22 +58,25 @@ func (scheduler *Scheduler) loop() {
 
 		log.Debugf(nil, "retrieving task")
 
-		task, err := scheduler.runner.getTask(pipelines < scheduler.maxPipelines)
+		task, err := scheduler.client.GetTask(
+			scheduler.getPipelines(),
+			pipelines < scheduler.config.MaxParallelPipelines,
+		)
 		if err != nil {
 			log.Errorf(err, "unable to get a task")
-			time.Sleep(scheduler.runner.config.SchedulerInterval)
+			time.Sleep(scheduler.config.SchedulerInterval)
 			continue
 		}
 
 		if task == nil {
-			time.Sleep(scheduler.runner.config.SchedulerInterval)
+			time.Sleep(scheduler.config.SchedulerInterval)
 			continue
 		}
 
 		err = scheduler.serveTask(task)
 		if err != nil {
 			log.Errorf(err, "unable to properly serve a task")
-			time.Sleep(scheduler.runner.config.SchedulerInterval)
+			time.Sleep(scheduler.config.SchedulerInterval)
 			continue
 		}
 	}
@@ -81,7 +84,7 @@ func (scheduler *Scheduler) loop() {
 
 func (scheduler *Scheduler) utilize() {
 	for container := range scheduler.utilization {
-		err := scheduler.cloud.DestroyContainer(context.Background(), container.ID)
+		err := scheduler.cloud.DestroyContainer(context.Background(), container)
 		if err != nil {
 			log.Errorf(
 				karma.Describe("id", container.ID).
@@ -140,8 +143,8 @@ func (scheduler *Scheduler) startPipeline(task tasks.PipelineRun) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	process := NewProcessPipeline(
-		scheduler.runner,
-		scheduler.runner.config.SSHKey,
+		scheduler.client,
+		scheduler.config,
 		task,
 		scheduler.cloud,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),

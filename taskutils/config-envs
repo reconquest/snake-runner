@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cat cmd/snake-runner/runner_config.go | grep -Po 'env:"\K[^"]+'

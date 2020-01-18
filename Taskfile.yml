@@ -21,6 +21,7 @@ tasks:
       - SNAKE_NAME={{ .random_uuid }}
         SNAKE_TOKEN_PATH=.runners/{{.random_uuid}}/token
         SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa
+        SNAKE_PIPELINES_DIR=.runners/{{.random_uuid}}/pipelines
         ./snake-runner -c ./conf/dev.conf
   dock:
     deps: [docker:alpine]
@@ -28,6 +29,7 @@ tasks:
       - docker run -it
           -e SNAKE_MASTER_ADDRESS=6.2.0.bitbucket:7990
           -e SNAKE_DOCKER_NETWORK=bitbucket
+          -e SNAKE_LOG_DEBUG=true
           -v /var/lib/snake-runner/secrets:{{.pwd}}/secrets
           -v /var/run/docker.sock:/var/run/docker.sock
           --rm

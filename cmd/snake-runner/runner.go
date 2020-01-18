@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-	"strings"
 	"time"
 
 	"github.com/reconquest/pkg/log"
@@ -17,15 +15,15 @@ const (
 var FailedRegisterRepeatTimeout = time.Second * 10
 
 type Runner struct {
-	client    *http.Client
 	config    *RunnerConfig
 	scheduler *Scheduler
+	client    *Client
 }
 
 func NewRunner(config *RunnerConfig) *Runner {
 	return &Runner{
 		config: config,
-		client: http.DefaultClient,
+		client: NewClient(config),
 	}
 }
 
@@ -63,16 +61,4 @@ func (runner *Runner) Start() {
 	}
 
 	runner.startHeartbeats()
-}
-
-func (runner *Runner) request() *Request {
-	master := strings.TrimSuffix(runner.config.MasterAddress, "/")
-
-	return NewRequest(http.DefaultClient).
-		BaseURL(master+MasterPrefixAPI).
-		UserAgent("snake-runner/"+version).
-		// required by bitbucket itself
-		Header(NameHeader, runner.config.Name).
-		Header(TokenHeader, runner.config.Token).
-		Header("X-Atlassian-Token", "no-check")
 }
