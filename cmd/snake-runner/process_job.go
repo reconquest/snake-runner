@@ -73,9 +73,11 @@ func (process *ProcessJob) execSystem(cmd ...string) error {
 		process.ctx,
 		process.container,
 		types.ExecConfig{
-			Env:        process.getEnv(),
-			WorkingDir: process.sidecar.GetContainerDir(),
-			Cmd:        cmd,
+			Env:          process.getEnv(),
+			WorkingDir:   process.sidecar.GetContainerDir(),
+			Cmd:          cmd,
+			AttachStdout: true,
+			AttachStderr: true,
 		},
 		process.pushLogs,
 	)
@@ -97,9 +99,11 @@ func (process *ProcessJob) execShell(cmd string) error {
 		process.ctx,
 		process.container,
 		types.ExecConfig{
-			Env:        process.getEnv(),
-			WorkingDir: process.sidecar.GetContainerDir(),
-			Cmd:        []string{"/bin/sh", "-c", cmd},
+			Env:          process.getEnv(),
+			WorkingDir:   process.sidecar.GetContainerDir(),
+			Cmd:          []string{"/bin/sh", "-c", cmd},
+			AttachStdout: true,
+			AttachStderr: true,
 		},
 		process.pushLogs,
 	)
@@ -121,7 +125,7 @@ func (process *ProcessJob) run() error {
 		image = DefaultImage
 	}
 
-	err := process.pullImage(image)
+	err := process.ensureImage(image)
 	if err != nil {
 		return karma.Format(
 			err,
@@ -170,18 +174,51 @@ func (process *ProcessJob) run() error {
 	return nil
 }
 
-func (process *ProcessJob) pullImage(image string) error {
-	err := process.sendPrompt([]string{"docker", "pull", image})
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to start docker pull",
-		)
-	}
-
-	err = process.cloud.PullImage(process.ctx, image, process.pushLogs)
+func (process *ProcessJob) ensureImage(tag string) error {
+	image, err := process.cloud.GetImageWithTag(process.ctx, tag)
 	if err != nil {
 		return err
+	}
+
+	if image == nil {
+		err := process.pushLogs(
+			fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
+		)
+		if err != nil {
+			return karma.Format(
+				err,
+				"unable to push log message",
+			)
+		}
+
+		err = process.cloud.PullImage(process.ctx, tag, process.pushLogs)
+		if err != nil {
+			return err
+		}
+
+		image, err = process.cloud.GetImageWithTag(process.ctx, tag)
+		if err != nil {
+			return err
+		}
+
+		if image == nil {
+			return karma.Format(
+				err,
+				"the image not found after pulling: %s",
+				tag,
+			)
+		}
+	}
+
+	err = process.pushLogs(
+		fmt.Sprintf(
+			"\n:: Using docker image: %s @ %s\n",
+			strings.Join(image.RepoTags, ", "),
+			image.ID,
+		),
+	)
+	if err != nil {
+		return karma.Format(err, "unable to push logs")
 	}
 
 	return nil

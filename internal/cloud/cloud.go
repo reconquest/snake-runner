@@ -2,6 +2,7 @@ package cloud
 
 import (
 	"context"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -98,20 +99,15 @@ func (cloud *Cloud) PullImage(
 	return nil
 }
 
-func (cloud *Cloud) ListImages(ctx context.Context) ([]string, error) {
+func (cloud *Cloud) ListImages(
+	ctx context.Context,
+) ([]types.ImageSummary, error) {
 	images, err := cloud.client.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	result := []string{}
-	for _, image := range images {
-		for _, tag := range image.RepoTags {
-			result = append(result, tag)
-		}
-	}
-
-	return result, nil
+	return images, nil
 }
 
 func (cloud *Cloud) CreateContainer(
@@ -161,7 +157,10 @@ func (cloud *Cloud) CreateContainer(
 	return &Container{ID: id, Name: containerName}, nil
 }
 
-func (cloud *Cloud) InspectContainer(ctx context.Context, container *Container) (*ContainerState, error) {
+func (cloud *Cloud) InspectContainer(
+	ctx context.Context,
+	container *Container,
+) (*ContainerState, error) {
 	response, err := cloud.client.ContainerInspect(ctx, container.ID)
 	if err != nil {
 		return nil, karma.Format(
@@ -173,7 +172,10 @@ func (cloud *Cloud) InspectContainer(ctx context.Context, container *Container) 
 	return &ContainerState{*response.State}, nil
 }
 
-func (cloud *Cloud) DestroyContainer(ctx context.Context, container *Container) error {
+func (cloud *Cloud) DestroyContainer(
+	ctx context.Context,
+	container *Container,
+) error {
 	if container == nil {
 		return nil
 	}
@@ -318,4 +320,28 @@ func (cloud *Cloud) Cat(
 	}
 
 	return data, nil
+}
+
+func (cloud *Cloud) GetImageWithTag(
+	ctx context.Context,
+	tag string,
+) (*types.ImageSummary, error) {
+	images, err := cloud.ListImages(ctx)
+	if err != nil {
+		return nil, karma.Format(
+			err,
+			"unable to list images",
+		)
+	}
+
+	for _, image := range images {
+		for _, repoTag := range image.RepoTags {
+			if repoTag == tag ||
+				(!strings.Contains(tag, ":") && strings.HasPrefix(repoTag, tag+":")) {
+				return &image, nil
+			}
+		}
+	}
+
+	return nil, nil
 }

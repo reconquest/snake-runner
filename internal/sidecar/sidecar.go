@@ -49,23 +49,12 @@ func (sidecar *Sidecar) GetContainer() *cloud.Container {
 }
 
 func (sidecar *Sidecar) create(ctx context.Context) error {
-	images, err := sidecar.cloud.ListImages(ctx)
+	img, err := sidecar.cloud.GetImageWithTag(ctx, SidecarImage)
 	if err != nil {
-		return karma.Format(
-			err,
-			"unable to list existing images",
-		)
+		return err
 	}
 
-	found := false
-	for _, image := range images {
-		if image == SidecarImage || strings.HasPrefix(image, SidecarImage+":") {
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	if img == nil {
 		err := sidecar.cloud.PullImage(ctx, SidecarImage, sidecar.outputConsumer)
 		if err != nil {
 			return karma.Format(
