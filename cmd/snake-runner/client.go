@@ -8,6 +8,7 @@ import (
 
 	"github.com/reconquest/snake-runner/internal/requests"
 	"github.com/reconquest/snake-runner/internal/responses"
+	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
@@ -69,21 +70,14 @@ func (client *Client) Register(
 func (client *Client) GetTask(
 	runningPipelines []int,
 	queryPipeline bool,
+	sshKey *sshkey.Key,
 ) (interface{}, error) {
 	var response responses.Task
-
-	payload := struct {
-		RunningPipelines []int `json:"running_pipelines"`
-		QueryPipeline    bool  `json:"query_pipeline"`
-	}{
-		RunningPipelines: runningPipelines,
-		QueryPipeline:    queryPipeline,
-	}
 
 	err := client.request().
 		POST().
 		Path("/gate/task").
-		Payload(payload).
+		Payload(requests.NewTask(runningPipelines, queryPipeline, sshKey.Public)).
 		Response(&response).
 		Do()
 	if err != nil {

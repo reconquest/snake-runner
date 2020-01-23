@@ -13,11 +13,6 @@ import (
 	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/snake-runner/internal/sshkey"
-)
-
-const (
-	defaultBlockSize = 4096
 )
 
 type RunnerConfig struct {
@@ -42,7 +37,6 @@ type RunnerConfig struct {
 	Virtualization       string `yaml:"virtualization" default:"docker" env:"SNAKE_VIRTUALIZATION" required:"true"`
 	MaxParallelPipelines int64  `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0" required:"true"`
 
-	SSHKey       string `yaml:"ssh_key" env:"SNAKE_SSH_KEY_PATH" default:"/var/lib/snake-runner/secrets/id_rsa" required:"true"`
 	PipelinesDir string `yaml:"pipelines_dir" env:"SNAKE_PIPELINES_DIR" default:"/var/lib/snake-runner/pipelines" required:"true"`
 
 	Docker struct {
@@ -79,32 +73,6 @@ func LoadRunnerConfig(path string) (*RunnerConfig, error) {
 	if config.Virtualization == "none" {
 		log.Warningf(nil, "No virtualization is used, all commands will be "+
 			"executed on the local host with current permissions")
-	}
-
-	if !isFileExists(config.SSHKey) && !isFileExists(config.SSHKey+".pub") {
-		log.Warningf(
-			nil,
-			"SSH key not found, generating it (block size: %d): %s",
-			defaultBlockSize,
-			config.SSHKey,
-		)
-
-		dir := filepath.Base(config.SSHKey)
-		err = os.MkdirAll(dir, 0644)
-		if err != nil {
-			return nil, karma.Format(
-				err,
-				"unable to make directory for ssh key: %s", dir,
-			)
-		}
-
-		err = sshkey.GeneratePair(config.SSHKey, defaultBlockSize)
-		if err != nil {
-			return nil, karma.Format(
-				err,
-				"unable to generate ssh-key",
-			)
-		}
 	}
 
 	if config.MaxParallelPipelines == 0 {

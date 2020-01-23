@@ -2,7 +2,10 @@
 
 package sidecar
 
-import "github.com/reconquest/snake-runner/internal/cloud"
+import (
+	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/sshkey"
+)
 
 type SidecarBuilder struct {
 	cloud           *cloud.Cloud
@@ -11,7 +14,7 @@ type SidecarBuilder struct {
 	slug            string
 	commandConsumer cloud.CommandConsumer
 	outputConsumer  cloud.OutputConsumer
-	sshKey          string
+	sshKey          sshkey.Key
 }
 
 func NewSidecarBuilder() *SidecarBuilder {
@@ -41,7 +44,7 @@ func (b *SidecarBuilder) OutputConsumer(outputConsumer cloud.OutputConsumer) *Si
 	b.outputConsumer = outputConsumer
 	return b
 }
-func (b *SidecarBuilder) SshKey(sshKey string) *SidecarBuilder {
+func (b *SidecarBuilder) SshKey(sshKey sshkey.Key) *SidecarBuilder {
 	b.sshKey = sshKey
 	return b
 }

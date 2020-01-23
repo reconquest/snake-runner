@@ -11,6 +11,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
+	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
@@ -46,6 +47,8 @@ type ProcessPipeline struct {
 	status  string           `gonstructor:"-"`
 	sidecar *sidecar.Sidecar `gonstructor:"-"`
 	config  *Config          `gonstructor:"-"`
+
+	sshKey sshkey.Key
 }
 
 func (process *ProcessPipeline) run() error {
@@ -186,7 +189,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 			PipelinesDir(process.runnerConfig.PipelinesDir).
 			CommandConsumer(subprocess.sendPrompt).
 			OutputConsumer(subprocess.pushLogs).
-			SshKey(process.runnerConfig.SSHKey).
+			SshKey(process.sshKey).
 			Build()
 
 		err := process.sidecar.Serve(

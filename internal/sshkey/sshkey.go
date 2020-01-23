@@ -5,16 +5,24 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
 
 	"github.com/reconquest/karma-go"
 	"golang.org/x/crypto/ssh"
 )
 
-func GeneratePair(path string, size int) error {
-	private, err := generatePrivateKey(size)
+const (
+	BlockSize = 4096
+)
+
+type Key struct {
+	Private string
+	Public  string
+}
+
+func Generate() (*Key, error) {
+	private, err := generatePrivateKey(BlockSize)
 	if err != nil {
-		return karma.Format(
+		return nil, karma.Format(
 			err,
 			"unable to generate private part",
 		)
@@ -22,7 +30,7 @@ func GeneratePair(path string, size int) error {
 
 	public, err := generatePublicKey(&private.PublicKey)
 	if err != nil {
-		return karma.Format(
+		return nil, karma.Format(
 			err,
 			"unable to generate public part",
 		)
@@ -30,23 +38,7 @@ func GeneratePair(path string, size int) error {
 
 	privatePEM := marshalPrivateKeyToPEM(private)
 
-	err = ioutil.WriteFile(path, privatePEM, 0600)
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to write private part to file",
-		)
-	}
-
-	err = ioutil.WriteFile(path+".pub", public, 0600)
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to write public part to file: %s", path+".pub",
-		)
-	}
-
-	return nil
+	return &Key{Private: string(privatePEM), Public: string(public)}, nil
 }
 
 func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {

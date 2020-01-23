@@ -10,6 +10,7 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
@@ -50,35 +51,62 @@ type Scheduler struct {
 	cancels      sync.Map
 	utilization  chan *cloud.Container
 	config       *RunnerConfig
+
+	sshKey *sshkey.Key `gonstructor:"-"`
 }
 
 func (scheduler *Scheduler) loop() {
 	for {
-		pipelines := atomic.LoadInt64(&scheduler.pipelines)
-
-		log.Debugf(nil, "retrieving task")
-
-		task, err := scheduler.client.GetTask(
-			scheduler.getPipelines(),
-			pipelines < scheduler.config.MaxParallelPipelines,
-		)
+		wait, err := scheduler.getAndServe()
 		if err != nil {
-			log.Errorf(err, "unable to get a task")
-			time.Sleep(scheduler.config.SchedulerInterval)
-			continue
+			log.Error(err)
 		}
 
-		if task == nil {
+		if wait {
 			time.Sleep(scheduler.config.SchedulerInterval)
-			continue
 		}
+	}
+}
 
-		err = scheduler.serveTask(task)
+func (scheduler *Scheduler) getAndServe() (bool, error) {
+	var err error
+
+	if scheduler.sshKey == nil {
+		scheduler.sshKey, err = sshkey.Generate()
 		if err != nil {
-			log.Errorf(err, "unable to properly serve a task")
-			time.Sleep(scheduler.config.SchedulerInterval)
-			continue
+			return true, karma.Format(err, "unable to generate ssh key")
 		}
+	}
+
+	pipelines := atomic.LoadInt64(&scheduler.pipelines)
+
+	log.Debugf(nil, "retrieving task")
+
+	task, err := scheduler.client.GetTask(
+		scheduler.getPipelines(),
+		pipelines < scheduler.config.MaxParallelPipelines,
+		scheduler.sshKey,
+	)
+	if err != nil || task != nil {
+		defer func() {
+			scheduler.sshKey = nil
+		}()
+	}
+
+	switch {
+	case err != nil:
+		return true, karma.Format(err, "unable to get a task")
+
+	case task == nil:
+		return true, nil
+	default:
+		// pass sshkey by value and cause copying
+		err = scheduler.serveTask(task, *scheduler.sshKey)
+		if err != nil {
+			return true, karma.Format(err, "unable to properly serve a task")
+		}
+
+		return false, nil
 	}
 }
 
@@ -98,7 +126,7 @@ func (scheduler *Scheduler) utilize() {
 	}
 }
 
-func (scheduler *Scheduler) serveTask(task interface{}) error {
+func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error {
 	switch task := task.(type) {
 	case tasks.PipelineRun:
 		atomic.AddInt64(&scheduler.pipelines, 1)
@@ -106,7 +134,7 @@ func (scheduler *Scheduler) serveTask(task interface{}) error {
 		go func() {
 			defer atomic.AddInt64(&scheduler.pipelines, -1)
 
-			err := scheduler.startPipeline(task)
+			err := scheduler.startPipeline(task, sshKey)
 			if err != nil {
 				log.Errorf(err, "an error occurred during task running")
 			}
@@ -137,7 +165,10 @@ func (scheduler *Scheduler) serveTask(task interface{}) error {
 	return nil
 }
 
-func (scheduler *Scheduler) startPipeline(task tasks.PipelineRun) error {
+func (scheduler *Scheduler) startPipeline(
+	task tasks.PipelineRun,
+	sshKey sshkey.Key,
+) error {
 	log.Debugf(nil, "starting pipeline: %d", task.Pipeline.ID)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -150,6 +181,7 @@ func (scheduler *Scheduler) startPipeline(task tasks.PipelineRun) error {
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
 		ctx,
 		scheduler.utilization,
+		sshKey,
 	)
 
 	scheduler.pipelinesMap.Store(task.Pipeline.ID, struct{}{})

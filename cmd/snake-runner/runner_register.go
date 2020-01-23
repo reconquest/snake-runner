@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -34,18 +33,9 @@ func (runner *Runner) mustRegister() string {
 func (runner *Runner) register() (string, error) {
 	log.Infof(nil, "sending registration request")
 
-	publicKey, err := ioutil.ReadFile(runner.config.SSHKey + ".pub")
-	if err != nil {
-		return "", karma.Format(
-			err,
-			"unable to read ssh key public part",
-		)
-	}
-
 	request := requests.NewRunnerRegister(
 		runner.config.Name,
 		runner.config.RegistrationToken,
-		strings.TrimSpace(string(publicKey)),
 	)
 
 	response, err := runner.client.Register(*request)

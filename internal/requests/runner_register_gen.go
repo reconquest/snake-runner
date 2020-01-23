@@ -2,6 +2,6 @@
 
 package requests
 
-func NewRunnerRegister(name string, token string, publicKey string) *RunnerRegister {
-	return &RunnerRegister{Name: name, Token: token, PublicKey: publicKey}
+func NewRunnerRegister(name string, token string) *RunnerRegister {
+	return &RunnerRegister{Name: name, Token: token}
 }

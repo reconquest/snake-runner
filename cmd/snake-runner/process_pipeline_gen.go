@@ -7,9 +7,10 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-func NewProcessPipeline(client *Client, runnerConfig *RunnerConfig, task tasks.PipelineRun, cloud *cloud.Cloud, log *cog.Logger, ctx context.Context, utilization chan *cloud.Container) *ProcessPipeline {
-	return &ProcessPipeline{client: client, runnerConfig: runnerConfig, task: task, cloud: cloud, log: log, ctx: ctx, utilization: utilization}
+func NewProcessPipeline(client *Client, runnerConfig *RunnerConfig, task tasks.PipelineRun, cloud *cloud.Cloud, log *cog.Logger, ctx context.Context, utilization chan *cloud.Container, sshKey sshkey.Key) *ProcessPipeline {
+	return &ProcessPipeline{client: client, runnerConfig: runnerConfig, task: task, cloud: cloud, log: log, ctx: ctx, utilization: utilization, sshKey: sshKey}
 }

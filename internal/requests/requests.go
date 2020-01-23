@@ -19,7 +19,13 @@ type Heartbeat struct {
 
 //go:generate gonstructor -type RunnerRegister
 type RunnerRegister struct {
-	Name      string `json:"name"`
-	Token     string `json:"token"`
-	PublicKey string `json:"public_key"`
+	Name  string `json:"name"`
+	Token string `json:"token"`
+}
+
+//go:generate gonstructor -type Task
+type Task struct {
+	RunningPipelines []int  `json:"running_pipelines"`
+	QueryPipeline    bool   `json:"query_pipeline"`
+	SSHKey           string `json:"ssh_key"`
 }

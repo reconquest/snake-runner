@@ -2,7 +2,6 @@ package sidecar
 
 import (
 	"context"
-	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/sshkey"
 )
 
 const (
@@ -29,7 +29,7 @@ type Sidecar struct {
 	slug            string
 	commandConsumer cloud.CommandConsumer
 	outputConsumer  cloud.OutputConsumer
-	sshKey          string
+	sshKey          sshkey.Key
 
 	container    *cloud.Container `gonstructor:"-"`
 	containerDir string           `gonstructor:"-"`
@@ -94,25 +94,9 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 		return err
 	}
 
-	privateKey, err := ioutil.ReadFile(sidecar.sshKey)
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to read contents of ssh key",
-		)
-	}
-
-	publicKey, err := ioutil.ReadFile(sidecar.sshKey + ".pub")
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to read contents of ssh key (.pub part)",
-		)
-	}
-
 	env := []string{
-		"__SNAKE_PRIVATE_KEY=" + string(privateKey),
-		"__SNAKE_PUBLIC_KEY=" + string(publicKey),
+		"__SNAKE_PRIVATE_KEY=" + string(sidecar.sshKey.Private),
+		"__SNAKE_PUBLIC_KEY=" + string(sidecar.sshKey.Public),
 		"__SNAKE_SSH_CONFIG=" + SSHConfigWithoutVerification,
 	}
 
