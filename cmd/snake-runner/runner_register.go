@@ -42,31 +42,37 @@ func (runner *Runner) register() (string, error) {
 		)
 	}
 
-	request := requests.RunnerRegister{
-		Name:      runner.config.Name,
-		PublicKey: strings.TrimSpace(string(publicKey)),
-	}
+	request := requests.NewRunnerRegister(
+		runner.config.Name,
+		runner.config.RegistrationToken,
+		strings.TrimSpace(string(publicKey)),
+	)
 
-	response, err := runner.client.Register(request)
+	response, err := runner.client.Register(*request)
 	if err != nil {
 		return "", err
 	}
 
-	return response.AuthenticationToken, nil
+	return response.AccessToken, nil
 }
 
-func (runner *Runner) saveToken(token string) error {
-	err := os.MkdirAll(filepath.Dir(runner.config.TokenPath), 0700)
+func (runner *Runner) writeAccessToken(token string) error {
+	dir := filepath.Dir(runner.config.AccessTokenPath)
+	err := os.MkdirAll(dir, 0600)
 	if err != nil {
 		return karma.Format(
 			err,
-			"unable to create dir for token",
+			"unable to create dir for token: %s", dir,
 		)
 	}
 
-	err = ioutil.WriteFile(runner.config.TokenPath, []byte(token), 0600)
+	path := runner.config.AccessTokenPath
+	err = ioutil.WriteFile(path, []byte(token), 0600)
 	if err != nil {
-		return err
+		return karma.Format(
+			err,
+			"unable to write data to file: %s", path,
+		)
 	}
 
 	return nil

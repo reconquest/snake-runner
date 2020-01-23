@@ -28,13 +28,18 @@ func NewClient(config *RunnerConfig) *Client {
 }
 
 func (client *Client) request() *Request {
-	return NewRequest(http.DefaultClient).
+	request := NewRequest(http.DefaultClient).
 		BaseURL(client.baseURL).
 		UserAgent("snake-runner/"+version).
 		// required by bitbucket itself
 		Header(NameHeader, client.config.Name).
-		Header(TokenHeader, client.config.Token).
 		Header("X-Atlassian-Token", "no-check")
+
+	if client.config.AccessToken != "" {
+		request.Header(AccessTokenHeader, client.config.AccessToken)
+	}
+
+	return request
 }
 
 func (client *Client) Heartbeat() error {

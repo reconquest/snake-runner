@@ -3,7 +3,7 @@ package responses
 import "encoding/json"
 
 type RunnerRegister struct {
-	AuthenticationToken string `json:"authentication_token"`
+	AccessToken string `json:"access_token"`
 }
 
 type Task struct {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,8 +31,10 @@ type RunnerConfig struct {
 
 	Name string `yaml:"name" env:"SNAKE_NAME"`
 
-	Token     string `yaml:"token" env:"SNAKE_TOKEN"`
-	TokenPath string `yaml:"token_path" env:"SNAKE_TOKEN_PATH" default:"/var/lib/snake-runner/secrets/token"`
+	RegistrationToken string `yaml:"registration_token" env:"SNAKE_REGISTRATION_TOKEN"`
+
+	AccessToken     string `yaml:"access_token" env:"SNAKE_ACCESS_TOKEN"`
+	AccessTokenPath string `yaml:"access_token_path" env:"SNAKE_ACCESS_TOKEN_PATH" default:"/var/lib/snake-runner/secrets/access_token"`
 
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"30s"`
 	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
@@ -58,21 +59,21 @@ func LoadRunnerConfig(path string) (*RunnerConfig, error) {
 		return nil, err
 	}
 
-	if config.MasterAddress == "" {
-		showMessageNoConfiguration()
+	if config.MasterAddress == "" || config.RegistrationToken == "" {
+		ShowMessageNotConfigured(config)
 		os.Exit(1)
 	}
 
-	if config.TokenPath != "" && config.Token == "" {
-		tokenData, err := ioutil.ReadFile(config.TokenPath)
+	if config.AccessTokenPath != "" && config.AccessToken == "" {
+		tokenData, err := ioutil.ReadFile(config.AccessTokenPath)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, karma.Format(
 				err,
-				"unable to read specified token file: %s", config.TokenPath,
+				"unable to read specified token file: %s", config.AccessTokenPath,
 			)
 		}
 
-		config.Token = strings.TrimSpace(string(tokenData))
+		config.AccessToken = strings.TrimSpace(string(tokenData))
 	}
 
 	if config.Virtualization == "none" {
@@ -141,51 +142,4 @@ func LoadRunnerConfig(path string) (*RunnerConfig, error) {
 func isFileExists(path string) bool {
 	stat, err := os.Stat(path)
 	return !os.IsNotExist(err) && !stat.IsDir()
-}
-
-func showMessageNoConfiguration() {
-	fmt.Fprintln(os.Stderr, `
-
- The snake-runner is ready to start but you have not provided address 
- where you run Bitbucket server with Snake CI addon installed.
- 
- There are two ways to fix it:
-  1) specify master_address in your config file, by default it is /etc/snake-runner/snake-runner.conf
-  2) specify address using the environment variable SNAKE_MASTER_ADDRESS, like as following:
-   * SNAKE_MASTER_ADDRESS=http://mybitbucket.company/ snake-runner
-     or if you are running snake-runner in docker:
-   * docker run -e SNAKE_MASTER_ADDRESS=http://mybitbucket.company/ <other-docker-flags-here>
-
- See also: <XXXXXXXXX>`)
-}
-
-func isDocker() bool {
-	contents, err := ioutil.ReadFile("/proc/1/cgroup")
-	if err != nil {
-		log.Errorf(err, "unable to read /proc/1/cgroup to determine "+
-			"is it docker container or not")
-	}
-
-	/**
-	* A docker container has /docker/ in its /cgroup file
-	*
-	* / # cat /proc/1/cgroup | grep docker
-	* 11:pids:/docker/14f3db3a669169c0b801a3ac99...
-	* 10:freezer:/docker/14f3db3a669169c0b801a3ac9...
-	* 9:cpu,cpuacct:/docker/14f3db3a669169c0b801a3ac...
-	* 8:hugetlb:/docker/14f3db3a669169c0b801a3ac99f89e...
-	* 7:perf_event:/docker/14f3db3a669169c0b801a3...
-	* 6:devices:/docker/14f3db3a669169c0b801a3ac99f...
-	* 5:memory:/docker/14f3db3a669169c0b801a3ac99f89e...
-	* 4:blkio:/docker/14f3db3a669169c0b801a3ac99f89e914...
-	* 3:cpuset:/docker/14f3db3a669169c0b801a3ac99f89e914a...
-	* 2:net_cls,net_prio:/docker/14f3db3a669169c0b801a3ac...
-	* 1:name=systemd:/docker/14f3db3a669169c0b801a3ac99f89e...
-	* 0::/system.slice/docker.service
-	***/
-	if strings.Contains(string(contents), "/docker/") {
-		return true
-	}
-
-	return false
 }

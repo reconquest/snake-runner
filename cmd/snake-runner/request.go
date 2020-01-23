@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -13,7 +13,7 @@ import (
 )
 
 type responseError struct {
-	Error string `json:"message"`
+	Error interface{} `json:"error"`
 }
 
 type Request struct {
@@ -178,7 +178,7 @@ func (request *Request) Do() error {
 		if httpResponse.StatusCode >= 400 {
 			var errResponse responseError
 			if err := json.Unmarshal(data, &errResponse); err == nil {
-				return context.Reason(errors.New(errResponse.Error))
+				return context.Reason(fmt.Errorf("remote error: %v", errResponse.Error))
 			} else {
 				return context.Describe("body", string(data)).
 					Format(

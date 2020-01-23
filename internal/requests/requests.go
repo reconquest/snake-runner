@@ -20,5 +20,6 @@ type Heartbeat struct {
 //go:generate gonstructor -type RunnerRegister
 type RunnerRegister struct {
 	Name      string `json:"name"`
+	Token     string `json:"token"`
 	PublicKey string `json:"public_key"`
 }
