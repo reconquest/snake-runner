@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	MasterPrefixAPI   = "/rest/snake/1.0"
+	MasterPrefixAPI   = "/rest/snake-ci/1.0"
 	AccessTokenHeader = "X-Snake-Runner-Access-Token"
 	NameHeader        = "X-Snake-Runner-Name"
 )
