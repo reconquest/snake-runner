@@ -3,18 +3,31 @@ version: '2'
 output: prefixed
 silent: true
 
+expansions: 3
+
 vars:
   pwd:
     sh: pwd
   random_uuid:
     sh: cat /proc/sys/kernel/random/uuid
   token: ""
+  tag:
+    sh: "git describe --tags --abbrev=0"
+  commit:
+    sh: "git rev-parse --short HEAD"
+  patch:
+    sh: "git rev-list $(git describe --tags --abbrev=0) --count"
+  version: "{{.tag}}.{{.patch}}-{{.commit}}"
 
 includes:
   go: tasks/go.yml
   docker: tasks/docker.yml
 
 tasks:
+  version:
+    desc: print version
+    cmds:
+      - printf "%s" "{{.version}}"
   rr:
     cmds:
       - task: go:build

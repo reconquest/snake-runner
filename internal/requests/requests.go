@@ -14,7 +14,7 @@ type LogsPush struct {
 }
 
 type Heartbeat struct {
-	//
+	Version *string `json:"version,omitempty"`
 }
 
 //go:generate gonstructor -type RunnerRegister

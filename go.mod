@@ -28,6 +28,7 @@ require (
 	github.com/reconquest/karma-go v0.0.0-20190930125156-7b5c19ad6eab
 	github.com/reconquest/pkg v0.0.0-20191230125351-0f8339e114d4
 	github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae
+	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24
 	github.com/stretchr/testify v1.4.0
 	github.com/vmware/govmomi v0.22.1
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect

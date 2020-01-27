@@ -1,9 +1,5 @@
 version: '2'
 
-vars:
-  version:
-    sh: git describe --tags | sed 's/\-/./g'
-
 tasks:
   generate:
     desc: run go generate
@@ -33,4 +29,3 @@ tasks:
           -o snake-runner.docker
           -ldflags="-X=main.version={{.version}}-docker"
           ./cmd/snake-runner
-

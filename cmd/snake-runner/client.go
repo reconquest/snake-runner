@@ -43,10 +43,10 @@ func (client *Client) request() *Request {
 	return request
 }
 
-func (client *Client) Heartbeat() error {
+func (client *Client) Heartbeat(request *requests.Heartbeat) error {
 	err := client.request().
 		POST().Path("/gate/heartbeat").
-		Payload(requests.Heartbeat{}).
+		Payload(request).
 		Do()
 	if err != nil {
 		return err
