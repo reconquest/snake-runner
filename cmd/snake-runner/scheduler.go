@@ -63,6 +63,7 @@ func (scheduler *Scheduler) loop() {
 		}
 
 		if wait {
+			log.Tracef(nil, "sleeping %v", scheduler.config.SchedulerInterval)
 			time.Sleep(scheduler.config.SchedulerInterval)
 		}
 	}

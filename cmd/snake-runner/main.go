@@ -12,7 +12,6 @@ import (
 
 var (
 	version = "[not specified during build]"
-	commit  = "[not specified during build]"
 
 	usage = "snake-runner " + version + `
 
@@ -45,7 +44,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Infof(karma.Describe("version", version).Describe("commit", commit), "starting snake-runner")
+	log.Infof(
+		karma.Describe("version", version),
+		"starting snake-runner",
+	)
 
 	config, err := LoadRunnerConfig(options.ConfigPathValue)
 	if err != nil {

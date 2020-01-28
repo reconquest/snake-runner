@@ -8,15 +8,17 @@ import (
 )
 
 type Config struct {
-	Image  string
-	Stages []string
-	Jobs   map[string]ConfigJob
+	Shell  string               `json:"shell"`
+	Image  string               `json:"image"`
+	Stages []string             `json:"stages"`
+	Jobs   map[string]ConfigJob `json:"jobs"`
 }
 
 type ConfigJob struct {
-	Stage  string   `yaml:"stage"`
-	Image  string   `yaml:"image"`
-	Script []string `yaml:"script"`
+	Stage    string   `yaml:"stage"`
+	Shell    string   `yaml:"shell"`
+	Image    string   `yaml:"image"`
+	Commands []string `yaml:"commands"`
 }
 
 func unmarshalConfig(data []byte) (*Config, error) {

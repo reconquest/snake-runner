@@ -1,13 +1,18 @@
 version: '2'
 
 tasks:
-  alpine:
+  snake-runner@alpine:
     desc: build docker image based on alpine
     cmds:
       - task go:build_docker
-      - docker build -t snake-runner -f docker/snake-runner/alpine/Dockerfile .
+      - docker build -t reconquest/snake-runner:alpine -f docker/snake-runner/alpine/Dockerfile .
 
-  sidecar:
+  snake-runner-sidecar@alpine:
     desc: build docker image for sidecar image based on alpine
     cmds:
-      - docker build -t reconquest/snake-runner-sidecar -f docker/snake-runner-sidecar/alpine/Dockerfile .
+      - docker build -t reconquest/snake-runner-sidecar:alpine -f docker/snake-runner-sidecar/alpine/Dockerfile .
+
+  alpine-bash:
+    desc: build docker image for sidecar image based on alpine
+    cmds:
+      - docker build -t reconquest/alpine-bash -f docker/alpine-bash/Dockerfile .

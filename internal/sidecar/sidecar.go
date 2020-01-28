@@ -171,11 +171,20 @@ func (sidecar *Sidecar) Destroy() {
 	// already
 
 	if sidecar.name != "" {
-		err := sidecar.cloud.Exec(context.Background(), sidecar.container, types.ExecConfig{
-			Cmd:          []string{"rm", "-rf", filepath.Join("/host", sidecar.name)},
-			AttachStderr: true,
-			AttachStdout: true,
-		}, sidecar.onlyLog)
+		cmd := []string{"rm", "-rf", filepath.Join("/host", sidecar.name)}
+
+		log.Debugf(
+			nil,
+			"cleaning up sidecar %s container: %v",
+			sidecar.container.Name, cmd,
+		)
+
+		err := sidecar.cloud.Exec(
+			context.Background(),
+			sidecar.container,
+			types.ExecConfig{Cmd: cmd, AttachStderr: true, AttachStdout: true},
+			sidecar.onlyLog,
+		)
 		if err != nil {
 			log.Errorf(
 				err,
@@ -185,6 +194,12 @@ func (sidecar *Sidecar) Destroy() {
 			)
 		}
 	}
+
+	log.Debugf(
+		nil,
+		"destroying sidecar %s container",
+		sidecar.container.Name,
+	)
 
 	err := sidecar.cloud.DestroyContainer(context.Background(), sidecar.container)
 	if err != nil {

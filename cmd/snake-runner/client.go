@@ -24,6 +24,7 @@ func NewClient(config *RunnerConfig) *Client {
 
 	master := strings.TrimSuffix(client.config.MasterAddress, "/")
 	client.baseURL = master + MasterPrefixAPI
+	client.useragent = "snake-runner/" + version
 
 	return client
 }
@@ -31,7 +32,7 @@ func NewClient(config *RunnerConfig) *Client {
 func (client *Client) request() *Request {
 	request := NewRequest(http.DefaultClient).
 		BaseURL(client.baseURL).
-		UserAgent("snake-runner/"+version).
+		UserAgent(client.useragent).
 		// required by bitbucket itself
 		Header(NameHeader, client.config.Name).
 		Header("X-Atlassian-Token", "no-check")

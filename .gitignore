@@ -10,3 +10,4 @@ conf/sshkey.pub
 /*.test
 /snake-runner.docker
 /.task
+*.out

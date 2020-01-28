@@ -27,10 +27,6 @@ const (
 	StatusUnknown  = "UNKNOWN"
 )
 
-const (
-	DefaultContainerCWD = "/home/ci/"
-)
-
 //go:generate gonstructor -type ProcessPipeline
 type ProcessPipeline struct {
 	// there should be no whole Runner struct
@@ -163,6 +159,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 		process.cloud,
 		process.client,
 		process.config,
+		process.runnerConfig,
 		process.task,
 		process.utilization,
 		job,

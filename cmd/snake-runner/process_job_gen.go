@@ -11,6 +11,6 @@ import (
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-func NewProcessJob(ctx context.Context, cloud *cloud.Cloud, client *Client, config *Config, task tasks.PipelineRun, utilization chan *cloud.Container, job snake.PipelineJob, log *cog.Logger) *ProcessJob {
-	return &ProcessJob{ctx: ctx, cloud: cloud, client: client, config: config, task: task, utilization: utilization, job: job, log: log}
+func NewProcessJob(ctx context.Context, cloud *cloud.Cloud, client *Client, config *Config, runnerConfig *RunnerConfig, task tasks.PipelineRun, utilization chan *cloud.Container, job snake.PipelineJob, log *cog.Logger) *ProcessJob {
+	return &ProcessJob{ctx: ctx, cloud: cloud, client: client, config: config, runnerConfig: runnerConfig, task: task, utilization: utilization, job: job, log: log}
 }

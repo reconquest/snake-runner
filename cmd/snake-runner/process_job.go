@@ -16,15 +16,16 @@ import (
 )
 
 const (
-	DefaultImage = "alpine:latest"
+	DefaultImage = "alpine"
 )
 
 //go:generate gonstructor -type ProcessJob
 type ProcessJob struct {
-	ctx    context.Context
-	cloud  *cloud.Cloud
-	client *Client
-	config *Config
+	ctx          context.Context
+	cloud        *cloud.Cloud
+	client       *Client
+	config       *Config
+	runnerConfig *RunnerConfig
 
 	task        tasks.PipelineRun
 	utilization chan *cloud.Container
@@ -34,94 +35,27 @@ type ProcessJob struct {
 
 	container *cloud.Container `gonstructor:"-"`
 	sidecar   *sidecar.Sidecar `gonstructor:"-"`
-}
-
-func (process *ProcessJob) pushLogs(text string) error {
-	// here should be a channel with a sort of buffer
-	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
-
-	err := process.client.PushLogs(
-		process.task.Pipeline.ID,
-		process.job.ID,
-		text,
-	)
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to push logs to remote server",
-		)
-	}
-
-	return nil
-}
-
-func (process *ProcessJob) getEnv() []string {
-	env := []string{}
-	for key, value := range process.task.Env {
-		env = append(env, key+"="+value)
-	}
-	return env
-}
-
-func (process *ProcessJob) execSystem(cmd ...string) error {
-	err := process.sendPrompt(cmd)
-	if err != nil {
-		return err
-	}
-
-	err = process.cloud.Exec(
-		process.ctx,
-		process.container,
-		types.ExecConfig{
-			Env:          process.getEnv(),
-			WorkingDir:   process.sidecar.GetContainerDir(),
-			Cmd:          cmd,
-			AttachStdout: true,
-			AttachStderr: true,
-		},
-		process.pushLogs,
-	)
-	if err != nil {
-		return karma.Describe("cmd", fmt.Sprintf("%v", cmd)).
-			Format(err, "command failed")
-	}
-
-	return nil
-}
-
-func (process *ProcessJob) execShell(cmd string) error {
-	err := process.sendPrompt([]string{cmd})
-	if err != nil {
-		return err
-	}
-
-	err = process.cloud.Exec(
-		process.ctx,
-		process.container,
-		types.ExecConfig{
-			Env:          process.getEnv(),
-			WorkingDir:   process.sidecar.GetContainerDir(),
-			Cmd:          []string{"/bin/sh", "-c", cmd},
-			AttachStdout: true,
-			AttachStderr: true,
-		},
-		process.pushLogs,
-	)
-	if err != nil {
-		return karma.Describe("cmd", fmt.Sprintf("%v", cmd)).
-			Format(err, "command failed")
-	}
-
-	return nil
-}
-
-func (process *ProcessJob) sendPrompt(cmd []string) error {
-	return process.pushLogs("\n$ " + strings.Join(cmd, " ") + "\n")
+	shell     string           `gonstructor:"-"`
+	env       []string         `gonstructor:"-"`
 }
 
 func (process *ProcessJob) run() error {
-	image := process.config.Image
-	if image == "" {
+	configJob, ok := process.config.Jobs[process.job.Name]
+	if !ok {
+		return fmt.Errorf(
+			"unable to find given job %q in %s",
+			process.job.Name,
+			process.task.Pipeline.Filename,
+		)
+	}
+
+	var image string
+	switch {
+	case configJob.Image != "":
+		image = configJob.Image
+	case process.config.Image != "":
+		image = process.config.Image
+	default:
 		image = DefaultImage
 	}
 
@@ -155,20 +89,144 @@ func (process *ProcessJob) run() error {
 		process.utilization <- process.container
 	}()
 
-	configJob, ok := process.config.Jobs[process.job.Name]
-	if !ok {
-		return fmt.Errorf(
-			"unable to find given job %q in %s",
-			process.job.Name,
-			process.task.Pipeline.Filename,
-		)
+	err = process.detectShell(configJob)
+	if err != nil {
+		return karma.Format(err, "unable to detect shell in container")
 	}
 
-	for _, script := range configJob.Script {
-		err = process.execShell(script)
+	for _, command := range configJob.Commands {
+		err = process.execShell(command)
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (process *ProcessJob) pushLogs(text string) error {
+	// here should be a channel with a sort of buffer
+	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
+
+	err := process.client.PushLogs(
+		process.task.Pipeline.ID,
+		process.job.ID,
+		text,
+	)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to push logs to remote server",
+		)
+	}
+
+	return nil
+}
+
+func (process *ProcessJob) getEnv() []string {
+	if len(process.env) == 0 {
+		process.env = NewEnvBuilder(
+			process.task,
+			process.task.Pipeline,
+			process.job,
+			process.runnerConfig,
+			process.sidecar.GetContainerDir(),
+		).build()
+	}
+	return process.env
+}
+
+func (process *ProcessJob) execShell(cmd string) error {
+	err := process.sendPrompt([]string{cmd})
+	if err != nil {
+		return err
+	}
+
+	err = process.cloud.Exec(
+		process.ctx,
+		process.container,
+		types.ExecConfig{
+			Env:          process.getEnv(),
+			WorkingDir:   process.sidecar.GetContainerDir(),
+			Cmd:          []string{process.shell, "-c", cmd},
+			AttachStdout: true,
+			AttachStderr: true,
+		},
+		process.pushLogs,
+	)
+	if err != nil {
+		return karma.Describe("cmd", fmt.Sprintf("%v", cmd)).
+			Format(err, "command failed")
+	}
+
+	return nil
+}
+
+func (process *ProcessJob) sendPrompt(cmd []string) error {
+	return process.pushLogs("\n$ " + strings.Join(cmd, " ") + "\n")
+}
+
+func (process *ProcessJob) detectShell(configJob ConfigJob) error {
+	if process.config.Shell != "" {
+		process.log.Debugf(
+			nil,
+			"using shell specified in pipeline spec: %q",
+			process.config.Shell,
+		)
+		process.shell = process.config.Shell
+		return nil
+	}
+
+	if configJob.Shell != "" {
+		process.log.Debugf(
+			nil,
+			"using shell specified in job spec: %q",
+			configJob.Shell,
+		)
+		process.shell = configJob.Shell
+		return nil
+	}
+
+	output := ""
+	callback := func(line string) error {
+		process.log.Tracef(nil, "shelldetect: %q", line)
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			return nil
+		}
+
+		if output == "" {
+			output = line
+		} else {
+			output += "\n" + line
+		}
+
+		return nil
+	}
+
+	cmd := []string{"sh", "-c", DETECT_SHELL_COMMAND}
+
+	err := process.cloud.Exec(
+		process.ctx,
+		process.container,
+		types.ExecConfig{
+			Cmd:          cmd,
+			AttachStdout: true,
+			AttachStderr: true,
+		},
+		callback,
+	)
+	if err != nil {
+		return karma.Format(err, "execution of shell detection script failed")
+	}
+
+	if output == "" {
+		process.shell = "sh"
+		process.log.Debugf(nil, "using default shell: %q", process.shell)
+	} else {
+		process.shell = output
+		process.log.Debugf(nil, "using shell detected in container: %q", process.shell)
 	}
 
 	return nil

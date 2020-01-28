@@ -106,8 +106,3 @@ func LoadRunnerConfig(path string) (*RunnerConfig, error) {
 
 	return &config, nil
 }
-
-func isFileExists(path string) bool {
-	stat, err := os.Stat(path)
-	return !os.IsNotExist(err) && !stat.IsDir()
-}

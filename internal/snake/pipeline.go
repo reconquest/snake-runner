@@ -12,5 +12,8 @@ type Pipeline struct {
 	Filename     string `json:"filename"`
 	// ignore unused
 	// JobsTotal int
-	RunnerID int `json:"runner_id"`
+	RunnerID      int    `json:"runner_id"`
+	RefType       string `json:"ref_type"`
+	RefDisplayId  string `json:"ref_display_id"`
+	PullRequestID int    `json:"pull_request_id"`
 }
