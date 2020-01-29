@@ -1,6 +1,7 @@
 package sshkey
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -22,16 +23,27 @@ type Key struct {
 }
 
 type Factory struct {
+	context   context.Context
 	queue     chan *Key
 	blockSize int
 }
 
-func NewFactory(queueSize int, blockSize int) *Factory {
-	return &Factory{queue: make(chan *Key, queueSize), blockSize: blockSize}
+func NewFactory(context context.Context, queueSize int, blockSize int) *Factory {
+	return &Factory{
+		context:   context,
+		queue:     make(chan *Key, queueSize),
+		blockSize: blockSize,
+	}
 }
 
 func (factory *Factory) Run() {
 	for {
+		select {
+		case <-factory.context.Done():
+			return
+		default:
+		}
+
 		key, err := Generate(factory.blockSize)
 		if err != nil {
 			log.Errorf(
@@ -45,12 +57,16 @@ func (factory *Factory) Run() {
 			continue
 		}
 
-		factory.queue <- key
+		select {
+		case <-factory.context.Done():
+			return
+		case factory.queue <- key:
+		}
 	}
 }
 
-func (factory *Factory) Get() *Key {
-	return <-factory.queue
+func (factory *Factory) Get() chan *Key {
+	return factory.queue
 }
 
 func Generate(blockSize int) (*Key, error) {

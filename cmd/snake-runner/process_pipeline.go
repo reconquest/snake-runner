@@ -29,15 +29,13 @@ const (
 
 //go:generate gonstructor -type ProcessPipeline
 type ProcessPipeline struct {
-	// there should be no whole Runner struct
-	// should be some sort of Client that does what Runner.request() does
-	// Runner is here because it works
+	parentCtx    context.Context
+	ctx          context.Context
 	client       *Client
 	runnerConfig *RunnerConfig
 	task         tasks.PipelineRun
 	cloud        *cloud.Cloud
 	log          *cog.Logger
-	ctx          context.Context
 	utilization  chan *cloud.Container
 
 	status  string           `gonstructor:"-"`
@@ -104,7 +102,6 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 		)
 
 		status, err := process.runJob(job)
-
 		if status == StatusFailed {
 			process.fail(job.ID)
 		}
@@ -116,13 +113,16 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 		)
 
 		if err != nil {
-			return status, err
+			return status, karma.Format(
+				err,
+				"job=%d an error occurred during job running", job.ID,
+			)
 		}
 
 		err = process.client.UpdateJob(
 			process.task.Pipeline.ID,
 			job.ID,
-			StatusSuccess,
+			status,
 			nil,
 			ptr.TimePtr(utils.Now()),
 		)
@@ -213,6 +213,13 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 	err = subprocess.run()
 	if err != nil {
 		if karma.Contains(err, context.Canceled) {
+			// special case when runner gets terminated
+			if utils.Done(process.parentCtx) {
+				subprocess.pushLogs("\n\nWARNING: snake-runner has been terminated")
+
+				return StatusFailed, err
+			}
+
 			return StatusCanceled, err
 		}
 

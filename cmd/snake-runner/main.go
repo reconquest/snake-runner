@@ -68,7 +68,9 @@ func main() {
 	runner.Start()
 
 	sign.Notify(func(signal os.Signal) bool {
-		log.Warningf(nil, "got signal: %s", signal)
+		log.Warningf(nil, "got signal: %s, shutting down runner", signal)
+		runner.Shutdown()
+		log.Warningf(nil, "shutdown: runner gracefully terminated")
 		return false
-	}, syscall.SIGINT, syscall.SIGTERM)
+	}, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 }

@@ -11,6 +11,6 @@ import (
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-func NewProcessPipeline(client *Client, runnerConfig *RunnerConfig, task tasks.PipelineRun, cloud *cloud.Cloud, log *cog.Logger, ctx context.Context, utilization chan *cloud.Container, sshKey sshkey.Key) *ProcessPipeline {
-	return &ProcessPipeline{client: client, runnerConfig: runnerConfig, task: task, cloud: cloud, log: log, ctx: ctx, utilization: utilization, sshKey: sshKey}
+func NewProcessPipeline(parentCtx context.Context, ctx context.Context, client *Client, runnerConfig *RunnerConfig, task tasks.PipelineRun, cloud *cloud.Cloud, log *cog.Logger, utilization chan *cloud.Container, sshKey sshkey.Key) *ProcessPipeline {
+	return &ProcessPipeline{parentCtx: parentCtx, ctx: ctx, client: client, runnerConfig: runnerConfig, task: task, cloud: cloud, log: log, utilization: utilization, sshKey: sshKey}
 }

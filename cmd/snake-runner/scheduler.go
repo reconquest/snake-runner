@@ -14,11 +14,31 @@ import (
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
+type Scheduler struct {
+	client         *Client
+	cloud          *cloud.Cloud
+	pipelinesMap   sync.Map
+	pipelines      int64
+	pipelinesGroup sync.WaitGroup
+	cancels        sync.Map
+	utilization    chan *cloud.Container
+	config         *RunnerConfig
+
+	sshKeyFactory *sshkey.Factory
+	sshKey        *sshkey.Key
+
+	context  context.Context
+	cancel   func()
+	routines sync.WaitGroup
+}
+
 func (runner *Runner) startScheduler() error {
 	docker, err := cloud.NewDocker(runner.config.Docker.Network)
 	if err != nil {
 		return karma.Format(err, "unable to initialize container provider")
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	scheduler := &Scheduler{
 		client:      runner.client,
@@ -26,9 +46,12 @@ func (runner *Runner) startScheduler() error {
 		utilization: make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
 		config:      runner.config,
 		sshKeyFactory: sshkey.NewFactory(
+			ctx,
 			int(runner.config.MaxParallelPipelines),
 			sshkey.DefaultBlockSize,
 		),
+		context: ctx,
+		cancel:  cancel,
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -40,28 +63,35 @@ func (runner *Runner) startScheduler() error {
 
 	runner.scheduler = scheduler
 
-	go scheduler.sshKeyFactory.Run()
-	go scheduler.loop()
-	go scheduler.utilize()
+	runner.scheduler.start()
 
 	return nil
 }
 
-type Scheduler struct {
-	client       *Client
-	cloud        *cloud.Cloud
-	pipelinesMap sync.Map
-	pipelines    int64
-	cancels      sync.Map
-	utilization  chan *cloud.Container
-	config       *RunnerConfig
-
-	sshKeyFactory *sshkey.Factory
-	sshKey        *sshkey.Key
+func (scheduler *Scheduler) start() {
+	scheduler.routines.Add(3)
+	go func() {
+		defer scheduler.routines.Done()
+		scheduler.sshKeyFactory.Run()
+	}()
+	go func() {
+		defer scheduler.routines.Done()
+		scheduler.loop()
+	}()
+	go func() {
+		defer scheduler.routines.Done()
+		scheduler.utilize()
+	}()
 }
 
 func (scheduler *Scheduler) loop() {
 	for {
+		select {
+		case <-scheduler.context.Done():
+			return
+		default:
+		}
+
 		wait, err := scheduler.getAndServe()
 		if err != nil {
 			log.Error(err)
@@ -69,7 +99,11 @@ func (scheduler *Scheduler) loop() {
 
 		if wait {
 			log.Tracef(nil, "sleeping %v", scheduler.config.SchedulerInterval)
-			time.Sleep(scheduler.config.SchedulerInterval)
+			select {
+			case <-scheduler.context.Done():
+				return
+			case <-time.After(scheduler.config.SchedulerInterval):
+			}
 		}
 	}
 }
@@ -78,7 +112,12 @@ func (scheduler *Scheduler) getAndServe() (bool, error) {
 	var err error
 
 	if scheduler.sshKey == nil {
-		scheduler.sshKey = scheduler.sshKeyFactory.Get()
+		select {
+		case scheduler.sshKey = <-scheduler.sshKeyFactory.Get():
+			//
+		case <-scheduler.context.Done():
+			return false, nil
+		}
 	}
 
 	pipelines := atomic.LoadInt64(&scheduler.pipelines)
@@ -135,31 +174,26 @@ func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error
 	case tasks.PipelineRun:
 		atomic.AddInt64(&scheduler.pipelines, 1)
 
+		scheduler.pipelinesGroup.Add(1)
 		go func() {
 			defer atomic.AddInt64(&scheduler.pipelines, -1)
+			defer scheduler.pipelinesGroup.Done()
 
 			err := scheduler.startPipeline(task, sshKey)
 			if err != nil {
-				log.Errorf(err, "an error occurred during task running")
+				log.Debug(
+					karma.Format(
+						err,
+						"pipeline=%d an error occurred during task running",
+						task.Pipeline.ID,
+					),
+				)
 			}
 		}()
 
 	case tasks.PipelineCancel:
 		for _, id := range task.Pipelines {
-			cancel, ok := scheduler.cancels.Load(id)
-			if !ok {
-				log.Warningf(
-					nil,
-					"unable to cancel pipeline %d, its context already gone",
-					id,
-				)
-			} else {
-				log.Infof(nil, "canceling pipeline: %d", id)
-				cancel.(context.CancelFunc)()
-
-				scheduler.cancels.Delete(id)
-				scheduler.pipelinesMap.Delete(id)
-			}
+			scheduler.cancelPipeline(id)
 		}
 
 	default:
@@ -167,6 +201,23 @@ func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error
 	}
 
 	return nil
+}
+
+func (scheduler *Scheduler) cancelPipeline(id int) {
+	cancel, ok := scheduler.cancels.Load(id)
+	if !ok {
+		log.Warningf(
+			nil,
+			"unable to cancel pipeline %d, its context already gone",
+			id,
+		)
+	} else {
+		log.Infof(nil, "canceling pipeline: %d", id)
+		cancel.(context.CancelFunc)()
+
+		scheduler.cancels.Delete(id)
+		scheduler.pipelinesMap.Delete(id)
+	}
 }
 
 func (scheduler *Scheduler) startPipeline(
@@ -178,12 +229,13 @@ func (scheduler *Scheduler) startPipeline(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	process := NewProcessPipeline(
+		scheduler.context,
+		ctx,
 		scheduler.client,
 		scheduler.config,
 		task,
 		scheduler.cloud,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
-		ctx,
 		scheduler.utilization,
 		sshKey,
 	)
@@ -216,4 +268,37 @@ func (scheduler *Scheduler) getPipelines() []int {
 	})
 
 	return result
+}
+
+func (scheduler *Scheduler) shutdown() {
+	log.Warningf(nil, "shutdown: terminating heartbeat and task routines")
+
+	scheduler.cancel()
+	scheduler.pipelinesMap.Range(func(key interface{}, _ interface{}) bool {
+		log.Warningf(nil, "shutdown: canceling pipeline: %v", key)
+		scheduler.cancelPipeline(key.(int))
+		return true
+	})
+
+	go func() {
+		for {
+			pipelines := atomic.LoadInt64(&scheduler.pipelines)
+			log.Warningf(
+				nil,
+				"shutdown: waiting for pipelines to be terminated: %d",
+				pipelines,
+			)
+			if pipelines == 0 {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}()
+	scheduler.pipelinesGroup.Wait()
+
+	log.Warningf(nil, "shutdown: waiting for all containers to be terminated")
+	close(scheduler.utilization)
+	scheduler.routines.Wait()
+
+	log.Warningf(nil, "shutdown: scheduler gracefully terminated")
 }

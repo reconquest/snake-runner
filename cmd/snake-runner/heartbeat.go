@@ -9,7 +9,9 @@ import (
 )
 
 func (runner *Runner) startHeartbeats() {
+	runner.workers.Add(1)
 	go func() {
+		defer runner.workers.Done()
 		var handshaked bool
 
 		request := &requests.Heartbeat{
@@ -17,6 +19,12 @@ func (runner *Runner) startHeartbeats() {
 		}
 
 		for {
+			select {
+			case <-runner.context.Done():
+				return
+			default:
+			}
+
 			log.Debugf(nil, "sending heartbeat request")
 
 			err := runner.client.Heartbeat(request)
@@ -29,7 +37,11 @@ func (runner *Runner) startHeartbeats() {
 				}
 			}
 
-			time.Sleep(runner.config.HeartbeatInterval)
+			select {
+			case <-runner.context.Done():
+				return
+			case <-time.After(runner.config.HeartbeatInterval):
+			}
 		}
 	}()
 }

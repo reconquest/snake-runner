@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"sync"
 	"time"
 
 	"github.com/reconquest/pkg/log"
@@ -18,12 +20,18 @@ type Runner struct {
 	config    *RunnerConfig
 	scheduler *Scheduler
 	client    *Client
+	context   context.Context
+	cancel    context.CancelFunc
+	workers   sync.WaitGroup
 }
 
 func NewRunner(config *RunnerConfig) *Runner {
+	context, cancel := context.WithCancel(context.Background())
 	return &Runner{
-		config: config,
-		client: NewClient(config),
+		config:  config,
+		client:  NewClient(config),
+		context: context,
+		cancel:  cancel,
 	}
 }
 
@@ -65,4 +73,14 @@ func (runner *Runner) Start() {
 	}
 
 	runner.startHeartbeats()
+}
+
+func (runner *Runner) Shutdown() {
+	runner.cancel()
+
+	if runner.scheduler != nil {
+		runner.scheduler.shutdown()
+	}
+
+	runner.workers.Wait()
 }
