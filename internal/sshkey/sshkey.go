@@ -5,13 +5,15 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"time"
 
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/pkg/log"
 	"golang.org/x/crypto/ssh"
 )
 
 const (
-	BlockSize = 4096
+	DefaultBlockSize = 3072
 )
 
 type Key struct {
@@ -19,8 +21,40 @@ type Key struct {
 	Public  string
 }
 
-func Generate() (*Key, error) {
-	private, err := generatePrivateKey(BlockSize)
+type Factory struct {
+	queue     chan *Key
+	blockSize int
+}
+
+func NewFactory(queueSize int, blockSize int) *Factory {
+	return &Factory{queue: make(chan *Key, queueSize), blockSize: blockSize}
+}
+
+func (factory *Factory) Run() {
+	for {
+		key, err := Generate(factory.blockSize)
+		if err != nil {
+			log.Errorf(
+				err,
+				"sshkey.Factory: unable to generate key with block size; %d",
+				factory.blockSize,
+			)
+
+			time.Sleep(time.Second)
+
+			continue
+		}
+
+		factory.queue <- key
+	}
+}
+
+func (factory *Factory) Get() *Key {
+	return <-factory.queue
+}
+
+func Generate(blockSize int) (*Key, error) {
+	private, err := generatePrivateKey(blockSize)
 	if err != nil {
 		return nil, karma.Format(
 			err,

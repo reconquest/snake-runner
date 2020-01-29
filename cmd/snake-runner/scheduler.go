@@ -25,6 +25,10 @@ func (runner *Runner) startScheduler() error {
 		cloud:       docker,
 		utilization: make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
 		config:      runner.config,
+		sshKeyFactory: sshkey.NewFactory(
+			int(runner.config.MaxParallelPipelines),
+			sshkey.DefaultBlockSize,
+		),
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -36,13 +40,13 @@ func (runner *Runner) startScheduler() error {
 
 	runner.scheduler = scheduler
 
+	go scheduler.sshKeyFactory.Run()
 	go scheduler.loop()
 	go scheduler.utilize()
 
 	return nil
 }
 
-//go:generate gonstructor -type Scheduler
 type Scheduler struct {
 	client       *Client
 	cloud        *cloud.Cloud
@@ -52,7 +56,8 @@ type Scheduler struct {
 	utilization  chan *cloud.Container
 	config       *RunnerConfig
 
-	sshKey *sshkey.Key `gonstructor:"-"`
+	sshKeyFactory *sshkey.Factory
+	sshKey        *sshkey.Key
 }
 
 func (scheduler *Scheduler) loop() {
@@ -73,15 +78,12 @@ func (scheduler *Scheduler) getAndServe() (bool, error) {
 	var err error
 
 	if scheduler.sshKey == nil {
-		scheduler.sshKey, err = sshkey.Generate()
-		if err != nil {
-			return true, karma.Format(err, "unable to generate ssh key")
-		}
+		scheduler.sshKey = scheduler.sshKeyFactory.Get()
 	}
 
 	pipelines := atomic.LoadInt64(&scheduler.pipelines)
 
-	log.Debugf(nil, "retrieving task")
+	log.Debugf(nil, "retrieving task [running pipelines: %d]", pipelines)
 
 	task, err := scheduler.client.GetTask(
 		scheduler.getPipelines(),
@@ -100,6 +102,7 @@ func (scheduler *Scheduler) getAndServe() (bool, error) {
 
 	case task == nil:
 		return true, nil
+
 	default:
 		// pass sshkey by value and cause copying
 		err = scheduler.serveTask(task, *scheduler.sshKey)
