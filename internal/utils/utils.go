@@ -4,6 +4,9 @@ import (
 	"context"
 	"math/rand"
 	"time"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/reconquest/karma-go"
 )
 
 func Now() time.Time {
@@ -42,4 +45,46 @@ func Done(context context.Context) bool {
 	default:
 		return false
 	}
+}
+
+type causer interface {
+	Cause() error
+}
+
+type unwraper interface {
+	Unwrap() error
+}
+
+func IsCanceled(err error) bool {
+	if err == context.Canceled {
+		return true
+	}
+
+	if karma.Contains(err, context.Canceled) {
+		return true
+	}
+
+	if err, ok := err.(karma.Karma); ok {
+		for _, reason := range err.GetReasons() {
+			if reason, ok := reason.(error); ok {
+				if IsCanceled(reason) {
+					return true
+				}
+			}
+		}
+	}
+
+	if errdefs.IsCancelled(err) {
+		return true
+	}
+
+	if err, ok := err.(unwraper); ok {
+		return IsCanceled(err.Unwrap())
+	}
+
+	if err, ok := err.(causer); ok {
+		return IsCanceled(err.Cause())
+	}
+
+	return false
 }

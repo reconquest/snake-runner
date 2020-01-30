@@ -212,7 +212,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 
 	err = subprocess.run()
 	if err != nil {
-		if karma.Contains(err, context.Canceled) {
+		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
 			if utils.Done(process.parentCtx) {
 				subprocess.pushLogs("\n\nWARNING: snake-runner has been terminated")
