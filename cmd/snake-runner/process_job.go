@@ -19,7 +19,7 @@ const (
 	DefaultImage = "alpine"
 )
 
-//go:generate gonstructor -type ProcessJob
+//go:generate gonstructor -type ProcessJob -init init
 type ProcessJob struct {
 	ctx          context.Context
 	cloud        *cloud.Cloud
@@ -33,13 +33,41 @@ type ProcessJob struct {
 	job snake.PipelineJob
 	log *cog.Logger
 
-	container *cloud.Container `gonstructor:"-"`
-	sidecar   *sidecar.Sidecar `gonstructor:"-"`
-	shell     string           `gonstructor:"-"`
-	env       []string         `gonstructor:"-"`
+	container  *cloud.Container    `gonstructor:"-"`
+	sidecar    *sidecar.Sidecar    `gonstructor:"-"`
+	shell      string              `gonstructor:"-"`
+	env        []string            `gonstructor:"-"`
+	logsWriter *LogsBufferedWriter `gonstructor:"-"`
+}
+
+func (process *ProcessJob) init() {
+	process.logsWriter = NewLogsBufferedWriter(
+		DefaultLogsBufferSize,
+		DefaultLogsBufferTimeout,
+		func(text string) {
+			err := process.client.PushLogs(
+				process.task.Pipeline.ID,
+				process.job.ID,
+				text,
+			)
+			if err != nil {
+				process.log.Errorf(
+					err,
+					"unable to push logs to remote server",
+				)
+			}
+		})
+	go process.logsWriter.Run()
+}
+
+func (process *ProcessJob) shutdown() {
+	process.logsWriter.Close()
+	process.logsWriter.Wait()
 }
 
 func (process *ProcessJob) run() error {
+	defer process.shutdown()
+
 	configJob, ok := process.config.Jobs[process.job.Name]
 	if !ok {
 		return fmt.Errorf(
@@ -104,23 +132,9 @@ func (process *ProcessJob) run() error {
 	return nil
 }
 
-func (process *ProcessJob) pushLogs(text string) error {
-	// here should be a channel with a sort of buffer
+func (process *ProcessJob) writeLogs(text string) {
 	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
-
-	err := process.client.PushLogs(
-		process.task.Pipeline.ID,
-		process.job.ID,
-		text,
-	)
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to push logs to remote server",
-		)
-	}
-
-	return nil
+	process.logsWriter.Write(text)
 }
 
 func (process *ProcessJob) getEnv() []string {
@@ -137,12 +151,9 @@ func (process *ProcessJob) getEnv() []string {
 }
 
 func (process *ProcessJob) execShell(cmd string) error {
-	err := process.sendPrompt([]string{cmd})
-	if err != nil {
-		return err
-	}
+	process.sendPrompt([]string{cmd})
 
-	err = process.cloud.Exec(
+	err := process.cloud.Exec(
 		process.ctx,
 		process.container,
 		types.ExecConfig{
@@ -152,7 +163,7 @@ func (process *ProcessJob) execShell(cmd string) error {
 			AttachStdout: true,
 			AttachStderr: true,
 		},
-		process.pushLogs,
+		process.writeLogs,
 	)
 	if err != nil {
 		return karma.Describe("cmd", fmt.Sprintf("%v", cmd)).
@@ -162,8 +173,8 @@ func (process *ProcessJob) execShell(cmd string) error {
 	return nil
 }
 
-func (process *ProcessJob) sendPrompt(cmd []string) error {
-	return process.pushLogs("\n$ " + strings.Join(cmd, " ") + "\n")
+func (process *ProcessJob) sendPrompt(cmd []string) {
+	process.writeLogs("\n$ " + strings.Join(cmd, " ") + "\n")
 }
 
 func (process *ProcessJob) detectShell(configJob ConfigJob) error {
@@ -188,12 +199,12 @@ func (process *ProcessJob) detectShell(configJob ConfigJob) error {
 	}
 
 	output := ""
-	callback := func(line string) error {
+	callback := func(line string) {
 		process.log.Tracef(nil, "shelldetect: %q", line)
 
 		line = strings.TrimSpace(line)
 		if line == "" {
-			return nil
+			return
 		}
 
 		if output == "" {
@@ -201,8 +212,6 @@ func (process *ProcessJob) detectShell(configJob ConfigJob) error {
 		} else {
 			output += "\n" + line
 		}
-
-		return nil
 	}
 
 	cmd := []string{"sh", "-c", DETECT_SHELL_COMMAND}
@@ -239,17 +248,11 @@ func (process *ProcessJob) ensureImage(tag string) error {
 	}
 
 	if image == nil {
-		err := process.pushLogs(
+		process.writeLogs(
 			fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
 		)
-		if err != nil {
-			return karma.Format(
-				err,
-				"unable to push log message",
-			)
-		}
 
-		err = process.cloud.PullImage(process.ctx, tag, process.pushLogs)
+		err := process.cloud.PullImage(process.ctx, tag, process.writeLogs)
 		if err != nil {
 			return err
 		}
@@ -268,16 +271,13 @@ func (process *ProcessJob) ensureImage(tag string) error {
 		}
 	}
 
-	err = process.pushLogs(
+	process.writeLogs(
 		fmt.Sprintf(
 			"\n:: Using docker image: %s @ %s\n",
 			strings.Join(image.RepoTags, ", "),
 			image.ID,
 		),
 	)
-	if err != nil {
-		return karma.Format(err, "unable to push logs")
-	}
 
 	return nil
 }

@@ -212,7 +212,7 @@ func (scheduler *Scheduler) cancelPipeline(id int) {
 			id,
 		)
 	} else {
-		log.Infof(nil, "canceling pipeline: %d", id)
+		log.Infof(nil, "task: canceling pipeline: %d", id)
 		cancel.(context.CancelFunc)()
 
 		scheduler.cancels.Delete(id)

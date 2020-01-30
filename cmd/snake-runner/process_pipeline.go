@@ -185,7 +185,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 			).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
 			CommandConsumer(subprocess.sendPrompt).
-			OutputConsumer(subprocess.pushLogs).
+			OutputConsumer(subprocess.writeLogs).
 			SshKey(process.sshKey).
 			Build()
 
@@ -215,7 +215,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
 			if utils.Done(process.parentCtx) {
-				subprocess.pushLogs("\n\nWARNING: snake-runner has been terminated")
+				subprocess.writeLogs("\n\nWARNING: snake-runner has been terminated")
 
 				return StatusFailed, err
 			}

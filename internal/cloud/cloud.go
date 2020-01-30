@@ -33,8 +33,8 @@ type Cloud struct {
 }
 
 type (
-	OutputConsumer  func(string) error
-	CommandConsumer func([]string) error
+	OutputConsumer  func(string)
+	CommandConsumer func([]string)
 )
 
 func NewDocker(network string) (*Cloud, error) {
@@ -294,14 +294,12 @@ func (cloud *Cloud) Cat(
 	path string,
 ) (string, error) {
 	data := ""
-	callback := func(line string) error {
+	callback := func(line string) {
 		if data == "" {
 			data = line
 		} else {
 			data = data + "\n" + line
 		}
-
-		return nil
 	}
 
 	err := cloud.Exec(

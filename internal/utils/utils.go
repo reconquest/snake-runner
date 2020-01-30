@@ -34,6 +34,10 @@ func NewTicker(duration time.Duration) *Ticker {
 	return ticker
 }
 
+func (ticker *Ticker) Get() <-chan time.Time {
+	return ticker.ch
+}
+
 func (ticker *Ticker) Reset() {
 	ticker.ch = time.After(ticker.duration)
 }

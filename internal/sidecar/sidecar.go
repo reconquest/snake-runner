@@ -130,10 +130,7 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 	}
 
 	for _, cmd := range commands {
-		err = sidecar.commandConsumer(cmd)
-		if err != nil {
-			return err
-		}
+		sidecar.commandConsumer(cmd)
 
 		err = sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
 			// NO ENV!
@@ -154,13 +151,12 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 	return nil
 }
 
-func (sidecar *Sidecar) onlyLog(text string) error {
+func (sidecar *Sidecar) onlyLog(text string) {
 	log.Debugf(
 		nil,
 		"sidecar %s: %s",
 		sidecar.container.Name, strings.TrimRight(text, "\n"),
 	)
-	return nil
 }
 
 func (sidecar *Sidecar) Destroy() {
