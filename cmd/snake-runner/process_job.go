@@ -57,6 +57,7 @@ func (process *ProcessJob) init() {
 				)
 			}
 		})
+
 	go process.logsWriter.Run()
 }
 
@@ -70,8 +71,9 @@ func (process *ProcessJob) run() error {
 
 	configJob, ok := process.config.Jobs[process.job.Name]
 	if !ok {
-		return fmt.Errorf(
-			"unable to find given job %q in %s",
+		return process.remoteErrorf(
+			nil,
+			"unable to find given job %q in %q",
 			process.job.Name,
 			process.task.Pipeline.Filename,
 		)
@@ -89,10 +91,7 @@ func (process *ProcessJob) run() error {
 
 	err := process.ensureImage(image)
 	if err != nil {
-		return karma.Format(
-			err,
-			"unable to pull image: %s", image,
-		)
+		return process.remoteErrorf(err, "unable to pull image %q", image)
 	}
 
 	process.container, err = process.cloud.CreateContainer(
@@ -107,10 +106,7 @@ func (process *ProcessJob) run() error {
 		process.sidecar.GetPipelineVolumes(),
 	)
 	if err != nil {
-		return karma.Format(
-			err,
-			"unable to create a container",
-		)
+		return process.remoteErrorf(err, "unable to create a container")
 	}
 
 	defer func() {
@@ -119,22 +115,35 @@ func (process *ProcessJob) run() error {
 
 	err = process.detectShell(configJob)
 	if err != nil {
-		return karma.Format(err, "unable to detect shell in container")
+		return process.remoteErrorf(err, "unable to detect shell in container")
 	}
 
 	for _, command := range configJob.Commands {
 		err = process.execShell(command)
 		if err != nil {
-			return err
+			return process.remoteErrorf()
+			karma.
+				Describe("cmd", fmt.Sprintf("%v", cmd)).
+				Reason(err)
 		}
 	}
 
 	return nil
 }
 
-func (process *ProcessJob) writeLogs(text string) {
+func (process *ProcessJob) remoteLog(text string) {
 	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
 	process.logsWriter.Write(text)
+}
+
+func (process *ProcessJob) remoteErrorf(
+	reason error,
+	format string,
+	args ...interface{},
+) error {
+	err := karma.Format(reason, format, args...)
+	process.logsWriter.Write("\n\n" + err.Error())
+	return err
 }
 
 func (process *ProcessJob) getEnv() []string {
@@ -147,6 +156,7 @@ func (process *ProcessJob) getEnv() []string {
 			process.sidecar.GetContainerDir(),
 		).build()
 	}
+
 	return process.env
 }
 
@@ -163,10 +173,11 @@ func (process *ProcessJob) execShell(cmd string) error {
 			AttachStdout: true,
 			AttachStderr: true,
 		},
-		process.writeLogs,
+		process.remoteLog,
 	)
 	if err != nil {
-		return karma.Describe("cmd", fmt.Sprintf("%v", cmd)).
+		return karma.
+			Describe("cmd", fmt.Sprintf("%v", cmd)).
 			Format(err, "command failed")
 	}
 
@@ -174,7 +185,7 @@ func (process *ProcessJob) execShell(cmd string) error {
 }
 
 func (process *ProcessJob) sendPrompt(cmd []string) {
-	process.writeLogs("\n$ " + strings.Join(cmd, " ") + "\n")
+	process.remoteLog("\n$ " + strings.Join(cmd, " ") + "\n")
 }
 
 func (process *ProcessJob) detectShell(configJob ConfigJob) error {
@@ -227,15 +238,24 @@ func (process *ProcessJob) detectShell(configJob ConfigJob) error {
 		callback,
 	)
 	if err != nil {
-		return karma.Format(err, "execution of shell detection script failed")
+		return process.remoteErrorf(
+			err,
+			"execution of shell detection script failed",
+		)
 	}
 
 	if output == "" {
 		process.shell = "sh"
+
 		process.log.Debugf(nil, "using default shell: %q", process.shell)
 	} else {
 		process.shell = output
-		process.log.Debugf(nil, "using shell detected in container: %q", process.shell)
+
+		process.log.Debugf(
+			nil,
+			"using shell detected in container: %q",
+			process.shell,
+		)
 	}
 
 	return nil
@@ -248,11 +268,11 @@ func (process *ProcessJob) ensureImage(tag string) error {
 	}
 
 	if image == nil {
-		process.writeLogs(
+		process.remoteLog(
 			fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
 		)
 
-		err := process.cloud.PullImage(process.ctx, tag, process.writeLogs)
+		err := process.cloud.PullImage(process.ctx, tag, process.remoteLog)
 		if err != nil {
 			return err
 		}
@@ -263,15 +283,11 @@ func (process *ProcessJob) ensureImage(tag string) error {
 		}
 
 		if image == nil {
-			return karma.Format(
-				err,
-				"the image not found after pulling: %s",
-				tag,
-			)
+			return karma.Format(err, "image not found after pulling")
 		}
 	}
 
-	process.writeLogs(
+	process.remoteLog(
 		fmt.Sprintf(
 			"\n:: Using docker image: %s @ %s\n",
 			strings.Join(image.RepoTags, ", "),

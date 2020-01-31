@@ -118,7 +118,7 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 		AttachStderr: true,
 	}, sidecar.onlyLog)
 	if err != nil {
-		return karma.Format(
+		return karma.Describe("cmd", cmd).Format(
 			err,
 			"unable to prepare sidecar container",
 		)
@@ -140,11 +140,8 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 		}, sidecar.outputConsumer)
 		if err != nil {
 			return karma.
-				Describe("command", cmd).
-				Format(
-					err,
-					"command failed",
-				)
+				Describe("cmd", cmd).
+				Format(err, "unable to setup repository")
 		}
 	}
 

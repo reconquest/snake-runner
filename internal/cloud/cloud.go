@@ -199,15 +199,13 @@ func (cloud *Cloud) Exec(
 	config types.ExecConfig,
 	callback OutputConsumer,
 ) error {
-	facts := karma.Describe("cmd", config.Cmd)
-
 	exec, err := cloud.client.ContainerExecCreate(
 		ctx,
 		container.ID,
 		config,
 	)
 	if err != nil {
-		return facts.Reason(err)
+		return err
 	}
 
 	response, err := cloud.client.ContainerExecAttach(
@@ -215,29 +213,29 @@ func (cloud *Cloud) Exec(
 		types.ExecStartCheck{},
 	)
 	if err != nil {
-		return facts.Reason(err)
+		return err
 	}
 
 	writer := logwriter{callback: callback}
 
 	_, err = stdcopy.StdCopy(writer, writer, response.Reader)
 	if err != nil {
-		return facts.Format(err, "unable to read stdout of exec/attach")
+		return karma.Format(err, "unable to read stdout of exec/attach")
 	}
 
 	info, err := cloud.client.ContainerExecInspect(ctx, exec.ID)
 	if err != nil {
-		return facts.Format(
+		return karma.Format(
 			err,
 			"unable to inspect container/exec",
 		)
 	}
 	if info.ExitCode > 0 {
-		return facts.
+		return karma.
 			Describe("exitcode", info.ExitCode).
 			Format(
 				nil,
-				"execution failed: exitcode is greater than zero",
+				"exitcode is greater than zero",
 			)
 	}
 

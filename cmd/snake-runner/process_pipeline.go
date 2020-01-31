@@ -131,7 +131,8 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 
 			return StatusFailed, karma.Format(
 				err,
-				"unable to update job status to success, but job finished successfully",
+				"unable to update job status to success,"+
+					" but job finished successfully",
 			)
 		}
 	}
@@ -185,7 +186,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 			).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
 			CommandConsumer(subprocess.sendPrompt).
-			OutputConsumer(subprocess.writeLogs).
+			OutputConsumer(subprocess.remoteLog).
 			SshKey(process.sshKey).
 			Build()
 
@@ -215,7 +216,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
 			if utils.Done(process.parentCtx) {
-				subprocess.writeLogs("\n\nWARNING: snake-runner has been terminated")
+				subprocess.remoteLog("\n\nWARNING: snake-runner has been terminated")
 
 				return StatusFailed, err
 			}
@@ -275,7 +276,11 @@ func (process *ProcessPipeline) fail(failedID int) {
 		now,
 	)
 	if err != nil {
-		process.log.Errorf(err, "unable to update pipeline status to %q", StatusFailed)
+		process.log.Errorf(
+			err,
+			"unable to update pipeline status to %q",
+			StatusFailed,
+		)
 	}
 }
 
