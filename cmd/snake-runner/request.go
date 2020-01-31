@@ -163,7 +163,11 @@ func (request *Request) Do() error {
 
 	defer httpResponse.Body.Close()
 
-	log.Tracef(context.Describe("status_code", httpResponse.StatusCode), "%s", string(data))
+	log.Tracef(
+		context.Describe("status_code", httpResponse.StatusCode),
+		"%s",
+		string(data),
+	)
 
 	expectedStatus := false
 	for _, expected := range request.expectedStatuses {
@@ -178,7 +182,9 @@ func (request *Request) Do() error {
 		if httpResponse.StatusCode >= 400 {
 			var errResponse responseError
 			if err := json.Unmarshal(data, &errResponse); err == nil {
-				return context.Reason(fmt.Errorf("remote error: %v", errResponse.Error))
+				return context.Reason(
+					fmt.Errorf("remote error: %v", errResponse.Error),
+				)
 			} else {
 				return context.Describe("body", string(data)).
 					Format(

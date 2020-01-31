@@ -5,14 +5,25 @@ tasks:
     desc: build docker image based on alpine
     cmds:
       - task go:build_docker
-      - docker build -t reconquest/snake-runner:alpine -f docker/snake-runner/alpine/Dockerfile .
+      - docker build -t reconquest/snake-runner:alpine
+          -f docker/snake-runner/alpine/Dockerfile .
 
   snake-runner-sidecar@alpine:
-    desc: build docker image for sidecar image based on alpine
+    desc: build docker image for sidecar (alpine)
     cmds:
-      - docker build -t reconquest/snake-runner-sidecar:alpine -f docker/snake-runner-sidecar/alpine/Dockerfile .
+      - docker build -t reconquest/snake-runner-sidecar:alpine
+          -f docker/snake-runner-sidecar/alpine/Dockerfile .
+
+  snake-runner-sidecar@latest:
+    desc: build latest image for of sidecar (alpine actually)
+    cmds:
+      - task: snake-runner-sidecar@alpine
+      - docker tag
+          reconquest/snake-runner-sidecar:alpine
+          reconquest/snake-runner-sidecar:latest
 
   alpine-bash:
     desc: build docker image for sidecar image based on alpine
     cmds:
-      - docker build -t reconquest/alpine-bash -f docker/alpine-bash/Dockerfile .
+      - docker build -t reconquest/alpine-bash
+          -f docker/alpine-bash/Dockerfile .

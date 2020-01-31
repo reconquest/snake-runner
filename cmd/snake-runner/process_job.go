@@ -61,14 +61,12 @@ func (process *ProcessJob) init() {
 	go process.logsWriter.Run()
 }
 
-func (process *ProcessJob) shutdown() {
+func (process *ProcessJob) destroy() {
 	process.logsWriter.Close()
 	process.logsWriter.Wait()
 }
 
 func (process *ProcessJob) run() error {
-	defer process.shutdown()
-
 	configJob, ok := process.config.Jobs[process.job.Name]
 	if !ok {
 		return process.remoteErrorf(
@@ -121,10 +119,12 @@ func (process *ProcessJob) run() error {
 	for _, command := range configJob.Commands {
 		err = process.execShell(command)
 		if err != nil {
-			return process.remoteErrorf()
-			karma.
-				Describe("cmd", fmt.Sprintf("%v", cmd)).
-				Reason(err)
+			return process.remoteErrorf(
+				karma.
+					Describe("cmd", command).
+					Reason(err),
+				"command failed",
+			)
 		}
 	}
 
@@ -175,13 +175,8 @@ func (process *ProcessJob) execShell(cmd string) error {
 		},
 		process.remoteLog,
 	)
-	if err != nil {
-		return karma.
-			Describe("cmd", fmt.Sprintf("%v", cmd)).
-			Format(err, "command failed")
-	}
 
-	return nil
+	return err
 }
 
 func (process *ProcessJob) sendPrompt(cmd []string) {
@@ -238,7 +233,7 @@ func (process *ProcessJob) detectShell(configJob ConfigJob) error {
 		callback,
 	)
 	if err != nil {
-		return process.remoteErrorf(
+		return karma.Format(
 			err,
 			"execution of shell detection script failed",
 		)
@@ -279,7 +274,7 @@ func (process *ProcessJob) ensureImage(tag string) error {
 
 		image, err = process.cloud.GetImageWithTag(process.ctx, tag)
 		if err != nil {
-			return err
+			return karma.Format(err, "unable to get image after pulling")
 		}
 
 		if image == nil {

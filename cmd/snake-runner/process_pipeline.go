@@ -140,10 +140,10 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 	return StatusSuccess, nil
 }
 
-func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
+func (process *ProcessPipeline) runJob(target snake.PipelineJob) (string, error) {
 	err := process.client.UpdateJob(
 		process.task.Pipeline.ID,
-		job.ID,
+		target.ID,
 		StatusRunning,
 		ptr.TimePtr(utils.Now()),
 		nil,
@@ -155,7 +155,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 		)
 	}
 
-	subprocess := NewProcessJob(
+	job := NewProcessJob(
 		process.ctx,
 		process.cloud,
 		process.client,
@@ -163,9 +163,10 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 		process.runnerConfig,
 		process.task,
 		process.utilization,
-		job,
+		target,
 		process.log,
 	)
+	defer job.destroy()
 
 	if process.sidecar == nil {
 		process.sidecar = sidecar.NewSidecarBuilder().
@@ -185,8 +186,8 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 				),
 			).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
-			CommandConsumer(subprocess.sendPrompt).
-			OutputConsumer(subprocess.remoteLog).
+			CommandConsumer(job.sendPrompt).
+			OutputConsumer(job.remoteLog).
 			SshKey(process.sshKey).
 			Build()
 
@@ -196,7 +197,7 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 			process.task.Pipeline.Commit,
 		)
 		if err != nil {
-			return StatusFailed, karma.Format(
+			return StatusFailed, job.remoteErrorf(
 				err,
 				"unable ot start sidecar container",
 			)
@@ -204,19 +205,22 @@ func (process *ProcessPipeline) runJob(job snake.PipelineJob) (string, error) {
 
 		err = process.readConfig()
 		if err != nil {
-			return StatusFailed, err
+			return StatusFailed, job.remoteErrorf(
+				err,
+				"unable to read config file",
+			)
 		}
 	}
 
-	subprocess.sidecar = process.sidecar
-	subprocess.config = process.config
+	job.sidecar = process.sidecar
+	job.config = process.config
 
-	err = subprocess.run()
+	err = job.run()
 	if err != nil {
 		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
 			if utils.Done(process.parentCtx) {
-				subprocess.remoteLog("\n\nWARNING: snake-runner has been terminated")
+				job.remoteLog("\n\nWARNING: snake-runner has been terminated")
 
 				return StatusFailed, err
 			}
@@ -294,7 +298,7 @@ func (process *ProcessPipeline) readConfig() error {
 	if err != nil {
 		return karma.Format(
 			err,
-			"unable to read configuration file: %s",
+			"unable to obtain file from container: %q",
 			process.task.Pipeline.Filename,
 		)
 	}
@@ -303,7 +307,7 @@ func (process *ProcessPipeline) readConfig() error {
 	if err != nil {
 		return karma.Format(
 			err,
-			"unable to unmarshal configuration file: %s",
+			"unable to unmarshal yaml data: %q",
 			process.task.Pipeline.Filename,
 		)
 	}
