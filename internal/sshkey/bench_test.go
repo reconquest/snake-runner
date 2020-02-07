@@ -1,6 +1,7 @@
 package sshkey
 
 import (
+	"context"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ func BenchmarkGenerate_1024(b *testing.B) {
 }
 
 func BenchmarkFactory_3072(b *testing.B) {
-	factory := NewFactory(10, 3072)
+	factory := NewFactory(context.Background(), 10, 3072)
 	go factory.Run()
 	for i := 0; i < b.N; i++ {
 		_ = factory.Get()

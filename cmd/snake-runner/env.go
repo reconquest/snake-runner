@@ -39,9 +39,9 @@ func (builder *EnvBuilder) build() []string {
 		add("CI_TAG", fmt.Sprint(builder.pipeline.RefDisplayId))
 	}
 
-	add("CI_COMMIT_SHA", builder.pipeline.Commit)
+	add("CI_COMMIT_HASH", builder.pipeline.Commit)
 	if len(builder.pipeline.Commit) > 6 {
-		add("CI_COMMIT_SHORT_SHA", builder.pipeline.Commit[0:6])
+		add("CI_COMMIT_SHORT_HASH", builder.pipeline.Commit[0:6])
 	}
 
 	add("CI_PIPELINE_DIR", builder.containerDir)
