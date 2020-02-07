@@ -37,6 +37,7 @@ tasks:
         SNAKE_REGISTRATION_TOKEN={{.token}}
         SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa
         SNAKE_PIPELINES_DIR=.runners/{{.random_uuid}}/pipelines
+        SNAKE_LOG_TRACE=true
         ./snake-runner -c ./conf/dev.conf
   dock:
     deps: [docker:snake-runner@alpine]

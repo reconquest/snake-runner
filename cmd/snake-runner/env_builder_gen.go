@@ -7,6 +7,6 @@ import (
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-func NewEnvBuilder(task tasks.PipelineRun, pipeline snake.Pipeline, job snake.PipelineJob, config *RunnerConfig, containerDir string) *EnvBuilder {
-	return &EnvBuilder{task: task, pipeline: pipeline, job: job, config: config, containerDir: containerDir}
+func NewEnvBuilder(task tasks.PipelineRun, pipeline snake.Pipeline, job snake.PipelineJob, config Config, configJob ConfigJob, runnerConfig *RunnerConfig, containerDir string) *EnvBuilder {
+	return &EnvBuilder{task: task, pipeline: pipeline, job: job, config: config, configJob: configJob, runnerConfig: runnerConfig, containerDir: containerDir}
 }

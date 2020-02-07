@@ -12,23 +12,21 @@ import (
 func TestEnvBuilder(t *testing.T) {
 	test := assert.New(t)
 
-	pipeline := snake.Pipeline{
-		ID:           123,
-		RefType:      "BRANCH",
-		RefDisplayId: "branch1",
-		Commit:       "1234567890",
-		RunnerID:     80,
+	basicPipeline := snake.Pipeline{
+		ID:       123,
+		Commit:   "1234567890",
+		RunnerID: 80,
 	}
 	job := snake.PipelineJob{
 		ID:    321,
 		Stage: "deploy",
 		Name:  "docker deploy",
 	}
-	config := &RunnerConfig{
+	runnerConfig := RunnerConfig{
 		Name: "gotest",
 	}
 	task := tasks.PipelineRun{
-		Pipeline: pipeline,
+		Pipeline: basicPipeline,
 		Env:      map[string]string{"user_a": "user_a_value"},
 		Project: responses.Project{
 			Key:  "proj1",
@@ -43,74 +41,98 @@ func TestEnvBuilder(t *testing.T) {
 	}
 	task.CloneURL.SSH = "cloneurl"
 
-	builder := NewEnvBuilder(task, pipeline, job, config, "/dir")
-	test.EqualValues([]string{
-		"user_a=user_a_value",
-		"SNAKE_CI=true",
-		"CI_PIPELINE_ID=123",
-		"CI_JOB_ID=321",
-		"CI_JOB_STAGE=deploy",
-		"CI_JOB_NAME=docker deploy",
-		"CI_BRANCH=branch1",
-		"CI_COMMIT_HASH=1234567890",
-		"CI_COMMIT_SHORT_HASH=123456",
-		"CI_PIPELINE_DIR=/dir",
-		"CI_PROJECT_KEY=proj1",
-		"CI_PROJECT_NAME=the proj1",
-		"CI_PROJECT_ID=11",
-		"CI_REPO_SLUG=repo1",
-		"CI_REPO_NAME=the repo1",
-		"CI_REPO_ID=111",
-		"CI_REPO_CLONE_URL_SSH=cloneurl",
-		"CI_RUNNER_ID=80",
-		"CI_RUNNER_NAME=gotest",
-		"CI_RUNNER_VERSION=" + version,
-	}, builder.build())
+	config := Config{}
+	configJob := ConfigJob{}
 
-	builder.pipeline.RefType = "TAG"
-	test.EqualValues([]string{
-		"user_a=user_a_value",
-		"SNAKE_CI=true",
-		"CI_PIPELINE_ID=123",
-		"CI_JOB_ID=321",
-		"CI_JOB_STAGE=deploy",
-		"CI_JOB_NAME=docker deploy",
-		"CI_TAG=branch1",
-		"CI_COMMIT_HASH=1234567890",
-		"CI_COMMIT_SHORT_HASH=123456",
-		"CI_PIPELINE_DIR=/dir",
-		"CI_PROJECT_KEY=proj1",
-		"CI_PROJECT_NAME=the proj1",
-		"CI_PROJECT_ID=11",
-		"CI_REPO_SLUG=repo1",
-		"CI_REPO_NAME=the repo1",
-		"CI_REPO_ID=111",
-		"CI_REPO_CLONE_URL_SSH=cloneurl",
-		"CI_RUNNER_ID=80",
-		"CI_RUNNER_NAME=gotest",
-		"CI_RUNNER_VERSION=" + version,
-	}, builder.build())
+	builder := func(pipeline snake.Pipeline) *EnvBuilder {
+		return NewEnvBuilder(
+			task, pipeline, job, config, configJob, &runnerConfig, "/dir",
+		)
+	}
 
-	builder.pipeline.RefType = ""
-	test.EqualValues([]string{
-		"user_a=user_a_value",
-		"SNAKE_CI=true",
-		"CI_PIPELINE_ID=123",
-		"CI_JOB_ID=321",
-		"CI_JOB_STAGE=deploy",
-		"CI_JOB_NAME=docker deploy",
-		"CI_COMMIT_HASH=1234567890",
-		"CI_COMMIT_SHORT_HASH=123456",
-		"CI_PIPELINE_DIR=/dir",
-		"CI_PROJECT_KEY=proj1",
-		"CI_PROJECT_NAME=the proj1",
-		"CI_PROJECT_ID=11",
-		"CI_REPO_SLUG=repo1",
-		"CI_REPO_NAME=the repo1",
-		"CI_REPO_ID=111",
-		"CI_REPO_CLONE_URL_SSH=cloneurl",
-		"CI_RUNNER_ID=80",
-		"CI_RUNNER_NAME=gotest",
-		"CI_RUNNER_VERSION=" + version,
-	}, builder.build())
+	expected := map[string]string{
+		"user_a":                "user_a_value",
+		"CI":                    "true",
+		"CI_PIPELINE_ID":        "123",
+		"CI_JOB_ID":             "321",
+		"CI_JOB_STAGE":          "deploy",
+		"CI_JOB_NAME":           "docker deploy",
+		"CI_COMMIT_HASH":        "1234567890",
+		"CI_COMMIT_SHORT_HASH":  "123456",
+		"CI_PIPELINE_DIR":       "/dir",
+		"CI_PROJECT_KEY":        "proj1",
+		"CI_PROJECT_NAME":       "the proj1",
+		"CI_PROJECT_ID":         "11",
+		"CI_REPO_SLUG":          "repo1",
+		"CI_REPO_NAME":          "the repo1",
+		"CI_REPO_ID":            "111",
+		"CI_REPO_CLONE_URL_SSH": "cloneurl",
+		"CI_RUNNER_ID":          "80",
+		"CI_RUNNER_NAME":        "gotest",
+		"CI_RUNNER_VERSION":     version,
+	}
+
+	{
+		test.EqualValues(expected, builder(basicPipeline).build())
+	}
+
+	{
+		pipeline := basicPipeline
+		pipeline.RefType = "BRANCH"
+		pipeline.RefDisplayId = "someref"
+
+		expected := clone(expected)
+		expected["CI_BRANCH"] = "someref"
+
+		test.EqualValues(expected, builder(pipeline).build())
+	}
+
+	{
+		pipeline := basicPipeline
+		pipeline.RefType = "TAG"
+		pipeline.RefDisplayId = "someref"
+
+		expected := clone(expected)
+		expected["CI_TAG"] = "someref"
+
+		test.EqualValues(expected, builder(pipeline).build())
+	}
+
+	{
+		config.Variables = map[string]string{"foo": "global"}
+
+		expected := clone(expected)
+		expected["foo"] = "global"
+
+		test.EqualValues(expected, builder(basicPipeline).build())
+	}
+
+	{
+		configJob.Variables = map[string]string{"foo": "job"}
+
+		expected := clone(expected)
+		expected["foo"] = "job"
+
+		test.EqualValues(expected, builder(basicPipeline).build())
+	}
+
+	{
+		config.Variables = map[string]string{"foo": "globalfoo", "bar": "globalbar"}
+		configJob.Variables = map[string]string{"foo": "foojob", "qux": "quxjob"}
+
+		expected := clone(expected)
+		expected["foo"] = "foojob"
+		expected["qux"] = "quxjob"
+		expected["bar"] = "globalbar"
+
+		test.EqualValues(expected, builder(basicPipeline).build())
+	}
+}
+
+func clone(original map[string]string) map[string]string {
+	result := map[string]string{}
+	for key, value := range original {
+		result[key] = value
+	}
+	return result
 }

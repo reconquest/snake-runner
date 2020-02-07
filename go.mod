@@ -30,6 +30,7 @@ require (
 	github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae
 	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24
 	github.com/stretchr/testify v1.4.0
+	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5 // indirect
 	github.com/vmware/govmomi v0.22.1
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413

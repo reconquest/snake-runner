@@ -12,57 +12,72 @@ type EnvBuilder struct {
 	task         tasks.PipelineRun
 	pipeline     snake.Pipeline
 	job          snake.PipelineJob
-	config       *RunnerConfig
+	config       Config
+	configJob    ConfigJob
+	runnerConfig *RunnerConfig
 	containerDir string
 }
 
-func (builder *EnvBuilder) build() []string {
-	vars := []string{}
-	add := func(key, value string) {
-		vars = append(vars, key+"="+value)
+func (builder *EnvBuilder) Build() []string {
+	result := []string{}
+	for key, value := range builder.build() {
+		result = append(result, key+"="+value)
 	}
+	return result
+}
 
-	for key, value := range builder.task.Env {
-		add(key, value)
-	}
+func (builder *EnvBuilder) build() map[string]string {
+	vars := map[string]string{}
 
-	add("SNAKE_CI", "true")
+	vars["CI"] = "true"
 
-	add("CI_PIPELINE_ID", fmt.Sprint(builder.pipeline.ID))
-	add("CI_JOB_ID", fmt.Sprint(builder.job.ID))
-	add("CI_JOB_STAGE", fmt.Sprint(builder.job.Stage))
-	add("CI_JOB_NAME", fmt.Sprint(builder.job.Name))
+	vars["CI_PIPELINE_ID"] = fmt.Sprint(builder.pipeline.ID)
+	vars["CI_JOB_ID"] = fmt.Sprint(builder.job.ID)
+	vars["CI_JOB_STAGE"] = fmt.Sprint(builder.job.Stage)
+	vars["CI_JOB_NAME"] = fmt.Sprint(builder.job.Name)
 
 	if builder.pipeline.RefType == "BRANCH" {
-		add("CI_BRANCH", fmt.Sprint(builder.pipeline.RefDisplayId))
+		vars["CI_BRANCH"] = fmt.Sprint(builder.pipeline.RefDisplayId)
 	} else if builder.pipeline.RefType == "TAG" {
-		add("CI_TAG", fmt.Sprint(builder.pipeline.RefDisplayId))
+		vars["CI_TAG"] = fmt.Sprint(builder.pipeline.RefDisplayId)
 	}
 
-	add("CI_COMMIT_HASH", builder.pipeline.Commit)
+	vars["CI_COMMIT_HASH"] = builder.pipeline.Commit
 	if len(builder.pipeline.Commit) > 6 {
-		add("CI_COMMIT_SHORT_HASH", builder.pipeline.Commit[0:6])
+		vars["CI_COMMIT_SHORT_HASH"] = builder.pipeline.Commit[0:6]
 	}
 
-	add("CI_PIPELINE_DIR", builder.containerDir)
+	vars["CI_PIPELINE_DIR"] = builder.containerDir
 
 	if builder.pipeline.PullRequestID > 0 {
-		add("CI_PULL_REQUEST_ID", fmt.Sprint(builder.pipeline.PullRequestID))
+		vars["CI_PULL_REQUEST_ID"] = fmt.Sprint(builder.pipeline.PullRequestID)
 	}
 
-	add("CI_PROJECT_KEY", builder.task.Project.Key)
-	add("CI_PROJECT_NAME", builder.task.Project.Name)
-	add("CI_PROJECT_ID", fmt.Sprint(builder.task.Project.ID))
+	vars["CI_PROJECT_KEY"] = builder.task.Project.Key
+	vars["CI_PROJECT_NAME"] = builder.task.Project.Name
+	vars["CI_PROJECT_ID"] = fmt.Sprint(builder.task.Project.ID)
 
-	add("CI_REPO_SLUG", builder.task.Repository.Slug)
-	add("CI_REPO_NAME", builder.task.Repository.Name)
-	add("CI_REPO_ID", fmt.Sprint(builder.task.Repository.ID))
+	vars["CI_REPO_SLUG"] = builder.task.Repository.Slug
+	vars["CI_REPO_NAME"] = builder.task.Repository.Name
+	vars["CI_REPO_ID"] = fmt.Sprint(builder.task.Repository.ID)
 
-	add("CI_REPO_CLONE_URL_SSH", builder.task.CloneURL.SSH)
+	vars["CI_REPO_CLONE_URL_SSH"] = builder.task.CloneURL.SSH
 
-	add("CI_RUNNER_ID", fmt.Sprint(builder.pipeline.RunnerID))
-	add("CI_RUNNER_NAME", fmt.Sprint(builder.config.Name))
-	add("CI_RUNNER_VERSION", fmt.Sprint(version))
+	vars["CI_RUNNER_ID"] = fmt.Sprint(builder.pipeline.RunnerID)
+	vars["CI_RUNNER_NAME"] = fmt.Sprint(builder.runnerConfig.Name)
+	vars["CI_RUNNER_VERSION"] = fmt.Sprint(version)
+
+	for key, value := range builder.task.Env {
+		vars[key] = value
+	}
+
+	for key, value := range builder.config.Variables {
+		vars[key] = value
+	}
+
+	for key, value := range builder.configJob.Variables {
+		vars[key] = value
+	}
 
 	return vars
 }

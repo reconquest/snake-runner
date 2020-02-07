@@ -40,7 +40,7 @@ type ProcessPipeline struct {
 
 	status  string           `gonstructor:"-"`
 	sidecar *sidecar.Sidecar `gonstructor:"-"`
-	config  *Config          `gonstructor:"-"`
+	config  Config           `gonstructor:"-"`
 
 	sshKey sshkey.Key
 }

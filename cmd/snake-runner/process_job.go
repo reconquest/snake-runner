@@ -24,7 +24,7 @@ type ProcessJob struct {
 	ctx          context.Context
 	cloud        *cloud.Cloud
 	client       *Client
-	config       *Config
+	config       Config
 	runnerConfig *RunnerConfig
 
 	task        tasks.PipelineRun
@@ -32,6 +32,8 @@ type ProcessJob struct {
 
 	job snake.PipelineJob
 	log *cog.Logger
+
+	configJob ConfigJob `gonstructor:"-"`
 
 	container  *cloud.Container    `gonstructor:"-"`
 	sidecar    *sidecar.Sidecar    `gonstructor:"-"`
@@ -67,7 +69,8 @@ func (process *ProcessJob) destroy() {
 }
 
 func (process *ProcessJob) run() error {
-	configJob, ok := process.config.Jobs[process.job.Name]
+	var ok bool
+	process.configJob, ok = process.config.Jobs[process.job.Name]
 	if !ok {
 		return process.remoteErrorf(
 			nil,
@@ -79,8 +82,8 @@ func (process *ProcessJob) run() error {
 
 	var image string
 	switch {
-	case configJob.Image != "":
-		image = configJob.Image
+	case process.configJob.Image != "":
+		image = process.configJob.Image
 	case process.config.Image != "":
 		image = process.config.Image
 	default:
@@ -111,12 +114,12 @@ func (process *ProcessJob) run() error {
 		process.utilization <- process.container
 	}()
 
-	err = process.detectShell(configJob)
+	err = process.detectShell()
 	if err != nil {
 		return process.remoteErrorf(err, "unable to detect shell in container")
 	}
 
-	for _, command := range configJob.Commands {
+	for _, command := range process.configJob.Commands {
 		err = process.execShell(command)
 		if err != nil {
 			return process.remoteErrorf(
@@ -152,9 +155,11 @@ func (process *ProcessJob) getEnv() []string {
 			process.task,
 			process.task.Pipeline,
 			process.job,
+			process.config,
+			process.configJob,
 			process.runnerConfig,
 			process.sidecar.GetContainerDir(),
-		).build()
+		).Build()
 	}
 
 	return process.env
@@ -183,7 +188,7 @@ func (process *ProcessJob) sendPrompt(cmd []string) {
 	process.remoteLog("\n$ " + strings.Join(cmd, " ") + "\n")
 }
 
-func (process *ProcessJob) detectShell(configJob ConfigJob) error {
+func (process *ProcessJob) detectShell() error {
 	if process.config.Shell != "" {
 		process.log.Debugf(
 			nil,
@@ -194,13 +199,13 @@ func (process *ProcessJob) detectShell(configJob ConfigJob) error {
 		return nil
 	}
 
-	if configJob.Shell != "" {
+	if process.configJob.Shell != "" {
 		process.log.Debugf(
 			nil,
 			"using shell specified in job spec: %q",
-			configJob.Shell,
+			process.configJob.Shell,
 		)
-		process.shell = configJob.Shell
+		process.shell = process.configJob.Shell
 		return nil
 	}
 
