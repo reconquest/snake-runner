@@ -31,8 +31,8 @@ type RunnerConfig struct {
 	AccessToken     string `yaml:"access_token" env:"SNAKE_ACCESS_TOKEN"`
 	AccessTokenPath string `yaml:"access_token_path" env:"SNAKE_ACCESS_TOKEN_PATH" default:"/var/lib/snake-runner/secrets/access_token"`
 
-	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" default:"45s"`
-	SchedulerInterval time.Duration `yaml:"scheduler_interval" default:"5s"`
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" env:"SNAKE_HEARTBEAT_INTERVAL" default:"45s"`
+	SchedulerInterval time.Duration `yaml:"scheduler_interval" env:"SNAKE_SCHEDULER_INTERVAL" default:"5s"`
 
 	Virtualization       string `yaml:"virtualization" default:"docker" env:"SNAKE_VIRTUALIZATION" required:"true"`
 	MaxParallelPipelines int64  `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0" required:"true"`
