@@ -37,7 +37,7 @@ type Sidecar struct {
 }
 
 func (sidecar *Sidecar) GetPipelineVolumes() []string {
-	return []string{sidecar.hostSubDir + ":" + sidecar.containerDir + ":ro"}
+	return []string{sidecar.hostSubDir + ":" + sidecar.containerDir}
 }
 
 func (sidecar *Sidecar) GetContainerDir() string {

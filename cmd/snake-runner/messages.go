@@ -17,7 +17,7 @@ Now it needs to be connected to your Bitbucket Server to start running jobs.
 To do so, provide configuration parameters:
 
 {{ if not .MasterAddress -}}
-{{" "}}- URL of Bitbucket Server with Snake CI add-on is installed.
+{{" "}}- URL of Bitbucket Server with Snake CI add-on installed.
 {{ end -}}
 {{- if not .RegistrationToken -}}
 {{" "}}- Registration Token, which can be found in 'CI/CD → Runners' section in
@@ -29,22 +29,22 @@ Pass URL of Bitbucket Server and Registration Token to docker run command
 used to start snake-runner:
 
  docker run \
-    -e SNAKE_MASTER_ADDRESS={{ with .MasterAddress }}{{ . }}{{ else }}http://mybitbucket.company/{{ end }} \
+    -e SNAKE_MASTER_ADDRESS={{ with .MasterAddress }}{{ . }}{{ else }}https://mybitbucket.company/{{ end }} \
     -e SNAKE_REGISTRATION_TOKEN={{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }} \
     <other-docker-flags-here>
 {{- else }}
 Specify URL of Bitbucket Server and Registration Token in snake-runner
 command:
 
- SNAKE_MASTER_ADDRESS={{ with .MasterAddress }}{{ . }}{{ else }}http://mybitbucket.company/{{ end }} \
+ SNAKE_MASTER_ADDRESS={{ with .MasterAddress }}{{ . }}{{ else }}https://mybitbucket.company/{{ end }} \
  SNAKE_REGISTRATION_TOKEN={{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }} \
     snake-runner
 
 Alternatively, you can specify those params in the config file, which by
 default is located in /etc/snake-runner/snake-runner.conf:
 
- master_address={{ with .MasterAddress }}{{ . }}{{ else }}http://mybitbucket.company/{{ end }}
- registration_token={{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }}
+ master_address: {{ with .MasterAddress }}{{ . }}{{ else }}https://mybitbucket.company/{{ end }}
+ registration_token: {{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }}
 {{- end }}
 `))
 
