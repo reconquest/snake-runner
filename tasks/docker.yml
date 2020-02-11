@@ -8,6 +8,14 @@ tasks:
       - docker build -t reconquest/snake-runner:alpine
           -f docker/snake-runner/alpine/Dockerfile .
 
+  snake-runner@latest:
+    desc: build docker image based on alpine (latest)
+    cmds:
+      - task: snake-runner@alpine
+      - docker tag
+          reconquest/snake-runner:alpine
+          reconquest/snake-runner:latest
+
   snake-runner-sidecar@alpine:
     desc: build docker image for sidecar (alpine)
     cmds:
