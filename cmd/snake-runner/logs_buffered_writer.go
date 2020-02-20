@@ -50,10 +50,9 @@ func (writer *LogsBufferedWriter) Run() {
 		case <-ticker.Get():
 			if buffer.Len() != 0 {
 				writer.flush(buffer.String())
-
 				buffer.Reset()
-				ticker.Reset()
 			}
+			ticker.Reset()
 		}
 	}
 }
