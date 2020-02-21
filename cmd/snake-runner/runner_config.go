@@ -48,7 +48,7 @@ func LoadRunnerConfig(path string) (*RunnerConfig, error) {
 	log.Infof(karma.Describe("path", path), "loading configuration")
 
 	var config RunnerConfig
-	err := ko.Load(path, &config, yaml.Unmarshal)
+	err := ko.Load(path, &config, yaml.Unmarshal, ko.RequireFile(false))
 	if err != nil {
 		return nil, err
 	}

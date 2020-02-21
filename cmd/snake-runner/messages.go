@@ -41,7 +41,7 @@ command:
     snake-runner
 
 Alternatively, you can specify those params in the config file, which by
-default is located in /etc/snake-runner/snake-runner.conf:
+default is /etc/snake-runner/snake-runner.conf:
 
  master_address: {{ with .MasterAddress }}{{ . }}{{ else }}https://mybitbucket.company/{{ end }}
  registration_token: {{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }}
