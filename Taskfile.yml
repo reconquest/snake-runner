@@ -11,13 +11,13 @@ vars:
   random_uuid:
     sh: cat /proc/sys/kernel/random/uuid
   token: ""
-  tag:
+  major_minor:
     sh: "git describe --tags --abbrev=0"
-  commit:
-    sh: "git rev-parse --short HEAD"
   patch:
     sh: "git rev-list $(git describe --tags --abbrev=0) --count"
-  version: "{{.tag}}.{{.patch}}-{{.commit}}"
+  version: "{{.major_minor}}.{{.patch}}"
+  commit:
+    sh: "git rev-parse --short HEAD"
 
 includes:
   go: tasks/go.yml

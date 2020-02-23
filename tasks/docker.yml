@@ -1,37 +1,37 @@
 version: '2'
 
 tasks:
-  snake-runner@alpine:
+  snake-runner@build:
     desc: build docker image based on alpine
     cmds:
       - task go:build_docker
-      - docker build -t reconquest/snake-runner:alpine
+      - docker build -t reconquest/snake-runner
           -f docker/snake-runner/alpine/Dockerfile .
+      - docker tag reconquest/snake-runner reconquest/snake-runner:{{.major_minor}}
+      - docker tag reconquest/snake-runner reconquest/snake-runner:{{.version}}
+      - docker tag reconquest/snake-runner reconquest/snake-runner:latest
 
-  snake-runner@latest:
-    desc: build docker image based on alpine (latest)
+  snake-runner@push:
+    desc: push snake-runner docker image
     cmds:
-      - task: snake-runner@alpine
-      - docker tag
-          reconquest/snake-runner:alpine
-          reconquest/snake-runner:latest
+      - docker push reconquest/snake-runner:latest
+      - docker push reconquest/snake-runner:{{.version}}
+      - docker push reconquest/snake-runner:{{.major_minor}}
 
-  snake-runner-sidecar@alpine:
-    desc: build docker image for sidecar (alpine)
-    cmds:
-      - docker build -t reconquest/snake-runner-sidecar:alpine
-          -f docker/snake-runner-sidecar/alpine/Dockerfile .
-
-  snake-runner-sidecar@latest:
+  snake-runner-sidecar@build:
     desc: build latest image for of sidecar (alpine actually)
     cmds:
-      - task: snake-runner-sidecar@alpine
-      - docker tag
-          reconquest/snake-runner-sidecar:alpine
-          reconquest/snake-runner-sidecar:latest
+      - docker build -t reconquest/snake-runner-sidecar:latest
+          -f docker/snake-runner-sidecar/alpine/Dockerfile .
 
-  alpine-bash:
+  snake-runner-sidecar@push:
+    desc: push snake-runner-sidecar docker image
+    cmds:
+      - docker push reconquest/snake-runner-sidecar:latest
+
+  alpine-bash@build-push:
     desc: build docker image for sidecar image based on alpine
     cmds:
       - docker build -t reconquest/alpine-bash
           -f docker/alpine-bash/Dockerfile .
+      - docker push reconquest/alpine-bash
