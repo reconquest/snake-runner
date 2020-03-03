@@ -40,7 +40,7 @@ tasks:
         SNAKE_LOG_TRACE=true
         ./snake-runner -c ./conf/dev.conf
   dock:
-    deps: [docker:snake-runner@alpine]
+    deps: [docker:snake-runner@build]
     cmds:
       - docker run -it
           -e SNAKE_MASTER_ADDRESS=6.2.0.bitbucket:7990
