@@ -28,8 +28,6 @@ type Cloud struct {
 	client *client.Client
 
 	network string
-
-	pullLocks mapMutex
 }
 
 type (
@@ -60,16 +58,6 @@ func (cloud *Cloud) PullImage(
 	reference string,
 	callback OutputConsumer,
 ) error {
-	mutex := cloud.pullLocks.get(reference)
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if mutex.value {
-		// while thread were waiting for Lock() another thread which had
-		// Lock'ed the mutex already pulled the image
-		return nil
-	}
-
 	reader, err := cloud.client.ImagePull(ctx, reference, types.ImagePullOptions{})
 	if err != nil {
 		return err
@@ -93,8 +81,6 @@ func (cloud *Cloud) PullImage(
 			"unable to read docker pull output",
 		)
 	}
-
-	mutex.value = true
 
 	return nil
 }
