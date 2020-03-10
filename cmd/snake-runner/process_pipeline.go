@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/reconquest/cog"
@@ -17,14 +18,7 @@ import (
 )
 
 const (
-	StatusPending  = "PENDING"
-	StatusQueued   = "QUEUED"
-	StatusRunning  = "RUNNING"
-	StatusSuccess  = "SUCCESS"
-	StatusFailed   = "FAILED"
-	StatusCanceled = "CANCELED"
-	StatusSkipped  = "SKIPPED"
-	StatusUnknown  = "UNKNOWN"
+	FailAllJobs = -1
 )
 
 //go:generate gonstructor -type ProcessPipeline
@@ -43,6 +37,8 @@ type ProcessPipeline struct {
 	config  Config           `gonstructor:"-"`
 
 	sshKey sshkey.Key
+
+	onceFail sync.Once `gonstructor:"-"`
 }
 
 func (process *ProcessPipeline) run() error {
@@ -61,7 +57,7 @@ func (process *ProcessPipeline) run() error {
 		nil,
 	)
 	if err != nil {
-		process.fail(-1)
+		process.fail(FailAllJobs)
 
 		return karma.Format(
 			err,
@@ -81,7 +77,7 @@ func (process *ProcessPipeline) run() error {
 		ptr.TimePtr(utils.Now()),
 	)
 	if err != nil {
-		process.fail(-1)
+		process.fail(FailAllJobs)
 
 		return karma.Format(
 			err,
@@ -92,57 +88,119 @@ func (process *ProcessPipeline) run() error {
 	return nil
 }
 
+func (process *ProcessPipeline) splitJobs() [][]snake.PipelineJob {
+	stages := []string{}
+	for _, job := range process.task.Jobs {
+		found := false
+		for _, stage := range stages {
+			if stage == job.Stage {
+				found = true
+				break
+			}
+		}
+		if !found {
+			stages = append(stages, job.Stage)
+		}
+	}
+
+	result := [][]snake.PipelineJob{}
+	for _, stage := range stages {
+		stageJobs := []snake.PipelineJob{}
+
+		for _, job := range process.task.Jobs {
+			if job.Stage == stage {
+				stageJobs = append(stageJobs, job)
+			}
+		}
+
+		result = append(result, stageJobs)
+	}
+
+	return result
+}
+
 func (process *ProcessPipeline) runJobs() (string, error) {
+	var once sync.Once
+	var resultStatus string
+	var resultErr error
+
 	total := len(process.task.Jobs)
-	for index, job := range process.task.Jobs {
-		process.log.Infof(
-			nil,
-			"%d/%d starting job: id=%d",
-			index+1, total, job.ID,
-		)
+	index := 0
+	for _, stageJobs := range process.splitJobs() {
+		workers := &sync.WaitGroup{}
 
-		status, err := process.runJob(job)
-		if status == StatusFailed {
-			process.fail(job.ID)
+		for _, job := range stageJobs {
+			index++
+			workers.Add(1)
+			go func(index int, job snake.PipelineJob) {
+				defer workers.Done()
+
+				status, err := process.runJob(total, index, job)
+				if err != nil {
+					once.Do(func() {
+						resultStatus = status
+						resultErr = err
+					})
+				}
+			}(index, job)
 		}
 
-		process.log.Infof(
-			nil,
-			"%d/%d finished job: id=%d status=%s",
-			index+1, total, job.ID, status,
-		)
+		workers.Wait()
 
-		if err != nil {
-			return status, karma.Format(
-				err,
-				"job=%d an error occurred during job running", job.ID,
-			)
-		}
-
-		err = process.client.UpdateJob(
-			process.task.Pipeline.ID,
-			job.ID,
-			status,
-			nil,
-			ptr.TimePtr(utils.Now()),
-		)
-		if err != nil {
-			process.fail(job.ID)
-
-			return StatusFailed, karma.Format(
-				err,
-				"unable to update job status to success,"+
-					" but job finished successfully",
-			)
+		if resultErr != nil {
+			return resultStatus, resultErr
 		}
 	}
 
 	return StatusSuccess, nil
 }
 
-func (process *ProcessPipeline) runJob(target snake.PipelineJob) (string, error) {
-	err := process.client.UpdateJob(
-		process.task.Pipeline.ID,
+func (process *ProcessPipeline) runJob(total, index int, job snake.PipelineJob) (string, error) {
+	process.log.Infof(
+		nil,
+		"%d/%d starting job: id=%d",
+		index, total, job.ID,
+	)
+
+	status, err := process.processJob(job)
+	if status == StatusFailed {
+		process.fail(job.ID)
+	}
+
+	process.log.Infof(
+		nil,
+		"%d/%d finished job: id=%d status=%s",
+		index, total, job.ID, status,
+	)
+
+	if err != nil {
+		return status, karma.Format(
+			err,
+			"job=%d an error occurred during job running", job.ID,
+		)
+	}
+
+	err = process.updateJob(
+		job.ID,
+		status,
+		nil,
+		ptr.TimePtr(utils.Now()),
+	)
+	if err != nil {
+		process.fail(job.ID)
+
+		return StatusFailed, karma.Format(
+			err,
+			"unable to update job status to success,"+
+				" but job finished successfully",
+		)
+	}
+
+	return status, nil
+}
+
+func (process *ProcessPipeline) processJob(target snake.PipelineJob) (string, error) {
+	err := process.updateJob(
 		target.ID,
 		StatusRunning,
 		ptr.TimePtr(utils.Now()),
@@ -164,7 +222,13 @@ func (process *ProcessPipeline) runJob(target snake.PipelineJob) (string, error)
 		process.task,
 		process.utilization,
 		target,
-		process.log,
+		process.log.NewChildWithPrefix(
+			fmt.Sprintf(
+				"[pipeline:%d job:%d]",
+				process.task.Pipeline.ID,
+				target.ID,
+			),
+		),
 	)
 	defer job.destroy()
 
@@ -235,57 +299,80 @@ func (process *ProcessPipeline) runJob(target snake.PipelineJob) (string, error)
 }
 
 func (process *ProcessPipeline) fail(failedID int) {
-	now := ptr.TimePtr(utils.Now())
-	foundFailed := false
+	process.onceFail.Do(func() {
+		now := ptr.TimePtr(utils.Now())
 
-	for _, job := range process.task.Jobs {
-		var status string
+		var failedStage string
+		var found bool
 
-		var finished *time.Time
-		switch {
-		case failedID == -1:
-			status = StatusFailed
-			finished = now
+		for _, job := range process.task.Jobs {
+			var status string
+			var finished *time.Time
 
-		case job.ID == failedID:
-			foundFailed = true
-			status = StatusFailed
-			finished = now
+			switch {
+			case failedID == FailAllJobs:
+				status = StatusFailed
+				finished = now
 
-		case !foundFailed:
-			continue
+			case job.ID == failedID:
+				found = true
+				failedStage = job.Stage
 
-		case foundFailed:
-			status = StatusSkipped
+				status = StatusFailed
+				finished = now
+
+			case !found:
+				continue
+
+			case found && job.Stage == failedStage:
+				continue
+
+			case found:
+				status = StatusSkipped
+			}
+
+			err := process.updateJob(
+				job.ID,
+				status,
+				nil,
+				finished,
+			)
+			if err != nil {
+				process.log.Errorf(err, "unable to update job status to %q", status)
+			}
 		}
 
-		process.log.Infof(nil, "updating job: id=%d → status=%s", job.ID, status)
-
-		err := process.client.UpdateJob(
+		err := process.client.UpdatePipeline(
 			process.task.Pipeline.ID,
-			job.ID,
-			status,
+			StatusFailed,
 			nil,
-			finished,
+			now,
 		)
 		if err != nil {
-			process.log.Errorf(err, "unable to update job status to %q", status)
+			process.log.Errorf(
+				err,
+				"unable to update pipeline status to %q",
+				StatusFailed,
+			)
 		}
-	}
+	})
+}
 
-	err := process.client.UpdatePipeline(
+func (process *ProcessPipeline) updateJob(
+	id int,
+	status string,
+	startedAt *time.Time,
+	finishedAt *time.Time,
+) error {
+	process.log.Infof(nil, "updating job: id=%d → status=%s", id, status)
+
+	return process.client.UpdateJob(
 		process.task.Pipeline.ID,
-		StatusFailed,
-		nil,
-		now,
+		id,
+		status,
+		startedAt,
+		finishedAt,
 	)
-	if err != nil {
-		process.log.Errorf(
-			err,
-			"unable to update pipeline status to %q",
-			StatusFailed,
-		)
-	}
 }
 
 func (process *ProcessPipeline) readConfig() error {

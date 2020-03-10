@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
+	github.com/cheekybits/genny v1.0.0
 	github.com/containerd/containerd v1.3.2 // indirect
 	github.com/coredns/coredns v1.6.6 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
@@ -13,6 +14,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
+	github.com/gobuffalo/buffalo v0.15.5
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
 	github.com/kovetskiy/ko v0.0.0-20200107130756-5aeb3d88d1de
@@ -33,11 +35,10 @@ require (
 	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5 // indirect
 	github.com/vmware/govmomi v0.22.1
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	golang.org/x/sys v0.0.0-20200116001909-b77594299b42 // indirect
+	golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/api v0.15.0 // indirect
 	google.golang.org/grpc v1.26.0 // indirect
-	gopkg.in/yaml.v2 v2.2.7
+	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2
 )

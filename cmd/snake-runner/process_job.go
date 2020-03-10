@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	DefaultImage = "alpine"
+	DefaultImage = "alpine:latest"
 )
 
 //go:generate gonstructor -type ProcessJob -init init
@@ -262,6 +262,10 @@ func (process *ProcessJob) detectShell() error {
 }
 
 func (process *ProcessJob) ensureImage(tag string) error {
+	if !strings.Contains(tag, ":") {
+		tag = tag + ":latest"
+	}
+
 	image, err := process.cloud.GetImageWithTag(process.ctx, tag)
 	if err != nil {
 		return err

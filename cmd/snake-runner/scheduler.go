@@ -10,6 +10,7 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
@@ -17,10 +18,10 @@ import (
 type Scheduler struct {
 	client         *Client
 	cloud          *cloud.Cloud
-	pipelinesMap   sync.Map
+	pipelinesMap   safemap.IntToAny
 	pipelines      int64
 	pipelinesGroup sync.WaitGroup
-	cancels        sync.Map
+	cancels        safemap.IntToContextCancelFunc
 	utilization    chan *cloud.Container
 	config         *RunnerConfig
 
@@ -50,8 +51,10 @@ func (runner *Runner) startScheduler() error {
 			int(runner.config.MaxParallelPipelines),
 			sshkey.DefaultBlockSize,
 		),
-		context: ctx,
-		cancel:  cancel,
+		pipelinesMap: safemap.NewIntToAny(),
+		cancels:      safemap.NewIntToContextCancelFunc(),
+		context:      ctx,
+		cancel:       cancel,
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -213,7 +216,7 @@ func (scheduler *Scheduler) cancelPipeline(id int) {
 		)
 	} else {
 		log.Infof(nil, "task: canceling pipeline: %d", id)
-		cancel.(context.CancelFunc)()
+		cancel()
 
 		scheduler.cancels.Delete(id)
 		scheduler.pipelinesMap.Delete(id)
@@ -235,7 +238,7 @@ func (scheduler *Scheduler) startPipeline(
 		scheduler.config,
 		task,
 		scheduler.cloud,
-		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d] ", task.Pipeline.ID)),
+		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d]", task.Pipeline.ID)),
 		scheduler.utilization,
 		sshKey,
 	)
@@ -262,8 +265,8 @@ func (scheduler *Scheduler) startPipeline(
 func (scheduler *Scheduler) getPipelines() []int {
 	result := []int{}
 
-	scheduler.pipelinesMap.Range(func(key interface{}, _ interface{}) bool {
-		result = append(result, key.(int))
+	scheduler.pipelinesMap.Range(func(id int, _ safemap.Any) bool {
+		result = append(result, id)
 		return true
 	})
 
@@ -274,29 +277,33 @@ func (scheduler *Scheduler) shutdown() {
 	log.Warningf(nil, "shutdown: terminating heartbeat and task routines")
 
 	scheduler.cancel()
-	scheduler.pipelinesMap.Range(func(key interface{}, _ interface{}) bool {
-		log.Warningf(nil, "shutdown: canceling pipeline: %v", key)
-		scheduler.cancelPipeline(key.(int))
+	scheduler.pipelinesMap.Range(func(id int, _ safemap.Any) bool {
+		log.Warningf(nil, "shutdown: canceling pipeline: %v", id)
+		scheduler.cancelPipeline(id)
 		return true
 	})
 
 	go func() {
 		for {
 			pipelines := atomic.LoadInt64(&scheduler.pipelines)
+
 			log.Warningf(
 				nil,
 				"shutdown: waiting for pipelines to be terminated: %d",
 				pipelines,
 			)
+
 			if pipelines == 0 {
 				break
 			}
+
 			time.Sleep(time.Second)
 		}
 	}()
 	scheduler.pipelinesGroup.Wait()
 
 	log.Warningf(nil, "shutdown: waiting for all containers to be terminated")
+
 	close(scheduler.utilization)
 	scheduler.routines.Wait()
 
