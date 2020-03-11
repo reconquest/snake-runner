@@ -4,7 +4,7 @@ tasks:
   generate:
     desc: run go generate
     cmds:
-      - go generate -v ./...
+      - grep -lr 'go:generate' ./cmd/ ./internal/ | xargs -n1 -I{} -P12 go generate -x {}
     sources:
       - '**/*.go'
     generates:
