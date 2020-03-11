@@ -13,6 +13,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/sshkey"
+	"github.com/reconquest/snake-runner/internal/syncdo"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
@@ -32,9 +33,10 @@ type ProcessPipeline struct {
 	log          *cog.Logger
 	utilization  chan *cloud.Container
 
-	status  string           `gonstructor:"-"`
-	sidecar *sidecar.Sidecar `gonstructor:"-"`
-	config  Config           `gonstructor:"-"`
+	status      string           `gonstructor:"-"`
+	sidecar     *sidecar.Sidecar `gonstructor:"-"`
+	initSidecar syncdo.Action    `gonstructor:"-"`
+	config      Config           `gonstructor:"-"`
 
 	sshKey sshkey.Key
 
@@ -232,7 +234,38 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (string, er
 	)
 	defer job.destroy()
 
-	if process.sidecar == nil {
+	err = process.readConfig(job)
+	if err != nil {
+		return StatusFailed, job.remoteErrorf(
+			err,
+			"unable to read config file",
+		)
+	}
+
+	job.sidecar = process.sidecar
+	job.config = process.config
+
+	err = job.run()
+	if err != nil {
+		if utils.IsCanceled(err) {
+			// special case when runner gets terminated
+			if utils.Done(process.parentCtx) {
+				job.remoteLog("\n\nWARNING: snake-runner has been terminated")
+
+				return StatusFailed, err
+			}
+
+			return StatusCanceled, err
+		}
+
+		return StatusFailed, err
+	}
+
+	return StatusSuccess, nil
+}
+
+func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
+	return process.initSidecar.Do(func() error {
 		process.sidecar = sidecar.NewSidecarBuilder().
 			Cloud(process.cloud).
 			Name(
@@ -261,41 +294,37 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (string, er
 			process.task.Pipeline.Commit,
 		)
 		if err != nil {
-			return StatusFailed, job.remoteErrorf(
+			return karma.Format(
 				err,
-				"unable ot start sidecar container",
+				"unable ot start sidecar container with repository",
 			)
 		}
 
-		err = process.readConfig()
+		yamlContents, err := process.cloud.Cat(
+			process.ctx,
+			process.sidecar.GetContainer(),
+			process.sidecar.GetContainerDir(),
+			process.task.Pipeline.Filename,
+		)
 		if err != nil {
-			return StatusFailed, job.remoteErrorf(
+			return karma.Format(
 				err,
-				"unable to read config file",
+				"unable to obtain file from sidecar container with repository: %q",
+				process.task.Pipeline.Filename,
 			)
 		}
-	}
 
-	job.sidecar = process.sidecar
-	job.config = process.config
-
-	err = job.run()
-	if err != nil {
-		if utils.IsCanceled(err) {
-			// special case when runner gets terminated
-			if utils.Done(process.parentCtx) {
-				job.remoteLog("\n\nWARNING: snake-runner has been terminated")
-
-				return StatusFailed, err
-			}
-
-			return StatusCanceled, err
+		process.config, err = unmarshalConfig([]byte(yamlContents))
+		if err != nil {
+			return karma.Format(
+				err,
+				"unable to unmarshal yaml data: %q",
+				process.task.Pipeline.Filename,
+			)
 		}
 
-		return StatusFailed, err
-	}
-
-	return StatusSuccess, nil
+		return nil
+	})
 }
 
 func (process *ProcessPipeline) fail(failedID int) {
@@ -373,33 +402,6 @@ func (process *ProcessPipeline) updateJob(
 		startedAt,
 		finishedAt,
 	)
-}
-
-func (process *ProcessPipeline) readConfig() error {
-	yamlContents, err := process.cloud.Cat(
-		process.ctx,
-		process.sidecar.GetContainer(),
-		process.sidecar.GetContainerDir(),
-		process.task.Pipeline.Filename,
-	)
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to obtain file from container: %q",
-			process.task.Pipeline.Filename,
-		)
-	}
-
-	process.config, err = unmarshalConfig([]byte(yamlContents))
-	if err != nil {
-		return karma.Format(
-			err,
-			"unable to unmarshal yaml data: %q",
-			process.task.Pipeline.Filename,
-		)
-	}
-
-	return nil
 }
 
 func (process *ProcessPipeline) destroy() {
