@@ -165,7 +165,7 @@ func (request *Request) Do() error {
 
 	log.Tracef(
 		context.Describe("status_code", httpResponse.StatusCode),
-		"%s",
+		"response: %s",
 		string(data),
 	)
 

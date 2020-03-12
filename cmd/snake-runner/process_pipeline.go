@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/sidecar"
@@ -142,6 +144,8 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 					once.Do(func() {
 						resultStatus = status
 						resultErr = err
+
+						process.fail(job.ID)
 					})
 				}
 			}(index, job)
@@ -164,46 +168,8 @@ func (process *ProcessPipeline) runJob(total, index int, job snake.PipelineJob) 
 		index, total, job.ID,
 	)
 
-	status, err := process.processJob(job)
-	if status == StatusFailed {
-		process.fail(job.ID)
-	}
-
-	process.log.Infof(
-		nil,
-		"%d/%d finished job: id=%d status=%s",
-		index, total, job.ID, status,
-	)
-
-	if err != nil {
-		return status, karma.Format(
-			err,
-			"job=%d an error occurred during job running", job.ID,
-		)
-	}
-
-	err = process.updateJob(
-		job.ID,
-		status,
-		nil,
-		ptr.TimePtr(utils.Now()),
-	)
-	if err != nil {
-		process.fail(job.ID)
-
-		return StatusFailed, karma.Format(
-			err,
-			"unable to update job status to success,"+
-				" but job finished successfully",
-		)
-	}
-
-	return status, nil
-}
-
-func (process *ProcessPipeline) processJob(target snake.PipelineJob) (string, error) {
 	err := process.updateJob(
-		target.ID,
+		job.ID,
 		StatusRunning,
 		ptr.TimePtr(utils.Now()),
 		nil,
@@ -214,6 +180,49 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (string, er
 			"unable to update job status",
 		)
 	}
+
+	status, jobErr := process.processJob(job)
+
+	process.log.Infof(
+		nil,
+		"%d/%d finished job: id=%d status=%s",
+		index, total, job.ID, status,
+	)
+
+	updateErr := process.updateJob(
+		job.ID,
+		status,
+		nil,
+		ptr.TimePtr(utils.Now()),
+	)
+	if updateErr != nil {
+		log.Errorf(
+			updateErr,
+			"unable to update job %d status to %s", job.ID, status,
+		)
+	}
+
+	if jobErr != nil {
+		return status, karma.Format(
+			jobErr,
+			"job=%d an error occurred during job running", job.ID,
+		)
+	}
+
+	return status, nil
+}
+
+func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status string, err error) {
+	defer func() {
+		tears := recover()
+		if tears != nil {
+			err = karma.Describe("panic", tears).
+				Describe("stacktrace", string(debug.Stack())).
+				Reason("PANIC")
+
+			log.Error(err)
+		}
+	}()
 
 	job := NewProcessJob(
 		process.ctx,
@@ -346,9 +355,7 @@ func (process *ProcessPipeline) fail(failedID int) {
 			case job.ID == failedID:
 				found = true
 				failedStage = job.Stage
-
-				status = StatusFailed
-				finished = now
+				continue
 
 			case !found:
 				continue
