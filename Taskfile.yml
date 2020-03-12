@@ -14,7 +14,7 @@ vars:
   major_minor:
     sh: "git describe --tags --abbrev=0"
   patch:
-    sh: "git rev-list $(git describe --tags --abbrev=0) --count"
+    sh: "git rev-list $(git describe --tags --abbrev=0)..HEAD --count"
   version: "{{.major_minor}}.{{.patch}}"
   commit:
     sh: "git rev-parse --short HEAD"
