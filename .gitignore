@@ -9,3 +9,4 @@
 /.task
 *.test
 *.out
+/log
