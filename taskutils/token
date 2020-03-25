@@ -1,0 +1,5 @@
+#!/bin/bash
+
+curl -s -u admin:admin \
+    'https://bitbucket.local/rest/snake-ci/1.0/runners/tokens/registration' \
+    | jq -r .token
