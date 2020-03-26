@@ -8,6 +8,7 @@ require (
 	github.com/cheekybits/genny v1.0.0
 	github.com/containerd/containerd v1.3.2 // indirect
 	github.com/coredns/coredns v1.6.6 // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.4.2-0.20200117050326-e5c8eca2eebf
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -36,6 +37,9 @@ require (
 	github.com/vmware/govmomi v0.22.1
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
 	golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a
+	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a // indirect
+	golang.org/x/tools v0.0.0-20200325203130-f53864d0dba1 // indirect
+	golang.org/x/tools/gopls v0.3.4 // indirect
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/api v0.15.0 // indirect
 	google.golang.org/grpc v1.26.0 // indirect

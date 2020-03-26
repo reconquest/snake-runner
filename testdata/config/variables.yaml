@@ -1,0 +1,14 @@
+stages:
+  - x
+
+variables:
+  g1: gv1
+  n1: gn1
+
+work1:
+  stage: x
+  variables:
+    w1: v1
+    n1: n2
+  commands:
+    - c

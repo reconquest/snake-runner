@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/responses"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -41,12 +42,12 @@ func TestEnvBuilder(t *testing.T) {
 	}
 	task.CloneURL.SSH = "cloneurl"
 
-	config := Config{}
-	configJob := ConfigJob{}
+	configPipeline := config.Pipeline{}
+	configJob := config.Job{}
 
 	builder := func(pipeline snake.Pipeline) *EnvBuilder {
 		return NewEnvBuilder(
-			task, pipeline, job, config, configJob, &runnerConfig, "/dir",
+			task, pipeline, job, configPipeline, configJob, &runnerConfig, "/dir",
 		)
 	}
 
@@ -99,7 +100,7 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		config.Variables = map[string]string{"foo": "global"}
+		configPipeline.Variables = map[string]string{"foo": "global"}
 
 		expected := clone(expected)
 		expected["foo"] = "global"
@@ -117,7 +118,7 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		config.Variables = map[string]string{"foo": "globalfoo", "bar": "globalbar"}
+		configPipeline.Variables = map[string]string{"foo": "globalfoo", "bar": "globalbar"}
 		configJob.Variables = map[string]string{"foo": "foojob", "qux": "quxjob"}
 
 		expected := clone(expected)

@@ -1,0 +1,9 @@
+image: globglob
+
+stages:
+  - x
+
+work1:
+  stage: x
+  commands:
+    - c

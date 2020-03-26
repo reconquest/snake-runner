@@ -1,0 +1,32 @@
+(config.Pipeline) {
+ Variables: (map[string]string) (len=2) {
+  (string) (len=2) "g1": (string) (len=3) "gv1",
+  (string) (len=2) "n1": (string) (len=3) "gn1"
+ },
+ Shell: (string) "",
+ Image: (string) "",
+ Stages: ([]string) (len=1 cap=1) {
+  (string) (len=1) "x"
+ },
+ Jobs: (map[string]config.Job) (len=2) {
+  (string) (len=9) "variables": (config.Job) {
+   Variables: (map[string]string) <nil>,
+   Stage: (string) "",
+   Shell: (string) "",
+   Image: (string) "",
+   Commands: ([]string) <nil>
+  },
+  (string) (len=5) "work1": (config.Job) {
+   Variables: (map[string]string) (len=2) {
+    (string) (len=2) "w1": (string) (len=2) "v1",
+    (string) (len=2) "n1": (string) (len=2) "n2"
+   },
+   Stage: (string) (len=1) "x",
+   Shell: (string) "",
+   Image: (string) "",
+   Commands: ([]string) (len=1 cap=1) {
+    (string) (len=1) "c"
+   }
+  }
+ }
+}

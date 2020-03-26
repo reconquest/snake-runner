@@ -32,9 +32,7 @@ func Unmarshal(data []byte) (Pipeline, error) {
 		return config, err
 	}
 
-	if node, ok := raw["image"]; !ok {
-		return config, errors.New("missing image field")
-	} else {
+	if node, ok := raw["image"]; ok {
 		err = node.Decode(&config.Image)
 		if err != nil {
 			return config, karma.Format(

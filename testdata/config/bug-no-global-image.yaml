@@ -1,0 +1,7 @@
+stages:
+  - a
+
+work 1:
+  stage: a
+  commands:
+    - x
