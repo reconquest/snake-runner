@@ -11,6 +11,7 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
@@ -38,7 +39,7 @@ type ProcessPipeline struct {
 	status      string           `gonstructor:"-"`
 	sidecar     *sidecar.Sidecar `gonstructor:"-"`
 	initSidecar syncdo.Action    `gonstructor:"-"`
-	config      Config           `gonstructor:"-"`
+	config      config.Pipeline  `gonstructor:"-"`
 
 	sshKey sshkey.Key
 
@@ -323,7 +324,7 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 			)
 		}
 
-		process.config, err = unmarshalConfig([]byte(yamlContents))
+		process.config, err = config.Unmarshal([]byte(yamlContents))
 		if err != nil {
 			return karma.Format(
 				err,

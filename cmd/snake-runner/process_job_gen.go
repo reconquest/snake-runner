@@ -7,11 +7,12 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-func NewProcessJob(ctx context.Context, cloud *cloud.Cloud, client *Client, config Config, runnerConfig *RunnerConfig, task tasks.PipelineRun, utilization chan *cloud.Container, job snake.PipelineJob, log *cog.Logger) *ProcessJob {
+func NewProcessJob(ctx context.Context, cloud *cloud.Cloud, client *Client, config config.Pipeline, runnerConfig *RunnerConfig, task tasks.PipelineRun, utilization chan *cloud.Container, job snake.PipelineJob, log *cog.Logger) *ProcessJob {
 	r := &ProcessJob{ctx: ctx, cloud: cloud, client: client, config: config, runnerConfig: runnerConfig, task: task, utilization: utilization, job: job, log: log}
 	r.init()
 	return r

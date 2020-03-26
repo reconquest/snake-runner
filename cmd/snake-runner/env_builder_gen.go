@@ -3,10 +3,11 @@
 package main
 
 import (
+	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-func NewEnvBuilder(task tasks.PipelineRun, pipeline snake.Pipeline, job snake.PipelineJob, config Config, configJob ConfigJob, runnerConfig *RunnerConfig, containerDir string) *EnvBuilder {
+func NewEnvBuilder(task tasks.PipelineRun, pipeline snake.Pipeline, job snake.PipelineJob, config config.Pipeline, configJob config.Job, runnerConfig *RunnerConfig, containerDir string) *EnvBuilder {
 	return &EnvBuilder{task: task, pipeline: pipeline, job: job, config: config, configJob: configJob, runnerConfig: runnerConfig, containerDir: containerDir}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -24,7 +25,7 @@ type ProcessJob struct {
 	ctx          context.Context
 	cloud        *cloud.Cloud
 	client       *Client
-	config       Config
+	config       config.Pipeline
 	runnerConfig *RunnerConfig
 
 	task        tasks.PipelineRun
@@ -33,7 +34,7 @@ type ProcessJob struct {
 	job snake.PipelineJob
 	log *cog.Logger
 
-	configJob ConfigJob `gonstructor:"-"`
+	configJob config.Job `gonstructor:"-"`
 
 	container  *cloud.Container    `gonstructor:"-"`
 	sidecar    *sidecar.Sidecar    `gonstructor:"-"`

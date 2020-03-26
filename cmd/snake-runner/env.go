@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
@@ -12,8 +13,8 @@ type EnvBuilder struct {
 	task         tasks.PipelineRun
 	pipeline     snake.Pipeline
 	job          snake.PipelineJob
-	config       Config
-	configJob    ConfigJob
+	config       config.Pipeline
+	configJob    config.Job
 	runnerConfig *RunnerConfig
 	containerDir string
 }

@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"errors"
@@ -7,15 +7,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Config struct {
-	Variables map[string]string    `json:"variables" yaml:"variables"`
-	Shell     string               `json:"shell"     yaml:"shell"`
-	Image     string               `json:"image"     yaml:"image"`
-	Stages    []string             `json:"stages"    yaml:"stages"`
-	Jobs      map[string]ConfigJob `json:"jobs"      yaml:"jobs"`
+type Pipeline struct {
+	Variables map[string]string `json:"variables" yaml:"variables"`
+	Shell     string            `json:"shell"     yaml:"shell"`
+	Image     string            `json:"image"     yaml:"image"`
+	Stages    []string          `json:"stages"    yaml:"stages"`
+	Jobs      map[string]Job    `json:"jobs"      yaml:"jobs"`
 }
 
-type ConfigJob struct {
+type Job struct {
 	Variables map[string]string `json:"variables" yaml:"variables"`
 	Stage     string            `yaml:"stage"     yaml:"stage"`
 	Shell     string            `yaml:"shell"     yaml:"shell"`
@@ -23,8 +23,8 @@ type ConfigJob struct {
 	Commands  []string          `yaml:"commands"  yaml:"commands"`
 }
 
-func unmarshalConfig(data []byte) (Config, error) {
-	var config Config
+func Unmarshal(data []byte) (Pipeline, error) {
+	var config Pipeline
 
 	raw := map[string]yaml.Node{}
 	err := yaml.Unmarshal(data, &raw)
@@ -60,9 +60,9 @@ func unmarshalConfig(data []byte) (Config, error) {
 		delete(raw, "stages")
 	}
 
-	config.Jobs = map[string]ConfigJob{}
+	config.Jobs = map[string]Job{}
 	for jobName, node := range raw {
-		var job ConfigJob
+		var job Job
 		err := node.Decode(&job)
 		if err != nil {
 			return config, karma.Format(
