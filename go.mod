@@ -27,7 +27,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936
 	github.com/reconquest/executil-go v0.0.0-20181110204642-1f5c2d67813f
-	github.com/reconquest/karma-go v0.0.0-20190930125156-7b5c19ad6eab
+	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
 	github.com/reconquest/pkg v0.0.0-20191230125351-0f8339e114d4
 	github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae
 	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24

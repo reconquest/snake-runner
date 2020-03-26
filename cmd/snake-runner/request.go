@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -12,9 +11,11 @@ import (
 	"github.com/reconquest/pkg/log"
 )
 
-type responseError struct {
-	Error interface{} `json:"error"`
+type remoteError struct {
+	ErrorMessage string `json:"error"`
 }
+
+func (error remoteError) Error() string { return error.ErrorMessage }
 
 type Request struct {
 	httpClient *http.Client
@@ -180,11 +181,9 @@ func (request *Request) Do() error {
 	if !expectedStatus {
 		context = context.Describe("status_code", httpResponse.StatusCode)
 		if httpResponse.StatusCode >= 400 {
-			var errResponse responseError
+			var errResponse remoteError
 			if err := json.Unmarshal(data, &errResponse); err == nil {
-				return context.Reason(
-					fmt.Errorf("remote error: %v", errResponse.Error),
-				)
+				return context.Reason(errResponse)
 			} else {
 				return context.Describe("body", string(data)).
 					Format(

@@ -15,11 +15,23 @@ func (runner *Runner) mustRegister() string {
 	for {
 		token, err := runner.register()
 		if err != nil {
-			log.Errorf(
-				err,
-				"unable to register runner, will repeat after %s",
-				FailedRegisterRepeatTimeout,
-			)
+			remote := false
+			for _, reason := range karma.GetReasons(err) {
+				if _, ok := reason.(remoteError); ok {
+					remote = true
+					break
+				}
+			}
+			if remote {
+				log.Errorf(err, "make sure you have passed correct registration token")
+			} else {
+				log.Errorf(
+					err,
+					"unable to register runner, will repeat after %s",
+					FailedRegisterRepeatTimeout,
+				)
+			}
+
 			time.Sleep(FailedRegisterRepeatTimeout)
 			continue
 		}

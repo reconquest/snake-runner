@@ -964,6 +964,8 @@ github.com/reconquest/executil-go v0.0.0-20181110204642-1f5c2d67813f h1:z1ngdCBG
 github.com/reconquest/executil-go v0.0.0-20181110204642-1f5c2d67813f/go.mod h1:63UJzHtKBhZ2qo6JzQFn8wOG8bNXextZyVOjlXUE+9I=
 github.com/reconquest/karma-go v0.0.0-20190930125156-7b5c19ad6eab h1:NPOguOXVFBXRaBt4uPQLhvLkNwQgT0M+PZwxBGxgrrQ=
 github.com/reconquest/karma-go v0.0.0-20190930125156-7b5c19ad6eab/go.mod h1:oTXKs9J7KQ1gCpnvSwCbH9vlvELZFfUSbEbrr2ABeo0=
+github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5 h1:zDWjDur+l8W6pKksuc1VdKcdYrfHrTO9jRN131XoG1g=
+github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5/go.mod h1:oTXKs9J7KQ1gCpnvSwCbH9vlvELZFfUSbEbrr2ABeo0=
 github.com/reconquest/pkg v0.0.0-20191230125351-0f8339e114d4 h1:7UuWoJ3PKGJwA85zsgw74OU9XI0xy+6o7qXYJWI/GkA=
 github.com/reconquest/pkg v0.0.0-20191230125351-0f8339e114d4/go.mod h1:Nqi0AJehtACFbTsZoQYCPPF20kTR78IhkL09CeUUGbU=
 github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae h1:10tLzv4SX5+TK+yb1agY+GQSbw8s7Q0Nj43XCRpP9sY=
