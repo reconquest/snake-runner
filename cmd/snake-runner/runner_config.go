@@ -16,31 +16,24 @@ import (
 )
 
 type RunnerConfig struct {
-	// it's actually required but it will be handled manually
+	// MasterAddress is actually required but it will be handled manually
 	MasterAddress string `yaml:"master_address" env:"SNAKE_MASTER_ADDRESS"`
-
-	Log struct {
+	Log           struct {
 		Debug bool `yaml:"debug" env:"SNAKE_LOG_DEBUG"`
 		Trace bool `yaml:"trace" env:"SNAKE_LOG_TRACE"`
 	}
-
-	Name string `yaml:"name" env:"SNAKE_NAME"`
-
-	RegistrationToken string `yaml:"registration_token" env:"SNAKE_REGISTRATION_TOKEN"`
-
-	AccessToken     string `yaml:"access_token" env:"SNAKE_ACCESS_TOKEN"`
-	AccessTokenPath string `yaml:"access_token_path" env:"SNAKE_ACCESS_TOKEN_PATH" default:"/var/lib/snake-runner/secrets/access_token"`
-
-	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" env:"SNAKE_HEARTBEAT_INTERVAL" default:"45s"`
-	SchedulerInterval time.Duration `yaml:"scheduler_interval" env:"SNAKE_SCHEDULER_INTERVAL" default:"5s"`
-
-	Virtualization       string `yaml:"virtualization" default:"docker" env:"SNAKE_VIRTUALIZATION" required:"true"`
-	MaxParallelPipelines int64  `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0" required:"true"`
-
-	PipelinesDir string `yaml:"pipelines_dir" env:"SNAKE_PIPELINES_DIR" default:"/var/lib/snake-runner/pipelines" required:"true"`
-
-	Docker struct {
-		Network string `yaml:"network" env:"SNAKE_DOCKER_NETWORK"`
+	Name                 string        `yaml:"name"                   env:"SNAKE_NAME"`
+	RegistrationToken    string        `yaml:"registration_token"     env:"SNAKE_REGISTRATION_TOKEN"`
+	AccessToken          string        `yaml:"access_token"           env:"SNAKE_ACCESS_TOKEN"`
+	AccessTokenPath      string        `yaml:"access_token_path"      env:"SNAKE_ACCESS_TOKEN_PATH"      default:"/var/lib/snake-runner/secrets/access_token"`
+	HeartbeatInterval    time.Duration `yaml:"heartbeat_interval"     env:"SNAKE_HEARTBEAT_INTERVAL"     default:"45s"`
+	SchedulerInterval    time.Duration `yaml:"scheduler_interval"     env:"SNAKE_SCHEDULER_INTERVAL"     default:"5s"`
+	Virtualization       string        `yaml:"virtualization"         env:"SNAKE_VIRTUALIZATION"         default:"docker"                          required:"true"`
+	MaxParallelPipelines int64         `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0"                               required:"true"`
+	PipelinesDir         string        `yaml:"pipelines_dir"          env:"SNAKE_PIPELINES_DIR"          default:"/var/lib/snake-runner/pipelines" required:"true"`
+	Docker               struct {
+		Network string   `yaml:"network" env:"SNAKE_DOCKER_NETWORK"`
+		Volumes []string `yaml:"volumes" env:"SNAKE_DOCKER_VOLUMES"`
 	} `yaml:"docker"`
 }
 

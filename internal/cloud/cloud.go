@@ -28,6 +28,7 @@ type Cloud struct {
 	client *client.Client
 
 	network string
+	volumes []string
 }
 
 type (
@@ -35,12 +36,13 @@ type (
 	CommandConsumer func([]string)
 )
 
-func NewDocker(network string) (*Cloud, error) {
+func NewDocker(network string, volumes []string) (*Cloud, error) {
 	var err error
 
 	cloud := &Cloud{}
 
 	cloud.network = network
+	cloud.volumes = volumes
 
 	cloud.client, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -115,7 +117,7 @@ func (cloud *Cloud) CreateContainer(
 	}
 
 	hostConfig := &container.HostConfig{
-		Binds: volumes,
+		Binds: append(cloud.volumes, volumes...),
 	}
 
 	if cloud.network != "" {

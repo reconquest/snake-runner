@@ -34,7 +34,10 @@ type Scheduler struct {
 }
 
 func (runner *Runner) startScheduler() error {
-	docker, err := cloud.NewDocker(runner.config.Docker.Network)
+	docker, err := cloud.NewDocker(
+		runner.config.Docker.Network,
+		runner.config.Docker.Volumes,
+	)
 	if err != nil {
 		return karma.Format(err, "unable to initialize container provider")
 	}

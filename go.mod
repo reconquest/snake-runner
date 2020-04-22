@@ -17,6 +17,7 @@ require (
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/gobuffalo/buffalo v0.15.5
 	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/gophercloud/gophercloud v0.3.0
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
 	github.com/kovetskiy/ko v0.0.0-20200107130756-5aeb3d88d1de
 	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
