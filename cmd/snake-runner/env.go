@@ -19,12 +19,30 @@ type EnvBuilder struct {
 	containerDir string
 }
 
-func (builder *EnvBuilder) Build() []string {
-	result := []string{}
+type Env struct {
+	mapping map[string]string
+	values  []string
+}
+
+func (env *Env) GetAll() []string {
+	return env.values
+}
+
+func (env *Env) Get(key string) (string, bool) {
+	value, ok := env.mapping[key]
+	return value, ok
+}
+
+func (builder *EnvBuilder) Build() Env {
+	mapping := builder.build()
+	values := []string{}
 	for key, value := range builder.build() {
-		result = append(result, key+"="+value)
+		values = append(values, key+"="+value)
 	}
-	return result
+	return Env{
+		mapping: mapping,
+		values:  values,
+	}
 }
 
 func (builder *EnvBuilder) build() map[string]string {

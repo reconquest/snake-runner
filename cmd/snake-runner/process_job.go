@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -39,7 +40,7 @@ type ProcessJob struct {
 	container  *cloud.Container    `gonstructor:"-"`
 	sidecar    *sidecar.Sidecar    `gonstructor:"-"`
 	shell      string              `gonstructor:"-"`
-	env        []string            `gonstructor:"-"`
+	env        Env                 `gonstructor:"-"`
 	logsWriter *LogsBufferedWriter `gonstructor:"-"`
 }
 
@@ -81,15 +82,19 @@ func (process *ProcessJob) run() error {
 		)
 	}
 
-	var image string
-	switch {
-	case process.configJob.Image != "":
-		image = process.configJob.Image
-	case process.config.Image != "":
-		image = process.config.Image
-	default:
-		image = DefaultImage
-	}
+	process.env = NewEnvBuilder(
+		process.task,
+		process.task.Pipeline,
+		process.job,
+		process.config,
+		process.configJob,
+		process.runnerConfig,
+		process.sidecar.GetContainerDir(),
+	).Build()
+
+	imageExpr, image := process.getImage()
+
+	process.log.Debugf(nil, "image: %s → %s", imageExpr, image)
 
 	err := process.ensureImage(image)
 	if err != nil {
@@ -135,6 +140,29 @@ func (process *ProcessJob) run() error {
 	return nil
 }
 
+func (process *ProcessJob) getImage() (string, string) {
+	var image string
+	switch {
+	case process.configJob.Image != "":
+		image = process.configJob.Image
+	case process.config.Image != "":
+		image = process.config.Image
+	default:
+		image = DefaultImage
+	}
+
+	expanded := process.expandEnv(image)
+
+	return image, expanded
+}
+
+func (process *ProcessJob) expandEnv(target string) string {
+	return os.Expand(target, func(name string) string {
+		value, _ := process.env.Get(name)
+		return value
+	})
+}
+
 func (process *ProcessJob) remoteLog(text string) {
 	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
 	process.logsWriter.Write(text)
@@ -150,22 +178,6 @@ func (process *ProcessJob) remoteErrorf(
 	return err
 }
 
-func (process *ProcessJob) getEnv() []string {
-	if len(process.env) == 0 {
-		process.env = NewEnvBuilder(
-			process.task,
-			process.task.Pipeline,
-			process.job,
-			process.config,
-			process.configJob,
-			process.runnerConfig,
-			process.sidecar.GetContainerDir(),
-		).Build()
-	}
-
-	return process.env
-}
-
 func (process *ProcessJob) execShell(cmd string) error {
 	process.sendPrompt([]string{cmd})
 
@@ -173,7 +185,7 @@ func (process *ProcessJob) execShell(cmd string) error {
 		process.ctx,
 		process.container,
 		types.ExecConfig{
-			Env:          process.getEnv(),
+			Env:          process.env.GetAll(),
 			WorkingDir:   process.sidecar.GetContainerDir(),
 			Cmd:          []string{process.shell, "-c", cmd},
 			AttachStdout: true,
