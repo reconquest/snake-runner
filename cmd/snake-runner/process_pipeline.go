@@ -259,7 +259,7 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status str
 	if err != nil {
 		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
-			if utils.Done(process.parentCtx) {
+			if utils.IsDone(process.parentCtx) {
 				job.remoteLog("\n\nWARNING: snake-runner has been terminated")
 
 				return StatusFailed, err

@@ -66,7 +66,7 @@ func (cloud *Cloud) PullImage(
 	}
 	defer reader.Close()
 
-	logwriter := logwriter{callback: callback}
+	logwriter := callbackWriter{ctx: ctx, callback: callback}
 
 	termFd, isTerm := term.GetFdInfo(logwriter)
 
@@ -204,7 +204,7 @@ func (cloud *Cloud) Exec(
 		return err
 	}
 
-	writer := logwriter{callback: callback}
+	writer := callbackWriter{ctx: ctx, callback: callback}
 
 	_, err = stdcopy.StdCopy(writer, writer, response.Reader)
 	if err != nil {

@@ -42,7 +42,7 @@ func (ticker *Ticker) Reset() {
 	ticker.ch = time.After(ticker.duration)
 }
 
-func Done(context context.Context) bool {
+func IsDone(context context.Context) bool {
 	select {
 	case <-context.Done():
 		return true
