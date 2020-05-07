@@ -32,8 +32,8 @@ type Cloud struct {
 }
 
 type (
-	OutputConsumer  func(string)
-	CommandConsumer func([]string)
+	OutputConsumer func(string)
+	PromptConsumer func([]string)
 )
 
 func NewDocker(network string, volumes []string) (*Cloud, error) {

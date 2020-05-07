@@ -89,7 +89,8 @@ func (process *ProcessJob) run() error {
 		process.config,
 		process.configJob,
 		process.runnerConfig,
-		process.sidecar.GetContainerDir(),
+		process.sidecar.GetGitDir(),
+		process.sidecar.GetSshDir(),
 	).Build()
 
 	imageExpr, image := process.getImage()
@@ -110,7 +111,7 @@ func (process *ProcessJob) run() error {
 			process.job.ID,
 			utils.RandString(8),
 		),
-		process.sidecar.GetPipelineVolumes(),
+		process.sidecar.GetContainerVolumes(),
 	)
 	if err != nil {
 		return process.remoteErrorf(err, "unable to create a container")
@@ -186,7 +187,7 @@ func (process *ProcessJob) execShell(cmd string) error {
 		process.container,
 		types.ExecConfig{
 			Env:          process.env.GetAll(),
-			WorkingDir:   process.sidecar.GetContainerDir(),
+			WorkingDir:   process.sidecar.GetGitDir(),
 			Cmd:          []string{process.shell, "-c", cmd},
 			AttachStdout: true,
 			AttachStderr: true,

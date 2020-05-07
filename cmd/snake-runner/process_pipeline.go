@@ -293,7 +293,7 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 				),
 			).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
-			CommandConsumer(job.sendPrompt).
+			PromptConsumer(job.sendPrompt).
 			OutputConsumer(job.remoteLog).
 			SshKey(process.sshKey).
 			Build()
@@ -313,7 +313,7 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 		yamlContents, err := process.cloud.Cat(
 			process.ctx,
 			process.sidecar.GetContainer(),
-			process.sidecar.GetContainerDir(),
+			process.sidecar.GetGitDir(),
 			process.task.Pipeline.Filename,
 		)
 		if err != nil {

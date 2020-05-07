@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	"github.com/reconquest/karma-go"
@@ -11,6 +12,8 @@ import (
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
+
+//go:generate gonstructor -type Sidecar -constructorTypes builder
 
 const (
 	SidecarImage = "reconquest/snake-runner-sidecar"
@@ -21,27 +24,55 @@ const SSHConfigWithoutVerification = `Host *
 	UserKnownHostsFile /dev/null
 `
 
-//go:generate gonstructor -type Sidecar -constructorTypes builder
+const (
+	GitSubDir = `git`
+	SshSubDir = `ssh`
+
+	SshSockVar  = `SSH_AUTH_SOCK`
+	SshSockFile = `ssh-agent.sock`
+)
+
+// Sidecar produces the following volumes:
+// * volume with git repository cloned from the bitbucket instance
+// * volume with shared ssh-agent socket
 type Sidecar struct {
-	cloud           *cloud.Cloud
-	name            string
-	pipelinesDir    string
-	slug            string
-	commandConsumer cloud.CommandConsumer
-	outputConsumer  cloud.OutputConsumer
-	sshKey          sshkey.Key
+	cloud *cloud.Cloud
+	name  string
+	// pipelinesDir is the directory on the host file system where all pipelines
+	// and temporary stuff such as git repos and ssh sockets are stored
+	pipelinesDir   string
+	slug           string
+	promptConsumer cloud.PromptConsumer
+	outputConsumer cloud.OutputConsumer
+	sshKey         sshkey.Key
 
-	container    *cloud.Container `gonstructor:"-"`
-	containerDir string           `gonstructor:"-"`
-	hostSubDir   string           `gonstructor:"-"`
+	container *cloud.Container `gonstructor:"-"`
+
+	hostSubDir   string `gonstructor:"-"`
+	containerDir string `gonstructor:"-"`
+
+	// directory with git repository cloned
+	gitDir string `gonstructor:"-"`
+
+	// directory with ssh-agent socket
+	sshDir string `gonstructor:"-"`
+
+	sshAgent sync.WaitGroup
 }
 
-func (sidecar *Sidecar) GetPipelineVolumes() []string {
-	return []string{sidecar.hostSubDir + ":" + sidecar.containerDir}
+func (sidecar *Sidecar) GetContainerVolumes() []string {
+	return []string{
+		sidecar.hostSubDir + "/" + GitSubDir + ":" + sidecar.gitDir,
+		sidecar.hostSubDir + "/" + SshSubDir + ":" + sidecar.sshDir,
+	}
 }
 
-func (sidecar *Sidecar) GetContainerDir() string {
-	return sidecar.containerDir
+func (sidecar *Sidecar) GetGitDir() string {
+	return sidecar.gitDir
+}
+
+func (sidecar *Sidecar) GetSshDir() string {
+	return sidecar.sshDir
 }
 
 func (sidecar *Sidecar) GetContainer() *cloud.Container {
@@ -65,10 +96,16 @@ func (sidecar *Sidecar) create(ctx context.Context) error {
 	}
 
 	sidecar.hostSubDir = filepath.Join(sidecar.pipelinesDir, sidecar.name)
-	sidecar.containerDir = filepath.Join("/pipelines/", sidecar.slug)
+	sidecar.containerDir = filepath.Join("/pipelines", sidecar.slug)
+
+	sidecar.gitDir = filepath.Join(sidecar.containerDir, GitSubDir)
+	sidecar.sshDir = filepath.Join(sidecar.containerDir, SshSubDir)
 
 	volumes := []string{
 		sidecar.hostSubDir + ":" + sidecar.containerDir + ":rw",
+
+		// host dir is bound because we are going to get rid of entire sidecar
+		// subdir during container destroying
 		sidecar.pipelinesDir + ":/host:rw",
 	}
 
@@ -88,24 +125,52 @@ func (sidecar *Sidecar) create(ctx context.Context) error {
 	return nil
 }
 
-func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish string) error {
+func (sidecar *Sidecar) Serve(
+	ctx context.Context,
+	cloneURL string,
+	commitish string,
+) error {
+	// creating container
 	err := sidecar.create(ctx)
 	if err != nil {
 		return err
 	}
 
+	// preparing _directories_ such as 'git' and 'ssh'
+	err = sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
+		Cmd:          []string{"mkdir", "-p", sidecar.gitDir, sidecar.sshDir},
+		AttachStdout: true,
+		AttachStderr: true,
+	}, sidecar.getLogger("mkdir"))
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to create directories: %s %s",
+			sidecar.gitDir,
+			sidecar.sshDir,
+		)
+	}
+
+	// starting ssh-agent
+	sshSock, err := sidecar.startSshAgent(ctx)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to start ssh-agent",
+		)
+	}
+
 	env := []string{
+		SshSockVar + "=" + sshSock,
 		"__SNAKE_PRIVATE_KEY=" + string(sidecar.sshKey.Private),
-		"__SNAKE_PUBLIC_KEY=" + string(sidecar.sshKey.Public),
 		"__SNAKE_SSH_CONFIG=" + SSHConfigWithoutVerification,
 	}
 
+	// adding ssh key to the ssh-agent and tuning up git a bit
 	basic := []string{
 		`mkdir ~/.ssh`,
-		`cat > ~/.ssh/id_rsa <<< "$__SNAKE_PRIVATE_KEY"`,
-		`cat > ~/.ssh/id_rsa.pub <<< "$__SNAKE_PUBLIC_KEY"`,
+		`ssh-add -v - <<< "$__SNAKE_PRIVATE_KEY"`,
 		`cat > ~/.ssh/config <<< "$__SNAKE_SSH_CONFIG"`,
-		`chmod 0600 ~/.ssh/id_rsa ~/.ssh/id_rsa.pub`,
 		`git config --global advice.detachedHead false`,
 	}
 
@@ -116,7 +181,7 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 		Env:          env,
 		AttachStdout: true,
 		AttachStderr: true,
-	}, sidecar.onlyLog)
+	}, sidecar.getLogger("prep"))
 	if err != nil {
 		return karma.Describe("cmd", cmd).Format(
 			err,
@@ -124,16 +189,21 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 		)
 	}
 
+	// cloning git repository and switching commit
 	commands := [][]string{
-		{`git`, `clone`, cloneURL, sidecar.containerDir},
-		{`git`, `-C`, sidecar.containerDir, `checkout`, commitish},
+		{`git`, `clone`, "--recursive", cloneURL, sidecar.gitDir},
+		{`git`, `-C`, sidecar.gitDir, `checkout`, commitish},
 	}
 
 	for _, cmd := range commands {
-		sidecar.commandConsumer(cmd)
+		sidecar.promptConsumer(cmd)
 
 		err = sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
-			// NO ENV!
+			Env: []string{
+				SshSockVar + "=" + sshSock,
+				// NOTE: the private key is not passed anymore but it's already
+				// in ssh-agent's memory
+			},
 			Cmd:          cmd,
 			AttachStdout: true,
 			AttachStderr: true,
@@ -148,12 +218,62 @@ func (sidecar *Sidecar) Serve(ctx context.Context, cloneURL string, commitish st
 	return nil
 }
 
-func (sidecar *Sidecar) onlyLog(text string) {
-	log.Debugf(
-		nil,
-		"sidecar %s: %s",
-		sidecar.container.Name, strings.TrimRight(text, "\n"),
-	)
+func (sidecar *Sidecar) startSshAgent(ctx context.Context) (string, error) {
+	started := make(chan struct{}, 1)
+	failed := make(chan error, 1)
+
+	logger := sidecar.getLogger("ssh-agent")
+	callback := func(text string) {
+		logger(text)
+
+		if strings.Contains(text, SshSockVar+"=") {
+			started <- struct{}{}
+		}
+	}
+
+	sshSocket := filepath.Join(sidecar.sshDir, SshSockFile)
+
+	sidecar.sshAgent.Add(1)
+	go func() {
+		defer sidecar.sshAgent.Done()
+
+		err := sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
+			Cmd: []string{
+				"ssh-agent",
+				"-d", "-a", sshSocket,
+			},
+
+			AttachStdout: true,
+			AttachStderr: true,
+		}, callback)
+		if err != nil {
+			failed <- karma.Format(
+				err,
+				"unable to run ssh-agent in sidecar container",
+			)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", context.Canceled
+
+	case err := <-failed:
+		return "", err
+
+	case <-started:
+		return sshSocket, nil
+	}
+}
+
+func (sidecar *Sidecar) getLogger(tag string) func(string) {
+	return func(text string) {
+		log.Debugf(
+			nil,
+			"[sidecar] %s {%s}: %s",
+			sidecar.container.Name, tag, strings.TrimRight(text, "\n"),
+		)
+	}
 }
 
 func (sidecar *Sidecar) Destroy() {
@@ -176,13 +296,13 @@ func (sidecar *Sidecar) Destroy() {
 			context.Background(),
 			sidecar.container,
 			types.ExecConfig{Cmd: cmd, AttachStderr: true, AttachStdout: true},
-			sidecar.onlyLog,
+			sidecar.getLogger("rm"),
 		)
 		if err != nil {
 			log.Errorf(
 				err,
 				"unable to cleanup sidecar directory: %s %s",
-				sidecar.GetContainerDir(),
+				sidecar.GetGitDir(),
 				sidecar.hostSubDir,
 			)
 		}
@@ -194,7 +314,10 @@ func (sidecar *Sidecar) Destroy() {
 		sidecar.container.Name,
 	)
 
-	err := sidecar.cloud.DestroyContainer(context.Background(), sidecar.container)
+	err := sidecar.cloud.DestroyContainer(
+		context.Background(),
+		sidecar.container,
+	)
 	if err != nil {
 		log.Errorf(
 			err,
@@ -202,5 +325,10 @@ func (sidecar *Sidecar) Destroy() {
 			sidecar.container.ID,
 			sidecar.container.Name,
 		)
+
+		return
 	}
+
+	// wait for ssh-agent to die in order to avoid go routine leakage
+	sidecar.sshAgent.Wait()
 }
