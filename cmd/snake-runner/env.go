@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/snake"
@@ -16,7 +17,8 @@ type EnvBuilder struct {
 	config       config.Pipeline
 	configJob    config.Job
 	runnerConfig *RunnerConfig
-	containerDir string
+	gitDir       string
+	sshDir       string
 }
 
 type Env struct {
@@ -66,7 +68,7 @@ func (builder *EnvBuilder) build() map[string]string {
 		vars["CI_COMMIT_SHORT_HASH"] = builder.pipeline.Commit[0:6]
 	}
 
-	vars["CI_PIPELINE_DIR"] = builder.containerDir
+	vars["CI_PIPELINE_DIR"] = builder.gitDir
 
 	if builder.pipeline.PullRequestID > 0 {
 		vars["CI_PULL_REQUEST_ID"] = fmt.Sprint(builder.pipeline.PullRequestID)
@@ -97,6 +99,10 @@ func (builder *EnvBuilder) build() map[string]string {
 	for key, value := range builder.configJob.Variables {
 		vars[key] = value
 	}
+
+	// special case: providing SSH_AUTH_SOCK — socket to ssh-agent that is
+	// running in sidecar
+	vars["SSH_AUTH_SOCK"] = filepath.Join(builder.sshDir, "ssh-agent.sock")
 
 	return vars
 }

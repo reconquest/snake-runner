@@ -47,7 +47,14 @@ func TestEnvBuilder(t *testing.T) {
 
 	builder := func(pipeline snake.Pipeline) *EnvBuilder {
 		return NewEnvBuilder(
-			task, pipeline, job, configPipeline, configJob, &runnerConfig, "/dir",
+			task,
+			pipeline,
+			job,
+			configPipeline,
+			configJob,
+			&runnerConfig,
+			"/git",
+			"/ssh",
 		)
 	}
 
@@ -60,7 +67,7 @@ func TestEnvBuilder(t *testing.T) {
 		"CI_JOB_NAME":           "docker deploy",
 		"CI_COMMIT_HASH":        "1234567890",
 		"CI_COMMIT_SHORT_HASH":  "123456",
-		"CI_PIPELINE_DIR":       "/dir",
+		"CI_PIPELINE_DIR":       "/git",
 		"CI_PROJECT_KEY":        "proj1",
 		"CI_PROJECT_NAME":       "the proj1",
 		"CI_PROJECT_ID":         "11",
@@ -71,6 +78,7 @@ func TestEnvBuilder(t *testing.T) {
 		"CI_RUNNER_ID":          "80",
 		"CI_RUNNER_NAME":        "gotest",
 		"CI_RUNNER_VERSION":     version,
+		"SSH_AUTH_SOCK":         "/ssh/ssh-agent.sock",
 	}
 
 	{
