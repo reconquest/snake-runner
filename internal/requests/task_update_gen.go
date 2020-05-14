@@ -4,6 +4,14 @@ package requests
 
 import "time"
 
-func NewTaskUpdate(status string, startedAt *time.Time, finishedAt *time.Time) *TaskUpdate {
-	return &TaskUpdate{Status: status, StartedAt: startedAt, FinishedAt: finishedAt}
+func NewTaskUpdate(
+	status string,
+	startedAt *time.Time,
+	finishedAt *time.Time,
+) *TaskUpdate {
+	return &TaskUpdate{
+		Status:     status,
+		StartedAt:  startedAt,
+		FinishedAt: finishedAt,
+	}
 }

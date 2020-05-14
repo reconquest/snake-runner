@@ -2,6 +2,14 @@
 
 package requests
 
-func NewTask(runningPipelines []int, queryPipeline bool, sshkey string) *Task {
-	return &Task{RunningPipelines: runningPipelines, QueryPipeline: queryPipeline, SSHKey: sshkey}
+func NewTask(
+	runningPipelines []int,
+	queryPipeline bool,
+	sshkey string,
+) *Task {
+	return &Task{
+		RunningPipelines: runningPipelines,
+		QueryPipeline:    queryPipeline,
+		SSHKey:           sshkey,
+	}
 }

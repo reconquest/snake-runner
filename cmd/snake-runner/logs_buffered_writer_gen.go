@@ -4,8 +4,18 @@ package main
 
 import "time"
 
-func NewLogsBufferedWriter(size int, duration time.Duration, flush func(text string)) *LogsBufferedWriter {
-	r := &LogsBufferedWriter{size: size, duration: duration, flush: flush}
+func NewLogsBufferedWriter(
+	size int,
+	duration time.Duration,
+	flush func(text string),
+) *LogsBufferedWriter {
+	r := &LogsBufferedWriter{
+		size:     size,
+		duration: duration,
+		flush:    flush,
+	}
+
 	r.init()
+
 	return r
 }
