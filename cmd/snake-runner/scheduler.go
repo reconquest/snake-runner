@@ -31,6 +31,7 @@ type Scheduler struct {
 	context  context.Context
 	cancel   func()
 	routines sync.WaitGroup
+	loopWork sync.WaitGroup
 }
 
 func (runner *Runner) startScheduler() error {
@@ -91,6 +92,9 @@ func (scheduler *Scheduler) start() {
 }
 
 func (scheduler *Scheduler) loop() {
+	scheduler.loopWork.Add(1)
+	defer scheduler.loopWork.Done()
+
 	for {
 		select {
 		case <-scheduler.context.Done():
@@ -178,24 +182,7 @@ func (scheduler *Scheduler) utilize() {
 func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error {
 	switch task := task.(type) {
 	case tasks.PipelineRun:
-		atomic.AddInt64(&scheduler.pipelines, 1)
-
-		scheduler.pipelinesGroup.Add(1)
-		go func() {
-			defer atomic.AddInt64(&scheduler.pipelines, -1)
-			defer scheduler.pipelinesGroup.Done()
-
-			err := scheduler.startPipeline(task, sshKey)
-			if err != nil {
-				log.Debug(
-					karma.Format(
-						err,
-						"pipeline=%d an error occurred during task running",
-						task.Pipeline.ID,
-					),
-				)
-			}
-		}()
+		scheduler.startPipeline(task, sshKey)
 
 	case tasks.PipelineCancel:
 		for _, id := range task.Pipelines {
@@ -229,7 +216,7 @@ func (scheduler *Scheduler) cancelPipeline(id int) {
 func (scheduler *Scheduler) startPipeline(
 	task tasks.PipelineRun,
 	sshKey sshkey.Key,
-) error {
+) {
 	log.Debugf(nil, "starting pipeline: %d", task.Pipeline.ID)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -247,22 +234,32 @@ func (scheduler *Scheduler) startPipeline(
 	)
 
 	scheduler.pipelinesMap.Store(task.Pipeline.ID, struct{}{})
-	defer scheduler.pipelinesMap.Delete(task.Pipeline.ID)
-
 	scheduler.cancels.Store(task.Pipeline.ID, cancel)
-	defer scheduler.cancels.Delete(task.Pipeline.ID)
+	atomic.AddInt64(&scheduler.pipelines, 1)
+	scheduler.pipelinesGroup.Add(1)
 
-	err := process.run()
-	if err != nil {
-		if karma.Contains(err, context.Canceled) {
-			log.Infof(nil, "pipeline %d finished due to cancel", task.Pipeline.ID)
-			return nil
+	go func() {
+		defer scheduler.pipelinesMap.Delete(task.Pipeline.ID)
+		defer scheduler.cancels.Delete(task.Pipeline.ID)
+		defer atomic.AddInt64(&scheduler.pipelines, -1)
+		defer scheduler.pipelinesGroup.Done()
+
+		err := process.run()
+		if err != nil {
+			if karma.Contains(err, context.Canceled) {
+				log.Infof(nil, "pipeline %d finished due to cancel", task.Pipeline.ID)
+				return
+			}
+
+			log.Debug(
+				karma.Format(
+					err,
+					"pipeline=%d an error occurred during task running",
+					task.Pipeline.ID,
+				),
+			)
 		}
-
-		return err
-	}
-
-	return nil
+	}()
 }
 
 func (scheduler *Scheduler) getPipelines() []int {
@@ -280,11 +277,18 @@ func (scheduler *Scheduler) shutdown() {
 	log.Warningf(nil, "shutdown: terminating heartbeat and task routines")
 
 	scheduler.cancel()
+	scheduler.loopWork.Wait()
+
+	ids := []int{}
 	scheduler.pipelinesMap.Range(func(id int, _ safemap.Any) bool {
-		log.Warningf(nil, "shutdown: canceling pipeline: %v", id)
-		scheduler.cancelPipeline(id)
+		ids = append(ids, id)
 		return true
 	})
+
+	for _, id := range ids {
+		log.Warningf(nil, "shutdown: canceling pipeline: %v", id)
+		scheduler.cancelPipeline(id)
+	}
 
 	go func() {
 		for {
