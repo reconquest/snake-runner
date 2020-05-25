@@ -9,6 +9,7 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/sshkey"
@@ -78,14 +79,17 @@ func (runner *Runner) startScheduler() error {
 func (scheduler *Scheduler) start() {
 	scheduler.routines.Add(3)
 	go func() {
+		defer audit.Go("scheduler", "ssh key factory")()
 		defer scheduler.routines.Done()
 		scheduler.sshKeyFactory.Run()
 	}()
 	go func() {
+		defer audit.Go("scheduler", "loop")()
 		defer scheduler.routines.Done()
 		scheduler.loop()
 	}()
 	go func() {
+		defer audit.Go("scheduler", "utilizer")()
 		defer scheduler.routines.Done()
 		scheduler.utilize()
 	}()
@@ -239,6 +243,8 @@ func (scheduler *Scheduler) startPipeline(
 	scheduler.pipelinesGroup.Add(1)
 
 	go func() {
+		defer audit.Go("pipeline", task.Pipeline.ID)()
+
 		defer scheduler.pipelinesMap.Delete(task.Pipeline.ID)
 		defer scheduler.cancels.Delete(task.Pipeline.ID)
 		defer atomic.AddInt64(&scheduler.pipelines, -1)
@@ -291,6 +297,8 @@ func (scheduler *Scheduler) shutdown() {
 	}
 
 	go func() {
+		defer audit.Go("shutdown", "waiter")()
+
 		for {
 			pipelines := atomic.LoadInt64(&scheduler.pipelines)
 

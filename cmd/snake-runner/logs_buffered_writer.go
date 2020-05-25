@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
 
@@ -27,6 +28,8 @@ func (writer *LogsBufferedWriter) init() {
 }
 
 func (writer *LogsBufferedWriter) Run() {
+	defer audit.Go("LogsBufferedWriter")()
+
 	writer.thread.Add(1)
 	defer writer.thread.Done()
 
@@ -55,6 +58,9 @@ func (writer *LogsBufferedWriter) Run() {
 			ticker.Reset()
 		}
 	}
+}
+
+func (writer *LogsBufferedWriter) stop() {
 }
 
 func (writer *LogsBufferedWriter) Write(text string) {

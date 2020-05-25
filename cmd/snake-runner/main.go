@@ -8,6 +8,7 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/sign-go"
+	"github.com/reconquest/snake-runner/internal/audit"
 )
 
 var (
@@ -66,6 +67,32 @@ func main() {
 
 	runner := NewRunner(config)
 	runner.Start()
+
+	// uncomment if you want to trace goroutines
+	//
+	// go func() {
+	//    defer audit.Go("audit", "watcher")()
+
+	//    for {
+	//        num := audit.NumGoroutines()
+	//        log.Tracef(nil, "{audit} goroutines audit: %d runtime: %d", num, runtime.NumGoroutine())
+
+	//        time.Sleep(time.Millisecond * 3000)
+	//    }
+	//}()
+
+	go sign.Notify(func(signal os.Signal) bool {
+		defer audit.Go("audit", "sighup")()
+
+		routines := audit.Goroutines()
+
+		log.Warningf(nil, "{audit} goroutines: %d", len(routines))
+		for _, routine := range routines {
+			log.Warningf(nil, "{audit} "+routine)
+		}
+
+		return true
+	}, syscall.SIGHUP)
 
 	sign.Notify(func(signal os.Signal) bool {
 		log.Warningf(nil, "got signal: %s, shutting down runner", signal)

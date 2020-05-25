@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/requests"
 )
@@ -11,6 +12,8 @@ import (
 func (runner *Runner) startHeartbeats() {
 	runner.workers.Add(1)
 	go func() {
+		defer audit.Go("heartbeats")()
+
 		defer runner.workers.Done()
 		var handshaked bool
 

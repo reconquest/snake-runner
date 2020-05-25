@@ -10,6 +10,7 @@ import (
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/ptr"
@@ -138,6 +139,7 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 			index++
 			workers.Add(1)
 			go func(index int, job snake.PipelineJob) {
+				defer audit.Go("job", index, job.ID)()
 				defer workers.Done()
 
 				status, err := process.runJob(total, index, job)

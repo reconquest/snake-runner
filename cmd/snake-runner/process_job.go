@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/sidecar"
@@ -37,6 +39,7 @@ type ProcessJob struct {
 
 	configJob config.Job `gonstructor:"-"`
 
+	mutex      sync.Mutex          `gonstructor:"-"`
 	container  *cloud.Container    `gonstructor:"-"`
 	sidecar    *sidecar.Sidecar    `gonstructor:"-"`
 	shell      string              `gonstructor:"-"`
@@ -182,20 +185,30 @@ func (process *ProcessJob) remoteErrorf(
 func (process *ProcessJob) execShell(cmd string) error {
 	process.sendPrompt([]string{cmd})
 
-	err := process.cloud.Exec(
-		process.ctx,
-		process.container,
-		types.ExecConfig{
-			Env:          process.env.GetAll(),
-			WorkingDir:   process.sidecar.GetGitDir(),
-			Cmd:          []string{process.shell, "-c", cmd},
-			AttachStdout: true,
-			AttachStderr: true,
-		},
-		process.remoteLog,
-	)
+	err := make(chan error, 1)
+	go func() {
+		defer audit.Go("exec", cmd)()
 
-	return err
+		err <- process.cloud.Exec(
+			process.ctx,
+			process.container,
+			types.ExecConfig{
+				Env:          process.env.GetAll(),
+				WorkingDir:   process.sidecar.GetGitDir(),
+				Cmd:          []string{process.shell, "-c", cmd},
+				AttachStdout: true,
+				AttachStderr: true,
+			},
+			process.remoteLog,
+		)
+	}()
+
+	select {
+	case value := <-err:
+		return value
+	case <-process.ctx.Done():
+		return context.Canceled
+	}
 }
 
 func (process *ProcessJob) sendPrompt(cmd []string) {
@@ -314,4 +327,10 @@ func (process *ProcessJob) ensureImage(tag string) error {
 	)
 
 	return nil
+}
+
+func (process *ProcessJob) withLock(fn func()) {
+	process.mutex.Lock()
+	defer process.mutex.Unlock()
+	fn()
 }

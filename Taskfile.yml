@@ -37,6 +37,7 @@ tasks:
       - task: go:build
       - mkdir -p .runners/{{.random_uuid}}
       - SNAKE_NAME={{.random_uuid}}
+        SNAKE_MASTER_ADDRESS=https://bitbucket.local/
         SNAKE_ACCESS_TOKEN_PATH=.runners/{{.random_uuid}}/token
         SNAKE_REGISTRATION_TOKEN={{.token}}
         SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa

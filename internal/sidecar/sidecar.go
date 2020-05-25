@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
@@ -235,6 +236,8 @@ func (sidecar *Sidecar) startSshAgent(ctx context.Context) (string, error) {
 
 	sidecar.sshAgent.Add(1)
 	go func() {
+		defer audit.Go("sidecar", "ssh-agent")()
+
 		defer sidecar.sshAgent.Done()
 
 		err := sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
