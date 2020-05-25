@@ -16,9 +16,12 @@ vars:
   version: "{{.major_minor}}.{{.patch}}"
   commit:
     sh: "git rev-parse --short HEAD"
+
   container: bitbucket.local
   network:
     sh: "./taskutils/net '{{.container}}'"
+  name: ""
+  volume: "snake-runner-secrets"
 
 includes:
   go: tasks/go.yml
@@ -44,13 +47,14 @@ tasks:
     cmds:
       - task: docker:snake-runner@build
       - docker run -it
+          -e SNAKE_NAME={{.name}}
           -e SNAKE_MASTER_ADDRESS=http://{{.container}}:7990/
           -e SNAKE_REGISTRATION_TOKEN={{.token}}
           -e SNAKE_LOG_DEBUG=true
           -e SNAKE_LOG_TRACE=true
           -e SNAKE_DOCKER_NETWORK={{.network}}
           -e 'SNAKE_DOCKER_VOLUMES=["/var/run/docker.sock:/var/run/docker.sock"]'
-          -v snake-runner-secrets:/var/lib/snake-runner/secrets
+          -v {{.volume}}:/var/lib/snake-runner/secrets
           -v /var/run/docker.sock:/var/run/docker.sock
           --network {{.network}}
           --rm
