@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker inspect $1 \
+    | jq -r '.[0] | .NetworkSettings.Networks | keys | .[]'
