@@ -16,10 +16,14 @@ func Unmarshal(task responses.Task) (interface{}, error) {
 
 	log.Debugf(nil, "task kind: %s", task.Kind)
 
-	switch task.Kind {
-	case KindPipelineRun:
-		var result PipelineRun
-		err := json.Unmarshal(task.Data, &result)
+	kinds := map[string]interface{}{
+		KindPipelineRun:     &PipelineRun{},
+		KindPipelineCancel:  &PipelineCancel{},
+		KindRunnerTerminate: &RunnerTerminate{},
+	}
+
+	if result, ok := kinds[task.Kind]; ok {
+		err := json.Unmarshal(task.Data, result)
 		if err != nil {
 			return nil, err
 		}
@@ -27,26 +31,15 @@ func Unmarshal(task responses.Task) (interface{}, error) {
 		log.Debugf(nil, "task: %#v", result)
 
 		return result, nil
-
-	case "pipeline_cancel":
-		var result PipelineCancel
-		err := json.Unmarshal(task.Data, &result)
-		if err != nil {
-			return nil, err
-		}
-
-		log.Debugf(nil, "task: %#v", result)
-
-		return result, nil
-
-	default:
+	} else {
 		return nil, fmt.Errorf("unexpected task kind: %q", task.Kind)
 	}
 }
 
 const (
-	KindPipelineRun    = "pipeline_run"
-	KindPipelineCancel = "pipeline_cancel"
+	KindPipelineRun     = "pipeline_run"
+	KindPipelineCancel  = "pipeline_cancel"
+	KindRunnerTerminate = "runner_terminate"
 )
 
 type PipelineRun struct {
@@ -62,4 +55,8 @@ type PipelineRun struct {
 
 type PipelineCancel struct {
 	Pipelines []int `json:"pipelines"`
+}
+
+type RunnerTerminate struct {
+	Reason string `json:"reason"`
 }

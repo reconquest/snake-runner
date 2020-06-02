@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -185,13 +186,20 @@ func (scheduler *Scheduler) utilize() {
 
 func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error {
 	switch task := task.(type) {
-	case tasks.PipelineRun:
-		scheduler.startPipeline(task, sshKey)
+	case *tasks.PipelineRun:
+		scheduler.startPipeline(*task, sshKey)
 
-	case tasks.PipelineCancel:
+	case *tasks.PipelineCancel:
 		for _, id := range task.Pipelines {
 			scheduler.cancelPipeline(id)
 		}
+
+	case *tasks.RunnerTerminate:
+		log.Infof(
+			karma.Describe("reason", task.Reason),
+			"shutdown: runner received termination signal",
+		)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 
 	default:
 		log.Errorf(nil, "unexpected type of task %#v: %T", task, task)
