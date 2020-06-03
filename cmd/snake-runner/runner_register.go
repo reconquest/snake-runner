@@ -79,3 +79,17 @@ func (runner *Runner) writeAccessToken(token string) error {
 
 	return nil
 }
+
+func (runner *Runner) deregister() error {
+	log.Infof(nil, "deregister: removing runner access token")
+
+	err := os.Remove(runner.config.AccessTokenPath)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to remove runner access token",
+		)
+	}
+
+	return nil
+}

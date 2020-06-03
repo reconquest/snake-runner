@@ -30,10 +30,11 @@ type Scheduler struct {
 	sshKeyFactory *sshkey.Factory
 	sshKey        *sshkey.Key
 
-	context  context.Context
-	cancel   func()
-	routines sync.WaitGroup
-	loopWork sync.WaitGroup
+	context   context.Context
+	cancel    func()
+	terminate func()
+	routines  sync.WaitGroup
+	loopWork  sync.WaitGroup
 }
 
 func (runner *Runner) startScheduler() error {
@@ -61,6 +62,12 @@ func (runner *Runner) startScheduler() error {
 		cancels:      safemap.NewIntToContextCancelFunc(),
 		context:      ctx,
 		cancel:       cancel,
+		terminate: func() {
+			err := runner.deregister()
+			if err != nil {
+				log.Error(err)
+			}
+		},
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -197,9 +204,11 @@ func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error
 	case *tasks.RunnerTerminate:
 		log.Infof(
 			karma.Describe("reason", task.Reason),
-			"shutdown: runner received termination signal",
+			"terminate: runner received termination signal",
 		)
+		scheduler.terminate()
 		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+		<-scheduler.context.Done()
 
 	default:
 		log.Errorf(nil, "unexpected type of task %#v: %T", task, task)
