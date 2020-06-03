@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -15,6 +14,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
+	"github.com/reconquest/snake-runner/internal/utils"
 )
 
 type Scheduler struct {
@@ -30,11 +30,13 @@ type Scheduler struct {
 	sshKeyFactory *sshkey.Factory
 	sshKey        *sshkey.Key
 
-	context   context.Context
-	cancel    func()
-	terminate func()
-	routines  sync.WaitGroup
-	loopWork  sync.WaitGroup
+	context  context.Context
+	cancel   func()
+	routines sync.WaitGroup
+	loopWork sync.WaitGroup
+
+	terminator utils.Terminator
+	alive      bool
 }
 
 func (runner *Runner) startScheduler() error {
@@ -62,12 +64,7 @@ func (runner *Runner) startScheduler() error {
 		cancels:      safemap.NewIntToContextCancelFunc(),
 		context:      ctx,
 		cancel:       cancel,
-		terminate: func() {
-			err := runner.deregister()
-			if err != nil {
-				log.Error(err)
-			}
-		},
+		terminator:   runner,
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -118,6 +115,8 @@ func (scheduler *Scheduler) loop() {
 		if err != nil {
 			log.Error(err)
 		}
+
+		scheduler.alive = true
 
 		if wait {
 			log.Tracef(nil, "sleeping %v", scheduler.config.SchedulerInterval)
@@ -206,9 +205,13 @@ func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error
 			karma.Describe("reason", task.Reason),
 			"terminate: runner received termination signal",
 		)
-		scheduler.terminate()
-		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-		<-scheduler.context.Done()
+		if !scheduler.alive {
+			log.Warningf(nil, "terminate: restart of deleted runner is detected")
+			log.Warningf(nil, "terminate: suspending runner to prevent restart loop")
+			scheduler.cancel()
+		} else {
+			scheduler.terminator.Terminate()
+		}
 
 	default:
 		log.Errorf(nil, "unexpected type of task %#v: %T", task, task)

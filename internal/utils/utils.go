@@ -59,6 +59,10 @@ type unwraper interface {
 	Unwrap() error
 }
 
+type Terminator interface {
+	Terminate()
+}
+
 func IsCanceled(err error) bool {
 	if err == context.Canceled {
 		return true

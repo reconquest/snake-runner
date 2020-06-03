@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"syscall"
 
 	"github.com/docopt/docopt-go"
@@ -94,10 +95,17 @@ func main() {
 		return true
 	}, syscall.SIGHUP)
 
-	sign.Notify(func(signal os.Signal) bool {
+	interrupts := make(chan os.Signal, 0)
+	signal.Notify(interrupts, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	select {
+	case <-runner.Terminated():
+		// exit
+
+	case signal := <-interrupts:
 		log.Warningf(nil, "got signal: %s, shutting down runner", signal)
-		runner.Shutdown()
-		log.Warningf(nil, "shutdown: runner gracefully terminated")
-		return false
-	}, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	}
+
+	runner.Shutdown()
+	log.Warningf(nil, "shutdown: runner gracefully terminated")
 }

@@ -17,21 +17,23 @@ const (
 var FailedRegisterRepeatTimeout = time.Second * 10
 
 type Runner struct {
-	config    *RunnerConfig
-	scheduler *Scheduler
-	client    *Client
-	context   context.Context
-	cancel    context.CancelFunc
-	workers   sync.WaitGroup
+	config     *RunnerConfig
+	scheduler  *Scheduler
+	client     *Client
+	context    context.Context
+	cancel     context.CancelFunc
+	workers    sync.WaitGroup
+	terminated chan struct{}
 }
 
 func NewRunner(config *RunnerConfig) *Runner {
 	context, cancel := context.WithCancel(context.Background())
 	return &Runner{
-		config:  config,
-		client:  NewClient(config),
-		context: context,
-		cancel:  cancel,
+		config:     config,
+		client:     NewClient(config),
+		context:    context,
+		cancel:     cancel,
+		terminated: make(chan struct{}),
 	}
 }
 
@@ -83,4 +85,12 @@ func (runner *Runner) Shutdown() {
 	}
 
 	runner.workers.Wait()
+}
+
+func (runner *Runner) Terminate() {
+	close(runner.terminated)
+}
+
+func (runner *Runner) Terminated() <-chan struct{} {
+	return runner.terminated
 }
