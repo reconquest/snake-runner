@@ -14,6 +14,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
+	"github.com/reconquest/snake-runner/internal/utils"
 )
 
 type Scheduler struct {
@@ -33,6 +34,9 @@ type Scheduler struct {
 	cancel   func()
 	routines sync.WaitGroup
 	loopWork sync.WaitGroup
+
+	terminator utils.Terminator
+	alive      bool
 }
 
 func (runner *Runner) startScheduler() error {
@@ -60,6 +64,7 @@ func (runner *Runner) startScheduler() error {
 		cancels:      safemap.NewIntToContextCancelFunc(),
 		context:      ctx,
 		cancel:       cancel,
+		terminator:   runner,
 	}
 
 	err = docker.Cleanup(context.Background())
@@ -110,6 +115,8 @@ func (scheduler *Scheduler) loop() {
 		if err != nil {
 			log.Error(err)
 		}
+
+		scheduler.alive = true
 
 		if wait {
 			log.Tracef(nil, "sleeping %v", scheduler.config.SchedulerInterval)
@@ -185,12 +192,26 @@ func (scheduler *Scheduler) utilize() {
 
 func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error {
 	switch task := task.(type) {
-	case tasks.PipelineRun:
-		scheduler.startPipeline(task, sshKey)
+	case *tasks.PipelineRun:
+		scheduler.startPipeline(*task, sshKey)
 
-	case tasks.PipelineCancel:
+	case *tasks.PipelineCancel:
 		for _, id := range task.Pipelines {
 			scheduler.cancelPipeline(id)
+		}
+
+	case *tasks.RunnerTerminate:
+		log.Infof(
+			karma.Describe("reason", task.Reason),
+			"terminate: runner received termination signal",
+		)
+		if !scheduler.alive {
+			log.Warningf(nil, "terminate: restart of deleted runner is detected")
+			log.Warningf(nil, "terminate: suspending runner to prevent restart loop")
+			scheduler.cancel()
+		} else {
+			scheduler.terminator.Terminate()
+			<-scheduler.context.Done()
 		}
 
 	default:
