@@ -211,6 +211,7 @@ func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error
 			scheduler.cancel()
 		} else {
 			scheduler.terminator.Terminate()
+			<-scheduler.context.Done()
 		}
 
 	default:
