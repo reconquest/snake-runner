@@ -14,6 +14,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/ptr"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/sshkey"
@@ -31,7 +32,7 @@ type ProcessPipeline struct {
 	parentCtx    context.Context
 	ctx          context.Context
 	client       *Client
-	runnerConfig *RunnerConfig
+	runnerConfig *runner.Config
 	task         tasks.PipelineRun
 	cloud        *cloud.Cloud
 	log          *cog.Logger
@@ -244,11 +245,12 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status str
 			),
 		),
 	)
-	defer job.destroy()
+
+	defer job.Destroy()
 
 	err = process.readConfig(job)
 	if err != nil {
-		return StatusFailed, job.remoteErrorf(
+		return StatusFailed, job.directRemoteErrorf(
 			err,
 			"unable to read config file",
 		)
@@ -257,12 +259,12 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status str
 	job.sidecar = process.sidecar
 	job.config = process.config
 
-	err = job.run()
+	err = job.Run()
 	if err != nil {
 		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
 			if utils.IsDone(process.parentCtx) {
-				job.remoteLog("\n\nWARNING: snake-runner has been terminated")
+				job.directRemoteLog("\n\nWARNING: snake-runner has been terminated")
 
 				return StatusFailed, err
 			}
@@ -295,8 +297,8 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 				),
 			).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
-			PromptConsumer(job.sendPrompt).
-			OutputConsumer(job.remoteLog).
+			PromptConsumer(job.directSendPrompt).
+			OutputConsumer(job.directRemoteLog).
 			SshKey(process.sshKey).
 			Build()
 

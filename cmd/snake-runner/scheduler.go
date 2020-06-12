@@ -11,6 +11,7 @@ import (
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -25,7 +26,7 @@ type Scheduler struct {
 	pipelinesGroup sync.WaitGroup
 	cancels        safemap.IntToContextCancelFunc
 	utilization    chan *cloud.Container
-	config         *RunnerConfig
+	runnerConfig   *runner.Config
 
 	sshKeyFactory *sshkey.Factory
 	sshKey        *sshkey.Key
@@ -51,10 +52,10 @@ func (runner *Runner) startScheduler() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	scheduler := &Scheduler{
-		client:      runner.client,
-		cloud:       docker,
-		utilization: make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
-		config:      runner.config,
+		client:       runner.client,
+		cloud:        docker,
+		utilization:  make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
+		runnerConfig: runner.config,
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
 			int(runner.config.MaxParallelPipelines),
@@ -119,11 +120,16 @@ func (scheduler *Scheduler) loop() {
 		scheduler.alive = true
 
 		if wait {
-			log.Tracef(nil, "sleeping %v", scheduler.config.SchedulerInterval)
+			log.Tracef(
+				nil,
+				"sleeping %v",
+				scheduler.runnerConfig.SchedulerInterval,
+			)
+
 			select {
 			case <-scheduler.context.Done():
 				return
-			case <-time.After(scheduler.config.SchedulerInterval):
+			case <-time.After(scheduler.runnerConfig.SchedulerInterval):
 			}
 		}
 	}
@@ -147,7 +153,7 @@ func (scheduler *Scheduler) getAndServe() (bool, error) {
 
 	task, err := scheduler.client.GetTask(
 		scheduler.getPipelines(),
-		pipelines < scheduler.config.MaxParallelPipelines,
+		pipelines < scheduler.runnerConfig.MaxParallelPipelines,
 		scheduler.sshKey,
 	)
 	if err != nil || task != nil {
@@ -250,7 +256,7 @@ func (scheduler *Scheduler) startPipeline(
 		scheduler.context,
 		ctx,
 		scheduler.client,
-		scheduler.config,
+		scheduler.runnerConfig,
 		task,
 		scheduler.cloud,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d]", task.Pipeline.ID)),

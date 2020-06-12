@@ -66,7 +66,7 @@ func (request *Request) UserAgent(useragent string) *Request {
 	return request.Header("User-Agent", useragent)
 }
 
-func (request *Request) Header(name string, value string) *Request {
+func (request *Request) Header(name, value string) *Request {
 	request.headers[name] = value
 	return request
 }

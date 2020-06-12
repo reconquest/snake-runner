@@ -30,14 +30,14 @@ func (safe *StringToString) Load(key string) (string, bool) {
 	return value, ok
 }
 
-func (safe *StringToString) Store(key string, value string) {
+func (safe *StringToString) Store(key, value string) {
 	safe.Lock()
 	defer safe.Unlock()
 
 	safe.data[key] = value
 }
 
-func (safe *StringToString) LoadOrStore(key string, value string) string {
+func (safe *StringToString) LoadOrStore(key, value string) string {
 	safe.Lock()
 	defer safe.Unlock()
 
@@ -61,7 +61,7 @@ func (safe *StringToString) Delete(key string) {
 	}
 }
 
-func (safe *StringToString) Range(fn func(key string, value string) bool) {
+func (safe *StringToString) Range(fn func(key, value string) bool) {
 	safe.Lock()
 	defer safe.Unlock()
 

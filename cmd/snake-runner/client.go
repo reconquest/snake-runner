@@ -6,25 +6,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/requests"
 	"github.com/reconquest/snake-runner/internal/responses"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
 type Client struct {
-	config    *RunnerConfig
+	config    *runner.Config
 	useragent string
 	baseURL   string
 }
 
-func NewClient(config *RunnerConfig) *Client {
+func NewClient(config *runner.Config) *Client {
 	client := &Client{}
 	client.config = config
 
 	master := strings.TrimSuffix(client.config.MasterAddress, "/")
 	client.baseURL = master + MasterPrefixAPI
-	client.useragent = "snake-runner/" + version
+	client.useragent = "snake-runner/" + builtin.Version
 
 	return client
 }
@@ -131,7 +133,7 @@ func (client *Client) UpdateJob(
 		Do()
 }
 
-func (client *Client) PushLogs(pipelineID int, jobID int, text string) error {
+func (client *Client) PushLogs(pipelineID, jobID int, text string) error {
 	return client.request().
 		POST().
 		Path(

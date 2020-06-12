@@ -1,10 +1,12 @@
-package main
+package env
 
 import (
 	"testing"
 
+	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/responses"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +25,7 @@ func TestEnvBuilder(t *testing.T) {
 		Stage: "deploy",
 		Name:  "docker deploy",
 	}
-	runnerConfig := RunnerConfig{
+	runnerConfig := runner.Config{
 		Name: "gotest",
 	}
 	task := tasks.PipelineRun{
@@ -45,8 +47,8 @@ func TestEnvBuilder(t *testing.T) {
 	configPipeline := config.Pipeline{}
 	configJob := config.Job{}
 
-	builder := func(pipeline snake.Pipeline) *EnvBuilder {
-		return NewEnvBuilder(
+	builder := func(pipeline snake.Pipeline) *Builder {
+		return NewBuilder(
 			task,
 			pipeline,
 			job,
@@ -77,7 +79,7 @@ func TestEnvBuilder(t *testing.T) {
 		"CI_REPO_CLONE_URL_SSH": "cloneurl",
 		"CI_RUNNER_ID":          "80",
 		"CI_RUNNER_NAME":        "gotest",
-		"CI_RUNNER_VERSION":     version,
+		"CI_RUNNER_VERSION":     builtin.Version,
 		"SSH_AUTH_SOCK":         "/ssh/ssh-agent.sock",
 	}
 

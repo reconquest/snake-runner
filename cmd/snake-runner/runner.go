@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/runner"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 var FailedRegisterRepeatTimeout = time.Second * 10
 
 type Runner struct {
-	config     *RunnerConfig
+	config     *runner.Config
 	scheduler  *Scheduler
 	client     *Client
 	context    context.Context
@@ -26,7 +27,7 @@ type Runner struct {
 	terminated chan struct{}
 }
 
-func NewRunner(config *RunnerConfig) *Runner {
+func NewRunner(config *runner.Config) *Runner {
 	context, cancel := context.WithCancel(context.Background())
 	return &Runner{
 		config:     config,
