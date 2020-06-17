@@ -34,7 +34,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936
 	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
-	github.com/reconquest/lineflushwriter-go v0.0.0-20160818100951-086cd7d2a087
+	github.com/reconquest/lineflushwriter-go v0.0.0-20200617113125-f7349730c72d
 	github.com/reconquest/pkg v0.0.0-20191230125351-0f8339e114d4
 	github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae
 	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24

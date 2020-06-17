@@ -216,7 +216,7 @@ func (process *ProcessJob) maskRemoteErrorf(
 	args ...interface{},
 ) error {
 	err := karma.Format(reason, format, args...)
-	process.logs.masker.Write([]byte("\n\n" + err.Error()))
+	process.logs.masker.Write([]byte("\n\n" + err.Error() + "\n"))
 	return err
 }
 
@@ -226,7 +226,7 @@ func (process *ProcessJob) directRemoteErrorf(
 	args ...interface{},
 ) error {
 	err := karma.Format(reason, format, args...)
-	process.logs.direct.Write([]byte("\n\n" + err.Error()))
+	process.logs.direct.Write([]byte("\n\n" + err.Error() + "\n"))
 	return err
 }
 
