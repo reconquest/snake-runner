@@ -7,30 +7,37 @@ import (
 	"github.com/reconquest/snake-runner/internal/env"
 )
 
-//go:generate gonstructor --type Masker --init init
-type Masker struct {
+type Masker interface {
+	Mask(string) string
+}
+
+var _ Masker = (*Writer)(nil)
+
+//go:generate gonstructor --type Writer --init init
+type Writer struct {
 	env      *env.Env
 	secrets  []string
 	replacer *strings.Replacer `gonstructor:"-"`
 	dst      io.WriteCloser
 }
 
-func (masker *Masker) init() {
+func (masker *Writer) init() {
 	oldnew := []string{}
 	for _, secret := range masker.secrets {
 		if value, ok := masker.env.Get(secret); ok {
 			lines := strings.Split(value, "\n")
 
-			// we can't mask multi-line strings since we use lineflushwriter
-			// that can only guarantee one line
-			if len(lines) > 1 {
-				continue
+			for _, line := range lines {
+				value := strings.TrimSpace(line)
+				if value != "" {
+					oldnew = append(
+						oldnew,
+						value,
+						strings.Repeat("*", len(value)),
+					)
+				}
 			}
 
-			value := lines[0]
-			if strings.TrimSpace(value) != "" {
-				oldnew = append(oldnew, value, strings.Repeat("*", len(value)))
-			}
 		}
 	}
 
@@ -39,7 +46,15 @@ func (masker *Masker) init() {
 	}
 }
 
-func (masker *Masker) Write(buf []byte) (int, error) {
+func (masker *Writer) Mask(buf string) string {
+	if masker.replacer == nil {
+		return buf
+	}
+
+	return masker.replacer.Replace(buf)
+}
+
+func (masker *Writer) Write(buf []byte) (int, error) {
 	if masker.replacer != nil {
 		return masker.replacer.WriteString(masker.dst, string(buf))
 	}
@@ -47,6 +62,6 @@ func (masker *Masker) Write(buf []byte) (int, error) {
 	return masker.dst.Write(buf)
 }
 
-func (masker *Masker) Close() error {
+func (masker *Writer) Close() error {
 	return masker.dst.Close()
 }

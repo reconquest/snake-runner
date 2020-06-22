@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"sync"
@@ -51,17 +50,18 @@ type ProcessJob struct {
 	shell     string           `gonstructor:"-"`
 	env       *env.Env         `gonstructor:"-"`
 	logs      struct {
-		masker io.WriteCloser
-		direct *bufferer.Bufferer
+		masker       masker.Masker
+		maskWriter   *lineflushwriter.Writer
+		directWriter *bufferer.Bufferer
 	} `gonstructor:"-"`
 }
 
 func (job *ProcessJob) init() {
-	job.setupDirectLog()
+	job.setupDirectWriter()
 }
 
-func (process *ProcessJob) setupDirectLog() {
-	process.logs.direct = bufferer.NewBufferer(
+func (process *ProcessJob) setupDirectWriter() {
+	process.logs.directWriter = bufferer.NewBufferer(
 		bufferer.DefaultLogsBufferSize,
 		bufferer.DefaultLogsBufferTimeout,
 		func(buffer []byte) {
@@ -79,26 +79,30 @@ func (process *ProcessJob) setupDirectLog() {
 		},
 	)
 
-	go process.logs.direct.Run()
+	go process.logs.directWriter.Run()
 }
 
-func (process *ProcessJob) setupMaskerLog(env *env.Env) {
-	process.logs.masker = lineflushwriter.New(
-		masker.NewMasker(env, process.task.EnvMask, process.logs.direct),
+func (process *ProcessJob) setupMaskWriter(env *env.Env) {
+	masker := masker.NewWriter(env, process.task.EnvMask, process.logs.directWriter)
+
+	process.logs.masker = masker
+
+	process.logs.maskWriter = lineflushwriter.New(
+		masker,
 		&sync.Mutex{},
 		true,
 	)
 }
 
 func (process *ProcessJob) Destroy() {
-	if process.logs.masker != nil {
-		process.logs.masker.Close()
-	} else if process.logs.direct != nil {
-		process.logs.direct.Close()
+	if process.logs.maskWriter != nil {
+		process.logs.maskWriter.Close()
+	} else if process.logs.directWriter != nil {
+		process.logs.directWriter.Close()
 	}
 
-	if process.logs.direct != nil {
-		process.logs.direct.Wait()
+	if process.logs.directWriter != nil {
+		process.logs.directWriter.Wait()
 	}
 }
 
@@ -125,7 +129,7 @@ func (process *ProcessJob) Run() error {
 		process.sidecar.GetSshDir(),
 	).Build()
 
-	process.setupMaskerLog(process.env)
+	process.setupMaskWriter(process.env)
 
 	imageExpr, image := process.getImage()
 
@@ -199,15 +203,15 @@ func (process *ProcessJob) expandEnv(target string) string {
 }
 
 func (process *ProcessJob) maskRemoteLog(text string) {
-	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
+	process.log.Debugf(nil, "%s", strings.TrimSpace(process.logs.masker.Mask(text)))
 
-	process.logs.masker.Write([]byte(text))
+	process.logs.maskWriter.Write([]byte(text))
 }
 
 func (process *ProcessJob) directRemoteLog(text string) {
 	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
 
-	process.logs.direct.Write([]byte(text))
+	process.logs.directWriter.Write([]byte(text))
 }
 
 func (process *ProcessJob) maskRemoteErrorf(
@@ -216,7 +220,7 @@ func (process *ProcessJob) maskRemoteErrorf(
 	args ...interface{},
 ) error {
 	err := karma.Format(reason, format, args...)
-	process.logs.masker.Write([]byte("\n\n" + err.Error() + "\n"))
+	process.logs.maskWriter.Write([]byte("\n\n" + err.Error() + "\n"))
 	return err
 }
 
@@ -226,7 +230,7 @@ func (process *ProcessJob) directRemoteErrorf(
 	args ...interface{},
 ) error {
 	err := karma.Format(reason, format, args...)
-	process.logs.direct.Write([]byte("\n\n" + err.Error() + "\n"))
+	process.logs.directWriter.Write([]byte("\n\n" + err.Error() + "\n"))
 	return err
 }
 
