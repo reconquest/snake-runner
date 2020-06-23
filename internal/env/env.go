@@ -23,9 +23,16 @@ type Builder struct {
 	sshDir       string
 }
 
+//go:generate gonstructor --type=Env --init init
 type Env struct {
 	mapping map[string]string
-	values  []string
+	values  []string `gonstructor:"-"`
+}
+
+func (env *Env) init() {
+	for key, value := range env.mapping {
+		env.values = append(env.values, key+"="+value)
+	}
 }
 
 func (env *Env) GetAll() []string {
@@ -39,14 +46,7 @@ func (env *Env) Get(key string) (string, bool) {
 
 func (builder *Builder) Build() *Env {
 	mapping := builder.build()
-	values := []string{}
-	for key, value := range builder.build() {
-		values = append(values, key+"="+value)
-	}
-	return &Env{
-		mapping: mapping,
-		values:  values,
-	}
+	return NewEnv(mapping)
 }
 
 func (builder *Builder) build() map[string]string {
