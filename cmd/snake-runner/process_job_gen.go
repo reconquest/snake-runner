@@ -8,6 +8,7 @@ import (
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
@@ -17,7 +18,7 @@ func NewProcessJob(
 	cloud *cloud.Cloud,
 	client *Client,
 	config config.Pipeline,
-	runnerConfig *RunnerConfig,
+	runnerConfig *runner.Config,
 	task tasks.PipelineRun,
 	utilization chan *cloud.Container,
 	job snake.PipelineJob,

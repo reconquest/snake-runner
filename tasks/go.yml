@@ -1,10 +1,16 @@
 version: '3'
 
+vars:
+  nproc:
+    sh: nproc
+
 tasks:
   generate:
     desc: run go generate
     cmds:
-      - grep -lr 'go:generate' ./cmd/ ./internal/ | xargs -n1 -I{} -P12 go generate -x {}
+      - find -name '*_gen.go' -delete
+      - grep -lr 'go:generate' ./cmd/ ./internal/ | xargs -n1 -I{} -P{{.nproc}} go generate -x {}
+      - gofumports -w $(find -name '*_gen.go' -print)
     sources:
       - '**/*.go'
     generates:
@@ -17,7 +23,7 @@ tasks:
     cmds:
       - 'echo Building version: {{.version}}-{{.commit}} >&2'
       - go build
-          -ldflags="-X=main.version={{.version}}-{{.commit}}"
+          -ldflags="-X=github.com/reconquest/snake-runner/internal/builtin.Version={{.version}}-{{.commit}}"
           ./cmd/snake-runner
 
   build_docker:
@@ -27,5 +33,5 @@ tasks:
       - 'echo Building version: {{.version}}-{{.commit}}-docker >&2'
       - CGO_ENABLED=0 go build
           -o snake-runner.docker
-          -ldflags="-X=main.version={{.version}}-{{.commit}}-docker"
+          -ldflags="-X=github.com/reconquest/snake-runner/internal/builtin.Version={{.version}}-{{.commit}}-docker"
           ./cmd/snake-runner

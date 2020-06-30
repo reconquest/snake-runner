@@ -9,6 +9,32 @@ import (
 	"github.com/reconquest/snake-runner/internal/snake"
 )
 
+const (
+	KindPipelineRun     = "pipeline_run"
+	KindPipelineCancel  = "pipeline_cancel"
+	KindRunnerTerminate = "runner_terminate"
+)
+
+type PipelineRun struct {
+	Pipeline   snake.Pipeline       `json:"pipeline"`
+	Jobs       []snake.PipelineJob  `json:"jobs"`
+	Env        map[string]string    `json:"env"`
+	EnvMask    []string             `json:"env_mask"`
+	Repository responses.Repository `json:"repository"`
+	Project    responses.Project    `json:"project"`
+	CloneURL   struct {
+		SSH string `json:"ssh"`
+	} `json:"clone_url"`
+}
+
+type PipelineCancel struct {
+	Pipelines []int `json:"pipelines"`
+}
+
+type RunnerTerminate struct {
+	Reason string `json:"reason"`
+}
+
 func Unmarshal(task responses.Task) (interface{}, error) {
 	if task.Kind == "" {
 		return nil, nil
@@ -34,29 +60,4 @@ func Unmarshal(task responses.Task) (interface{}, error) {
 	} else {
 		return nil, fmt.Errorf("unexpected task kind: %q", task.Kind)
 	}
-}
-
-const (
-	KindPipelineRun     = "pipeline_run"
-	KindPipelineCancel  = "pipeline_cancel"
-	KindRunnerTerminate = "runner_terminate"
-)
-
-type PipelineRun struct {
-	Pipeline snake.Pipeline      `json:"pipeline"`
-	Jobs     []snake.PipelineJob `json:"jobs"`
-	CloneURL struct {
-		SSH string `json:"ssh"`
-	} `json:"clone_url"`
-	Env        map[string]string    `json:"env"`
-	Repository responses.Repository `json:"repository"`
-	Project    responses.Project    `json:"project"`
-}
-
-type PipelineCancel struct {
-	Pipelines []int `json:"pipelines"`
-}
-
-type RunnerTerminate struct {
-	Reason string `json:"reason"`
 }

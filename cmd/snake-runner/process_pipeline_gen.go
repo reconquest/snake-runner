@@ -7,6 +7,7 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
@@ -15,7 +16,7 @@ func NewProcessPipeline(
 	parentCtx context.Context,
 	ctx context.Context,
 	client *Client,
-	runnerConfig *RunnerConfig,
+	runnerConfig *runner.Config,
 	task tasks.PipelineRun,
 	cloud *cloud.Cloud,
 	log *cog.Logger,

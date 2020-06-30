@@ -60,7 +60,7 @@ func (runner *Runner) register() (string, error) {
 
 func (runner *Runner) writeAccessToken(token string) error {
 	dir := filepath.Dir(runner.config.AccessTokenPath)
-	err := os.MkdirAll(dir, 0664)
+	err := os.MkdirAll(dir, 0o664)
 	if err != nil {
 		return karma.Format(
 			err,
@@ -69,7 +69,7 @@ func (runner *Runner) writeAccessToken(token string) error {
 	}
 
 	path := runner.config.AccessTokenPath
-	err = ioutil.WriteFile(path, []byte(token), 0600)
+	err = ioutil.WriteFile(path, []byte(token), 0o600)
 	if err != nil {
 		return karma.Format(
 			err,

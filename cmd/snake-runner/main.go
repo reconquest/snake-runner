@@ -10,12 +10,11 @@ import (
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/sign-go"
 	"github.com/reconquest/snake-runner/internal/audit"
+	"github.com/reconquest/snake-runner/internal/builtin"
+	"github.com/reconquest/snake-runner/internal/runner"
 )
 
-var (
-	version = "[not specified during build]"
-
-	usage = "snake-runner " + version + `
+var usage = "snake-runner " + builtin.Version + `
 
 Usage:
   snake-runner [options]
@@ -28,14 +27,13 @@ Options:
   -c --config <path>  Use specified config.
                        [default: /etc/snake-runner/snake-runner.conf]
 `
-)
 
 type commandLineOptions struct {
 	ConfigPathValue string `docopt:"--config"`
 }
 
 func main() {
-	args, err := docopt.ParseArgs(usage, nil, version)
+	args, err := docopt.ParseArgs(usage, nil, builtin.Version)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,11 +45,11 @@ func main() {
 	}
 
 	log.Infof(
-		karma.Describe("version", version),
+		karma.Describe("version", builtin.Version),
 		"starting snake-runner",
 	)
 
-	config, err := LoadRunnerConfig(options.ConfigPathValue)
+	config, err := runner.LoadConfig(options.ConfigPathValue)
 	if err != nil {
 		log.Fatal(err)
 	}

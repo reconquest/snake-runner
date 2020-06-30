@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"fmt"
@@ -48,7 +48,7 @@ default is /etc/snake-runner/snake-runner.conf:
 {{- end }}
 `))
 
-func ShowMessageNotConfigured(config RunnerConfig) {
+func ShowMessageNotConfigured(config Config) {
 	message, err := tplutil.ExecuteToString(templateNotConfigured, map[string]interface{}{
 		"MasterAddress":     config.MasterAddress,
 		"RegistrationToken": config.RegistrationToken,

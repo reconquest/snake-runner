@@ -28,7 +28,7 @@ type Factory struct {
 	blockSize int
 }
 
-func NewFactory(context context.Context, queueSize int, blockSize int) *Factory {
+func NewFactory(context context.Context, queueSize, blockSize int) *Factory {
 	return &Factory{
 		context:   context,
 		queue:     make(chan *Key, queueSize),

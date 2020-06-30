@@ -5,6 +5,7 @@ import (
 
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/audit"
+	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/requests"
 )
@@ -18,7 +19,7 @@ func (runner *Runner) startHeartbeats() {
 		var handshaked bool
 
 		request := &requests.Heartbeat{
-			Version: ptr.StringPtr(version),
+			Version: ptr.StringPtr(builtin.Version),
 		}
 
 		for {

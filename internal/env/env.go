@@ -1,29 +1,38 @@
-package main
+package env
 
 import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
-//go:generate gonstructor -type EnvBuilder
-type EnvBuilder struct {
+//go:generate gonstructor -type Builder
+type Builder struct {
 	task         tasks.PipelineRun
 	pipeline     snake.Pipeline
 	job          snake.PipelineJob
 	config       config.Pipeline
 	configJob    config.Job
-	runnerConfig *RunnerConfig
+	runnerConfig *runner.Config
 	gitDir       string
 	sshDir       string
 }
 
+//go:generate gonstructor --type=Env --init init
 type Env struct {
 	mapping map[string]string
-	values  []string
+	values  []string `gonstructor:"-"`
+}
+
+func (env *Env) init() {
+	for key, value := range env.mapping {
+		env.values = append(env.values, key+"="+value)
+	}
 }
 
 func (env *Env) GetAll() []string {
@@ -35,19 +44,12 @@ func (env *Env) Get(key string) (string, bool) {
 	return value, ok
 }
 
-func (builder *EnvBuilder) Build() Env {
+func (builder *Builder) Build() *Env {
 	mapping := builder.build()
-	values := []string{}
-	for key, value := range builder.build() {
-		values = append(values, key+"="+value)
-	}
-	return Env{
-		mapping: mapping,
-		values:  values,
-	}
+	return NewEnv(mapping)
 }
 
-func (builder *EnvBuilder) build() map[string]string {
+func (builder *Builder) build() map[string]string {
 	vars := map[string]string{}
 
 	vars["CI"] = "true"
@@ -86,7 +88,7 @@ func (builder *EnvBuilder) build() map[string]string {
 
 	vars["CI_RUNNER_ID"] = fmt.Sprint(builder.pipeline.RunnerID)
 	vars["CI_RUNNER_NAME"] = fmt.Sprint(builder.runnerConfig.Name)
-	vars["CI_RUNNER_VERSION"] = fmt.Sprint(version)
+	vars["CI_RUNNER_VERSION"] = fmt.Sprint(builtin.Version)
 
 	for key, value := range builder.task.Env {
 		vars[key] = value

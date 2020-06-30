@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"io/ioutil"
@@ -15,7 +15,7 @@ import (
 	"github.com/reconquest/pkg/log"
 )
 
-type RunnerConfig struct {
+type Config struct {
 	// MasterAddress is actually required but it will be handled manually
 	MasterAddress string `yaml:"master_address" env:"SNAKE_MASTER_ADDRESS"`
 	Log           struct {
@@ -37,10 +37,10 @@ type RunnerConfig struct {
 	} `yaml:"docker"`
 }
 
-func LoadRunnerConfig(path string) (*RunnerConfig, error) {
+func LoadConfig(path string) (*Config, error) {
 	log.Infof(karma.Describe("path", path), "loading configuration")
 
-	var config RunnerConfig
+	var config Config
 	err := ko.Load(path, &config, yaml.Unmarshal, ko.RequireFile(false))
 	if err != nil {
 		return nil, err

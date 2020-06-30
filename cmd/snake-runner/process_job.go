@@ -10,9 +10,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/snake-runner/internal/audit"
+	"github.com/reconquest/snake-runner/internal/bufferer"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/env"
+	"github.com/reconquest/snake-runner/internal/masker"
+	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -29,7 +34,7 @@ type ProcessJob struct {
 	cloud        *cloud.Cloud
 	client       *Client
 	config       config.Pipeline
-	runnerConfig *RunnerConfig
+	runnerConfig *runner.Config
 
 	task        tasks.PipelineRun
 	utilization chan *cloud.Container
@@ -39,23 +44,31 @@ type ProcessJob struct {
 
 	configJob config.Job `gonstructor:"-"`
 
-	mutex      sync.Mutex          `gonstructor:"-"`
-	container  *cloud.Container    `gonstructor:"-"`
-	sidecar    *sidecar.Sidecar    `gonstructor:"-"`
-	shell      string              `gonstructor:"-"`
-	env        Env                 `gonstructor:"-"`
-	logsWriter *LogsBufferedWriter `gonstructor:"-"`
+	mutex     sync.Mutex       `gonstructor:"-"`
+	container *cloud.Container `gonstructor:"-"`
+	sidecar   *sidecar.Sidecar `gonstructor:"-"`
+	shell     string           `gonstructor:"-"`
+	env       *env.Env         `gonstructor:"-"`
+	logs      struct {
+		masker       masker.Masker
+		maskWriter   *lineflushwriter.Writer
+		directWriter *bufferer.Bufferer
+	} `gonstructor:"-"`
 }
 
-func (process *ProcessJob) init() {
-	process.logsWriter = NewLogsBufferedWriter(
-		DefaultLogsBufferSize,
-		DefaultLogsBufferTimeout,
-		func(text string) {
+func (job *ProcessJob) init() {
+	job.setupDirectWriter()
+}
+
+func (process *ProcessJob) setupDirectWriter() {
+	process.logs.directWriter = bufferer.NewBufferer(
+		bufferer.DefaultLogsBufferSize,
+		bufferer.DefaultLogsBufferTimeout,
+		func(buffer []byte) {
 			err := process.client.PushLogs(
 				process.task.Pipeline.ID,
 				process.job.ID,
-				text,
+				string(buffer),
 			)
 			if err != nil {
 				process.log.Errorf(
@@ -63,21 +76,41 @@ func (process *ProcessJob) init() {
 					"unable to push logs to remote server",
 				)
 			}
-		})
+		},
+	)
 
-	go process.logsWriter.Run()
+	go process.logs.directWriter.Run()
 }
 
-func (process *ProcessJob) destroy() {
-	process.logsWriter.Close()
-	process.logsWriter.Wait()
+func (process *ProcessJob) setupMaskWriter(env *env.Env) {
+	masker := masker.NewWriter(env, process.task.EnvMask, process.logs.directWriter)
+
+	process.logs.masker = masker
+
+	process.logs.maskWriter = lineflushwriter.New(
+		masker,
+		&sync.Mutex{},
+		true,
+	)
 }
 
-func (process *ProcessJob) run() error {
+func (process *ProcessJob) Destroy() {
+	if process.logs.maskWriter != nil {
+		process.logs.maskWriter.Close()
+	} else if process.logs.directWriter != nil {
+		process.logs.directWriter.Close()
+	}
+
+	if process.logs.directWriter != nil {
+		process.logs.directWriter.Wait()
+	}
+}
+
+func (process *ProcessJob) Run() error {
 	var ok bool
 	process.configJob, ok = process.config.Jobs[process.job.Name]
 	if !ok {
-		return process.remoteErrorf(
+		return process.directRemoteErrorf(
 			nil,
 			"unable to find given job %q in %q",
 			process.job.Name,
@@ -85,7 +118,7 @@ func (process *ProcessJob) run() error {
 		)
 	}
 
-	process.env = NewEnvBuilder(
+	process.env = env.NewBuilder(
 		process.task,
 		process.task.Pipeline,
 		process.job,
@@ -96,13 +129,15 @@ func (process *ProcessJob) run() error {
 		process.sidecar.GetSshDir(),
 	).Build()
 
+	process.setupMaskWriter(process.env)
+
 	imageExpr, image := process.getImage()
 
 	process.log.Debugf(nil, "image: %s → %s", imageExpr, image)
 
 	err := process.ensureImage(image)
 	if err != nil {
-		return process.remoteErrorf(err, "unable to pull image %q", image)
+		return process.maskRemoteErrorf(err, "unable to pull image %q", image)
 	}
 
 	process.container, err = process.cloud.CreateContainer(
@@ -117,7 +152,7 @@ func (process *ProcessJob) run() error {
 		process.sidecar.GetContainerVolumes(),
 	)
 	if err != nil {
-		return process.remoteErrorf(err, "unable to create a container")
+		return process.maskRemoteErrorf(err, "unable to create a container")
 	}
 
 	defer func() {
@@ -126,13 +161,13 @@ func (process *ProcessJob) run() error {
 
 	err = process.detectShell()
 	if err != nil {
-		return process.remoteErrorf(err, "unable to detect shell in container")
+		return process.maskRemoteErrorf(err, "unable to detect shell in container")
 	}
 
 	for _, command := range process.configJob.Commands {
 		err = process.execShell(command)
 		if err != nil {
-			return process.remoteErrorf(
+			return process.maskRemoteErrorf(
 				karma.
 					Describe("cmd", command).
 					Reason(err),
@@ -167,23 +202,40 @@ func (process *ProcessJob) expandEnv(target string) string {
 	})
 }
 
-func (process *ProcessJob) remoteLog(text string) {
-	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
-	process.logsWriter.Write(text)
+func (process *ProcessJob) maskRemoteLog(text string) {
+	process.log.Debugf(nil, "%s", strings.TrimSpace(process.logs.masker.Mask(text)))
+
+	process.logs.maskWriter.Write([]byte(text))
 }
 
-func (process *ProcessJob) remoteErrorf(
+func (process *ProcessJob) directRemoteLog(text string) {
+	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
+
+	process.logs.directWriter.Write([]byte(text))
+}
+
+func (process *ProcessJob) maskRemoteErrorf(
 	reason error,
 	format string,
 	args ...interface{},
 ) error {
 	err := karma.Format(reason, format, args...)
-	process.logsWriter.Write("\n\n" + err.Error())
+	process.logs.maskWriter.Write([]byte("\n\n" + err.Error() + "\n"))
+	return err
+}
+
+func (process *ProcessJob) directRemoteErrorf(
+	reason error,
+	format string,
+	args ...interface{},
+) error {
+	err := karma.Format(reason, format, args...)
+	process.logs.directWriter.Write([]byte("\n\n" + err.Error() + "\n"))
 	return err
 }
 
 func (process *ProcessJob) execShell(cmd string) error {
-	process.sendPrompt([]string{cmd})
+	process.maskSendPrompt([]string{cmd})
 
 	err := make(chan error, 1)
 	go func() {
@@ -199,7 +251,7 @@ func (process *ProcessJob) execShell(cmd string) error {
 				AttachStdout: true,
 				AttachStderr: true,
 			},
-			process.remoteLog,
+			process.maskRemoteLog,
 		)
 	}()
 
@@ -211,8 +263,12 @@ func (process *ProcessJob) execShell(cmd string) error {
 	}
 }
 
-func (process *ProcessJob) sendPrompt(cmd []string) {
-	process.remoteLog("\n$ " + strings.Join(cmd, " ") + "\n")
+func (process *ProcessJob) maskSendPrompt(cmd []string) {
+	process.maskRemoteLog("\n$ " + strings.Join(cmd, " ") + "\n")
+}
+
+func (process *ProcessJob) directSendPrompt(cmd []string) {
+	process.directRemoteLog("\n$ " + strings.Join(cmd, " ") + "\n")
 }
 
 func (process *ProcessJob) detectShell() error {
@@ -299,11 +355,11 @@ func (process *ProcessJob) ensureImage(tag string) error {
 	}
 
 	if image == nil {
-		process.remoteLog(
+		process.directRemoteLog(
 			fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
 		)
 
-		err := process.cloud.PullImage(process.ctx, tag, process.remoteLog)
+		err := process.cloud.PullImage(process.ctx, tag, process.maskRemoteLog)
 		if err != nil {
 			return err
 		}
@@ -318,7 +374,7 @@ func (process *ProcessJob) ensureImage(tag string) error {
 		}
 	}
 
-	process.remoteLog(
+	process.directRemoteLog(
 		fmt.Sprintf(
 			"\n:: Using docker image: %s @ %s\n",
 			strings.Join(image.RepoTags, ", "),
