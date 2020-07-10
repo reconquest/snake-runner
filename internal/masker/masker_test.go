@@ -126,3 +126,23 @@ test
 
 	test.EqualValues(expected, masker.Mask(input))
 }
+
+func TestMasker_Mask_ReplacesMultiLineStringsInCorrectOrder(t *testing.T) {
+	test := assert.New(t)
+	vars := map[string]string{
+		"X": "q\nqwerty",
+		"Y": "\nwqwerty\nq\nqwerty",
+	}
+	buffer := bytes.NewBuffer(nil)
+	masker := masker.NewWriter(env.NewEnv(vars), []string{"X", "Y"}, writerCloser{buffer})
+
+	expected := "*\n****** @ \n*******\n*\n******"
+
+	input := vars["X"] + " @ " + vars["Y"]
+
+	_, err := masker.Write([]byte(input))
+	test.NoError(err)
+	test.EqualValues(expected, buffer.String())
+
+	test.EqualValues(expected, masker.Mask(input))
+}

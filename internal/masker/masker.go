@@ -2,6 +2,7 @@ package masker
 
 import (
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/reconquest/snake-runner/internal/env"
@@ -22,28 +23,44 @@ type Writer struct {
 }
 
 func (masker *Writer) init() {
-	oldnew := []string{}
+	old := []string{}
 	for _, secret := range masker.secrets {
 		if value, ok := masker.env.Get(secret); ok {
 			lines := strings.Split(value, "\n")
-
 			for _, line := range lines {
 				value := strings.TrimSpace(line)
 				if value != "" {
-					oldnew = append(
-						oldnew,
-						value,
-						strings.Repeat("*", len(value)),
-					)
+					old = append(old, value)
 				}
 			}
 
 		}
 	}
 
+	sort.Slice(old, func(i, j int) bool {
+		return len(old[i]) > len(old[j])
+	})
+
+	old = unique(old)
+
+	oldnew := make([]string, len(old)*2)
+	for i, item := range old {
+		oldnew[i*2] = item
+		oldnew[i*2+1] = strings.Repeat("*", len(item))
+	}
+
 	if len(oldnew) > 0 {
 		masker.replacer = strings.NewReplacer(oldnew...)
 	}
+}
+
+func unique(slice []string) []string {
+	for i := 0; i < len(slice)-1; i++ {
+		if slice[i] == slice[i+1] {
+			slice = append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
 }
 
 func (masker *Writer) Mask(buf string) string {
