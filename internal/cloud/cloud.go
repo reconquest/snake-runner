@@ -44,7 +44,7 @@ func NewDocker(network string, volumes []string) (*Cloud, error) {
 	cloud.network = network
 	cloud.volumes = volumes
 
-	cloud.client, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+	cloud.client, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, karma.Format(
 			err,
