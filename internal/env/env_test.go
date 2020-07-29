@@ -16,9 +16,10 @@ func TestEnvBuilder(t *testing.T) {
 	test := assert.New(t)
 
 	basicPipeline := snake.Pipeline{
-		ID:       123,
-		Commit:   "1234567890",
-		RunnerID: 80,
+		ID:         123,
+		Commit:     "1234567890",
+		FromCommit: "qwertyuiop",
+		RunnerID:   80,
 	}
 	job := snake.PipelineJob{
 		ID:    321,
@@ -61,28 +62,30 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"user_a":                "user_a_value",
-		"CI":                    "true",
-		"CI_PIPELINE_ID":        "123",
-		"CI_REF_TYPE":           "",
-		"CI_REF":                "",
-		"CI_JOB_ID":             "321",
-		"CI_JOB_STAGE":          "deploy",
-		"CI_JOB_NAME":           "docker deploy",
-		"CI_COMMIT_HASH":        "1234567890",
-		"CI_COMMIT_SHORT_HASH":  "123456",
-		"CI_PIPELINE_DIR":       "/git",
-		"CI_PROJECT_KEY":        "proj1",
-		"CI_PROJECT_NAME":       "the proj1",
-		"CI_PROJECT_ID":         "11",
-		"CI_REPO_SLUG":          "repo1",
-		"CI_REPO_NAME":          "the repo1",
-		"CI_REPO_ID":            "111",
-		"CI_REPO_CLONE_URL_SSH": "cloneurl",
-		"CI_RUNNER_ID":          "80",
-		"CI_RUNNER_NAME":        "gotest",
-		"CI_RUNNER_VERSION":     builtin.Version,
-		"SSH_AUTH_SOCK":         "/ssh/ssh-agent.sock",
+		"user_a":                    "user_a_value",
+		"CI":                        "true",
+		"CI_PIPELINE_ID":            "123",
+		"CI_REF_TYPE":               "",
+		"CI_REF":                    "",
+		"CI_JOB_ID":                 "321",
+		"CI_JOB_STAGE":              "deploy",
+		"CI_JOB_NAME":               "docker deploy",
+		"CI_COMMIT_HASH":            "1234567890",
+		"CI_COMMIT_SHORT_HASH":      "123456",
+		"CI_FROM_COMMIT_HASH":       "qwertyuiop",
+		"CI_FROM_COMMIT_SHORT_HASH": "qwerty",
+		"CI_PIPELINE_DIR":           "/git",
+		"CI_PROJECT_KEY":            "proj1",
+		"CI_PROJECT_NAME":           "the proj1",
+		"CI_PROJECT_ID":             "11",
+		"CI_REPO_SLUG":              "repo1",
+		"CI_REPO_NAME":              "the repo1",
+		"CI_REPO_ID":                "111",
+		"CI_REPO_CLONE_URL_SSH":     "cloneurl",
+		"CI_RUNNER_ID":              "80",
+		"CI_RUNNER_NAME":            "gotest",
+		"CI_RUNNER_VERSION":         builtin.Version,
+		"SSH_AUTH_SOCK":             "/ssh/ssh-agent.sock",
 	}
 
 	{

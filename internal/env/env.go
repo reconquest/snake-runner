@@ -75,6 +75,11 @@ func (builder *Builder) build() map[string]string {
 		vars["CI_COMMIT_SHORT_HASH"] = builder.pipeline.Commit[0:6]
 	}
 
+	vars["CI_FROM_COMMIT_HASH"] = builder.pipeline.FromCommit
+	if len(builder.pipeline.FromCommit) > 6 {
+		vars["CI_FROM_COMMIT_SHORT_HASH"] = builder.pipeline.FromCommit[0:6]
+	}
+
 	if builder.pipeline.PullRequestID > 0 {
 		vars["CI_PULL_REQUEST_ID"] = fmt.Sprint(builder.pipeline.PullRequestID)
 	}

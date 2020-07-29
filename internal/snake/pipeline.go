@@ -5,6 +5,7 @@ type Pipeline struct {
 	ProjectID    int    `json:"project_id"`
 	RepositoryID int    `json:"repository_id"`
 	Commit       string `json:"commit"`
+	FromCommit   string `json:"from_commit"`
 	CreatedAt    int    `json:"created_at"`
 	UpdatedAt    int    `json:"updated_at"`
 	Status       string `json:"status"`
