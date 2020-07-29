@@ -64,6 +64,8 @@ func TestEnvBuilder(t *testing.T) {
 		"user_a":                "user_a_value",
 		"CI":                    "true",
 		"CI_PIPELINE_ID":        "123",
+		"CI_REF_TYPE":           "",
+		"CI_REF":                "",
 		"CI_JOB_ID":             "321",
 		"CI_JOB_STAGE":          "deploy",
 		"CI_JOB_NAME":           "docker deploy",
@@ -94,6 +96,8 @@ func TestEnvBuilder(t *testing.T) {
 
 		expected := clone(expected)
 		expected["CI_BRANCH"] = "someref"
+		expected["CI_REF"] = "someref"
+		expected["CI_REF_TYPE"] = "BRANCH"
 
 		test.EqualValues(expected, builder(pipeline).build())
 	}
@@ -105,8 +109,56 @@ func TestEnvBuilder(t *testing.T) {
 
 		expected := clone(expected)
 		expected["CI_TAG"] = "someref"
+		expected["CI_REF"] = "someref"
+		expected["CI_REF_TYPE"] = "TAG"
 
 		test.EqualValues(expected, builder(pipeline).build())
+	}
+
+	{
+		pipeline := basicPipeline
+		pipeline.RefType = "BRANCH"
+		pipeline.RefDisplayId = "someref"
+
+		task.PullRequest = &responses.PullRequest{
+			ID:          123,
+			Title:       "pr title",
+			State:       "pr state",
+			IsCrossRepo: true,
+			FromRef: responses.PullRequestRef{
+				Hash:   "aaaa",
+				Ref:    "fromref",
+				IsFork: false,
+			},
+			ToRef: responses.PullRequestRef{
+				Hash:   "bbbb",
+				Ref:    "toref",
+				IsFork: true,
+			},
+		}
+
+		expected := clone(expected)
+		expected["CI_BRANCH"] = "someref"
+
+		expected["CI_REF"] = "someref"
+		expected["CI_REF_TYPE"] = "BRANCH"
+
+		expected["CI_PULL_REQUEST_ID"] = "123"
+		expected["CI_PULL_REQUEST_STATE"] = "pr state"
+		expected["CI_PULL_REQUEST_TITLE"] = "pr title"
+		expected["CI_PULL_REQUEST_CROSS_REPO"] = "true"
+
+		expected["CI_PULL_REQUEST_FROM_REF"] = "fromref"
+		expected["CI_PULL_REQUEST_FROM_HASH"] = "aaaa"
+		expected["CI_PULL_REQUEST_FROM_FORK"] = "false"
+
+		expected["CI_PULL_REQUEST_TO_REF"] = "toref"
+		expected["CI_PULL_REQUEST_TO_HASH"] = "bbbb"
+		expected["CI_PULL_REQUEST_TO_FORK"] = "true"
+
+		test.EqualValues(expected, builder(pipeline).build())
+
+		task.PullRequest = nil
 	}
 
 	{

@@ -16,13 +16,14 @@ const (
 )
 
 type PipelineRun struct {
-	Pipeline   snake.Pipeline       `json:"pipeline"`
-	Jobs       []snake.PipelineJob  `json:"jobs"`
-	Env        map[string]string    `json:"env"`
-	EnvMask    []string             `json:"env_mask"`
-	Repository responses.Repository `json:"repository"`
-	Project    responses.Project    `json:"project"`
-	CloneURL   struct {
+	Pipeline    snake.Pipeline         `json:"pipeline"`
+	Jobs        []snake.PipelineJob    `json:"jobs"`
+	Env         map[string]string      `json:"env"`
+	EnvMask     []string               `json:"env_mask"`
+	Repository  responses.Repository   `json:"repository"`
+	Project     responses.Project      `json:"project"`
+	PullRequest *responses.PullRequest `json:"pull_request"`
+	CloneURL    struct {
 		SSH string `json:"ssh"`
 	} `json:"clone_url"`
 }
