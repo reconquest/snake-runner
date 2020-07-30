@@ -2,10 +2,14 @@
 
 package requests
 
-import "time"
+import (
+	"time"
+
+	"github.com/reconquest/snake-runner/internal/status"
+)
 
 func NewTaskUpdate(
-	status string,
+	status status.Status,
 	startedAt *time.Time,
 	finishedAt *time.Time,
 ) *TaskUpdate {

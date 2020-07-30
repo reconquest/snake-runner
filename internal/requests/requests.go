@@ -1,12 +1,16 @@
 package requests
 
-import "time"
+import (
+	"time"
+
+	"github.com/reconquest/snake-runner/internal/status"
+)
 
 //go:generate gonstructor -type TaskUpdate
 type TaskUpdate struct {
-	Status     string     `json:"status"`
-	StartedAt  *time.Time `json:"started_at"`
-	FinishedAt *time.Time `json:"finished_at"`
+	Status     status.Status `json:"status"`
+	StartedAt  *time.Time    `json:"started_at"`
+	FinishedAt *time.Time    `json:"finished_at"`
 }
 
 type LogsPush struct {

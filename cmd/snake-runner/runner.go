@@ -6,13 +6,8 @@ import (
 	"time"
 
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/runner"
-)
-
-const (
-	MasterPrefixAPI   = "/rest/snake-ci/1.0"
-	AccessTokenHeader = "X-Snake-Runner-Access-Token"
-	NameHeader        = "X-Snake-Runner-Name"
 )
 
 var FailedRegisterRepeatTimeout = time.Second * 10
@@ -20,7 +15,7 @@ var FailedRegisterRepeatTimeout = time.Second * 10
 type Runner struct {
 	config     *runner.Config
 	scheduler  *Scheduler
-	client     *Client
+	client     *api.Client
 	context    context.Context
 	cancel     context.CancelFunc
 	workers    sync.WaitGroup
@@ -31,7 +26,7 @@ func NewRunner(config *runner.Config) *Runner {
 	context, cancel := context.WithCancel(context.Background())
 	return &Runner{
 		config:     config,
-		client:     NewClient(config),
+		client:     api.NewClient(config),
 		context:    context,
 		cancel:     cancel,
 		terminated: make(chan struct{}),

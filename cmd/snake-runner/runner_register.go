@@ -8,6 +8,7 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/requests"
 )
 
@@ -17,7 +18,7 @@ func (runner *Runner) mustRegister() string {
 		if err != nil {
 			remote := false
 			for _, reason := range karma.GetReasons(err) {
-				if _, ok := reason.(remoteError); ok {
+				if _, ok := reason.(api.RemoteError); ok {
 					remote = true
 					break
 				}

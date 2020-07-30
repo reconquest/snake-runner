@@ -1,2 +1,2 @@
 cmd:cmd/snake-runner/
-pkg:internal/
+int:internal/

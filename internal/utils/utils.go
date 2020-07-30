@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/docker/docker/errdefs"
+	docker_errdefs "github.com/docker/docker/errdefs"
 	"github.com/reconquest/karma-go"
 )
 
@@ -82,7 +82,7 @@ func IsCanceled(err error) bool {
 		}
 	}
 
-	if errdefs.IsCancelled(err) {
+	if docker_errdefs.IsCancelled(err) {
 		return true
 	}
 

@@ -10,22 +10,22 @@ import (
 )
 
 type SidecarBuilder struct {
-	cloud             *cloud.Cloud
-	name              string
-	pipelinesDir      string
-	slug              string
-	promptConsumer    cloud.PromptConsumer
-	outputConsumer    cloud.OutputConsumer
-	sshKey            sshkey.Key
-	dockerAuthConfigs []cloud.DockerConfig
-	sshAgent          sync.WaitGroup
+	cloud          cloud.Cloud
+	name           string
+	pipelinesDir   string
+	slug           string
+	promptConsumer cloud.PromptConsumer
+	outputConsumer cloud.OutputConsumer
+	sshKey         sshkey.Key
+	pullConfigs    []cloud.PullConfig
+	sshAgent       sync.WaitGroup
 }
 
 func NewSidecarBuilder() *SidecarBuilder {
 	return &SidecarBuilder{}
 }
 
-func (b *SidecarBuilder) Cloud(cloud *cloud.Cloud) *SidecarBuilder {
+func (b *SidecarBuilder) Cloud(cloud cloud.Cloud) *SidecarBuilder {
 	b.cloud = cloud
 	return b
 }
@@ -60,8 +60,8 @@ func (b *SidecarBuilder) SshKey(sshKey sshkey.Key) *SidecarBuilder {
 	return b
 }
 
-func (b *SidecarBuilder) DockerAuthConfigs(dockerAuthConfigs []cloud.DockerConfig) *SidecarBuilder {
-	b.dockerAuthConfigs = dockerAuthConfigs
+func (b *SidecarBuilder) PullConfigs(pullConfigs []cloud.PullConfig) *SidecarBuilder {
+	b.pullConfigs = pullConfigs
 	return b
 }
 
@@ -72,14 +72,14 @@ func (b *SidecarBuilder) SshAgent(sshAgent sync.WaitGroup) *SidecarBuilder {
 
 func (b *SidecarBuilder) Build() *Sidecar {
 	return &Sidecar{
-		cloud:             b.cloud,
-		name:              b.name,
-		pipelinesDir:      b.pipelinesDir,
-		slug:              b.slug,
-		promptConsumer:    b.promptConsumer,
-		outputConsumer:    b.outputConsumer,
-		sshKey:            b.sshKey,
-		dockerAuthConfigs: b.dockerAuthConfigs,
-		sshAgent:          b.sshAgent,
+		cloud:          b.cloud,
+		name:           b.name,
+		pipelinesDir:   b.pipelinesDir,
+		slug:           b.slug,
+		promptConsumer: b.promptConsumer,
+		outputConsumer: b.outputConsumer,
+		sshKey:         b.sshKey,
+		pullConfigs:    b.pullConfigs,
+		sshAgent:       b.sshAgent,
 	}
 }

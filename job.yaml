@@ -1,0 +1,101 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: xxx
+spec:
+  template:
+    metadata:
+      name: xxx
+    spec:
+      initContainers:
+      - name: sidecar
+        image: busybox
+        command: ['sh', '-c', 'date; echo git clone; sleep 5; date; echo clone finished']
+        volumeMounts:
+          - mountPath: /state
+            name: state
+      containers:
+      - name: control
+        image: alpine
+        command:
+          - sh
+          - -c
+          - touch /state/g1.start;
+            touch /state/g2.start;
+            touch /state/g3.start;
+            until test -f /state/g1.finish; do sleep 0.5; done;
+            until test -f /state/g2.finish; do sleep 0.5; done;
+            until test -f /state/g3.finish; do sleep 0.5; done;
+            touch /state/g4.start;
+            until test -f /state/g4.finish; do sleep 0.5; done;
+        volumeMounts:
+          - mountPath: /state
+            name: state
+      - name: g1
+        image: alpine
+        command:
+          - sh
+          - -c
+          - until test -f /state/g1.start; do sleep 0.5; done;
+            echo "g1=start";
+            echo "$(date) g1";
+            sleep 5;
+            echo "$(date) g1";
+            sleep 5;
+            echo "$(date) g1";
+            touch /state/g1.finish;
+        volumeMounts:
+          - mountPath: /state
+            name: state
+      - name: g2
+        image: alpine
+        command:
+          - sh
+          - -c
+          - until test -f /state/g2.start; do sleep 0.5; done;
+            echo "g2=start";
+            echo "$(date) g2";
+            sleep 5;
+            echo "$(date) g2";
+            sleep 5;
+            echo "$(date) g2";
+            touch /state/g2.finish;
+        volumeMounts:
+          - mountPath: /state
+            name: state
+      - name: g3
+        image: alpine
+        command:
+          - sh
+          - -c
+          - until test -f /state/g3.start; do sleep 0.5; done;
+            echo "g3=start";
+            echo "$(date) g3";
+            sleep 5;
+            echo "$(date) g3";
+            sleep 5;
+            echo "$(date) g3";
+            touch /state/g3.finish;
+        volumeMounts:
+          - mountPath: /state
+            name: state
+      - name: g4
+        image: alpine
+        command:
+          - sh
+          - -c
+          - until test -f /state/g4.start; do sleep 0.5; done;
+            echo "g4=start";
+            echo "$(date) g4";
+            sleep 5;
+            echo "$(date) g4";
+            sleep 5;
+            echo "$(date) g4";
+            touch /state/g4.finish;
+        volumeMounts:
+          - mountPath: /state
+            name: state
+      restartPolicy: Never
+      volumes:
+        - name: state
+          emptyDir: {}

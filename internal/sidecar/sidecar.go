@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api/types"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/audit"
@@ -37,18 +36,18 @@ const (
 // * volume with git repository cloned from the bitbucket instance
 // * volume with shared ssh-agent socket
 type Sidecar struct {
-	cloud *cloud.Cloud
+	cloud cloud.Cloud
 	name  string
 	// pipelinesDir is the directory on the host file system where all pipelines
 	// and temporary stuff such as git repos and ssh sockets are stored
-	pipelinesDir      string
-	slug              string
-	promptConsumer    cloud.PromptConsumer
-	outputConsumer    cloud.OutputConsumer
-	sshKey            sshkey.Key
-	dockerAuthConfigs []cloud.DockerConfig
+	pipelinesDir   string
+	slug           string
+	promptConsumer cloud.PromptConsumer
+	outputConsumer cloud.OutputConsumer
+	sshKey         sshkey.Key
+	pullConfigs    []cloud.PullConfig
 
-	container *cloud.Container `gonstructor:"-"`
+	container cloud.Container `gonstructor:"-"`
 
 	hostSubDir   string `gonstructor:"-"`
 	containerDir string `gonstructor:"-"`
@@ -77,7 +76,7 @@ func (sidecar *Sidecar) GetSshDir() string {
 	return sidecar.sshDir
 }
 
-func (sidecar *Sidecar) GetContainer() *cloud.Container {
+func (sidecar *Sidecar) GetContainer() cloud.Container {
 	return sidecar.container
 }
 
@@ -92,7 +91,7 @@ func (sidecar *Sidecar) create(ctx context.Context) error {
 			ctx,
 			SidecarImage,
 			sidecar.outputConsumer,
-			sidecar.dockerAuthConfigs,
+			sidecar.pullConfigs,
 		)
 		if err != nil {
 			return karma.Format(
@@ -144,7 +143,7 @@ func (sidecar *Sidecar) Serve(
 	}
 
 	// preparing _directories_ such as 'git' and 'ssh'
-	err = sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
+	err = sidecar.cloud.Exec(ctx, sidecar.container, cloud.ExecConfig{
 		Cmd:          []string{"mkdir", "-p", sidecar.gitDir, sidecar.sshDir},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -183,7 +182,7 @@ func (sidecar *Sidecar) Serve(
 
 	cmd := []string{"bash", "-c", strings.Join(basic, " && ")}
 
-	err = sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
+	err = sidecar.cloud.Exec(ctx, sidecar.container, cloud.ExecConfig{
 		Cmd:          cmd,
 		Env:          env,
 		AttachStdout: true,
@@ -205,7 +204,7 @@ func (sidecar *Sidecar) Serve(
 	for _, cmd := range commands {
 		sidecar.promptConsumer(cmd)
 
-		err = sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
+		err = sidecar.cloud.Exec(ctx, sidecar.container, cloud.ExecConfig{
 			Env: []string{
 				SshSockVar + "=" + sshSock,
 				// NOTE: the private key is not passed anymore but it's already
@@ -246,7 +245,7 @@ func (sidecar *Sidecar) startSshAgent(ctx context.Context) (string, error) {
 
 		defer sidecar.sshAgent.Done()
 
-		err := sidecar.cloud.Exec(ctx, sidecar.container, types.ExecConfig{
+		err := sidecar.cloud.Exec(ctx, sidecar.container, cloud.ExecConfig{
 			Cmd: []string{
 				"ssh-agent",
 				"-d", "-a", sshSocket,
@@ -280,7 +279,7 @@ func (sidecar *Sidecar) getLogger(tag string) func(string) {
 		log.Debugf(
 			nil,
 			"[sidecar] %s {%s}: %s",
-			sidecar.container.Name, tag, strings.TrimRight(text, "\n"),
+			sidecar.container.String(), tag, strings.TrimRight(text, "\n"),
 		)
 	}
 }
@@ -298,13 +297,13 @@ func (sidecar *Sidecar) Destroy() {
 		log.Debugf(
 			nil,
 			"cleaning up sidecar %s container: %v",
-			sidecar.container.Name, cmd,
+			sidecar.container.String(), cmd,
 		)
 
 		err := sidecar.cloud.Exec(
 			context.Background(),
 			sidecar.container,
-			types.ExecConfig{Cmd: cmd, AttachStderr: true, AttachStdout: true},
+			cloud.ExecConfig{Cmd: cmd, AttachStderr: true, AttachStdout: true},
 			sidecar.getLogger("rm"),
 		)
 		if err != nil {
@@ -320,7 +319,7 @@ func (sidecar *Sidecar) Destroy() {
 	log.Debugf(
 		nil,
 		"destroying sidecar %s container",
-		sidecar.container.Name,
+		sidecar.container.String(),
 	)
 
 	err := sidecar.cloud.DestroyContainer(
@@ -331,8 +330,7 @@ func (sidecar *Sidecar) Destroy() {
 		log.Errorf(
 			err,
 			"unable to destroy sidecar container: %s %s",
-			sidecar.container.ID,
-			sidecar.container.Name,
+			sidecar.container.String(),
 		)
 
 		return

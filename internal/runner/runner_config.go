@@ -15,7 +15,10 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/set"
 )
+
+var modes = set.NewStringSet("docker", "shell")
 
 type Config struct {
 	// MasterAddress is actually required but it will be handled manually
@@ -42,11 +45,11 @@ type Config struct {
 		// unmarshalling JSON as map
 		AuthConfigJSON string `yaml:"auth_config"`
 
-		authConfig cloud.DockerConfig
+		authConfig cloud.PullConfig
 	} `yaml:"docker"`
 }
 
-func (config *Config) GetDockerAuthConfig() cloud.DockerConfig {
+func (config *Config) GetDockerAuthConfig() cloud.PullConfig {
 	return config.Docker.authConfig
 }
 
@@ -74,6 +77,14 @@ func LoadConfig(path string) (*Config, error) {
 		}
 
 		config.AccessToken = strings.TrimSpace(string(tokenData))
+	}
+
+	if !modes.Has(config.Virtualization) {
+		return nil, karma.Format(
+			err,
+			"unknown type of virtualization specified: %q; known are: %v",
+			config.Virtualization, modes.List(),
+		)
 	}
 
 	if config.Virtualization == "none" {

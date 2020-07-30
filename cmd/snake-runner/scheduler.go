@@ -9,8 +9,11 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
+	"github.com/reconquest/snake-runner/internal/cloud/docker"
+	"github.com/reconquest/snake-runner/internal/pipeline"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/sshkey"
@@ -19,13 +22,13 @@ import (
 )
 
 type Scheduler struct {
-	client         *Client
-	cloud          *cloud.Cloud
+	client         *api.Client
+	cloud          cloud.Cloud
 	pipelinesMap   safemap.IntToAny
 	pipelines      int64
 	pipelinesGroup sync.WaitGroup
 	cancels        safemap.IntToContextCancelFunc
-	utilization    chan *cloud.Container
+	utilization    chan cloud.Container
 	runnerConfig   *runner.Config
 
 	sshKeyFactory *sshkey.Factory
@@ -41,7 +44,7 @@ type Scheduler struct {
 }
 
 func (runner *Runner) startScheduler() error {
-	docker, err := cloud.NewDocker(
+	docker, err := docker.NewDocker(
 		runner.config.Docker.Network,
 		runner.config.Docker.Volumes,
 	)
@@ -54,7 +57,7 @@ func (runner *Runner) startScheduler() error {
 	scheduler := &Scheduler{
 		client:       runner.client,
 		cloud:        docker,
-		utilization:  make(chan *cloud.Container, runner.config.MaxParallelPipelines*2),
+		utilization:  make(chan cloud.Container, runner.config.MaxParallelPipelines*2),
 		runnerConfig: runner.config,
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
@@ -186,13 +189,18 @@ func (scheduler *Scheduler) utilize() {
 		if err != nil {
 			log.Errorf(
 				karma.Describe("id", container.ID).
-					Describe("name", container.Name).
+					Describe("container", container.String()).
 					Reason(err),
 				"unable to utilize (destroy) container after a job",
 			)
 		}
 
-		log.Debugf(nil, "container utilized: %s %s", container.ID, container.Name)
+		log.Debugf(
+			nil,
+			"container utilized: %s %s",
+			container.ID,
+			container.String(),
+		)
 	}
 }
 
@@ -252,7 +260,7 @@ func (scheduler *Scheduler) startPipeline(
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	process := NewProcessPipeline(
+	process := pipeline.NewProcess(
 		scheduler.context,
 		ctx,
 		scheduler.client,
@@ -277,7 +285,7 @@ func (scheduler *Scheduler) startPipeline(
 		defer atomic.AddInt64(&scheduler.pipelines, -1)
 		defer scheduler.pipelinesGroup.Done()
 
-		err := process.run()
+		err := process.Run()
 		if err != nil {
 			if karma.Contains(err, context.Canceled) {
 				log.Infof(nil, "pipeline %d finished due to cancel", task.Pipeline.ID)
