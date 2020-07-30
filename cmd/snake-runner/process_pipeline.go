@@ -225,6 +225,8 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status str
 				Reason("PANIC")
 
 			log.Error(err)
+
+			status = StatusFailed
 		}
 	}()
 

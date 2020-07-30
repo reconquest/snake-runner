@@ -1,4 +1,5 @@
 #!/bin/bash
 
-docker inspect $1 \
-    | jq -r '.[0] | .NetworkSettings.Networks | keys | .[]'
+if content=$(docker inspect $1 2>/dev/null); then
+    jq -r '.[0] | .NetworkSettings.Networks | keys | .[]' <<< "$content"
+fi

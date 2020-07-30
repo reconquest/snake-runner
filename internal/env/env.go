@@ -55,6 +55,8 @@ func (builder *Builder) build() map[string]string {
 	vars["CI"] = "true"
 
 	vars["CI_PIPELINE_ID"] = fmt.Sprint(builder.pipeline.ID)
+	vars["CI_PIPELINE_DIR"] = builder.gitDir
+
 	vars["CI_JOB_ID"] = fmt.Sprint(builder.job.ID)
 	vars["CI_JOB_STAGE"] = fmt.Sprint(builder.job.Stage)
 	vars["CI_JOB_NAME"] = fmt.Sprint(builder.job.Name)
@@ -65,15 +67,37 @@ func (builder *Builder) build() map[string]string {
 		vars["CI_TAG"] = fmt.Sprint(builder.pipeline.RefDisplayId)
 	}
 
+	vars["CI_REF"] = builder.pipeline.RefDisplayId
+	vars["CI_REF_TYPE"] = builder.pipeline.RefType
+
 	vars["CI_COMMIT_HASH"] = builder.pipeline.Commit
 	if len(builder.pipeline.Commit) > 6 {
 		vars["CI_COMMIT_SHORT_HASH"] = builder.pipeline.Commit[0:6]
 	}
 
-	vars["CI_PIPELINE_DIR"] = builder.gitDir
+	vars["CI_FROM_COMMIT_HASH"] = builder.pipeline.FromCommit
+	if len(builder.pipeline.FromCommit) > 6 {
+		vars["CI_FROM_COMMIT_SHORT_HASH"] = builder.pipeline.FromCommit[0:6]
+	}
 
 	if builder.pipeline.PullRequestID > 0 {
 		vars["CI_PULL_REQUEST_ID"] = fmt.Sprint(builder.pipeline.PullRequestID)
+	}
+
+	if builder.task.PullRequest != nil {
+		pr := builder.task.PullRequest
+		vars["CI_PULL_REQUEST_ID"] = fmt.Sprint(pr.ID)
+		vars["CI_PULL_REQUEST_TITLE"] = pr.Title
+		vars["CI_PULL_REQUEST_STATE"] = pr.State
+		vars["CI_PULL_REQUEST_CROSS_REPO"] = fmt.Sprint(pr.IsCrossRepo)
+
+		vars["CI_PULL_REQUEST_FROM_HASH"] = pr.FromRef.Hash
+		vars["CI_PULL_REQUEST_FROM_REF"] = pr.FromRef.Ref
+		vars["CI_PULL_REQUEST_FROM_FORK"] = fmt.Sprint(pr.FromRef.IsFork)
+
+		vars["CI_PULL_REQUEST_TO_HASH"] = pr.ToRef.Hash
+		vars["CI_PULL_REQUEST_TO_REF"] = pr.ToRef.Ref
+		vars["CI_PULL_REQUEST_TO_FORK"] = fmt.Sprint(pr.ToRef.IsFork)
 	}
 
 	vars["CI_PROJECT_KEY"] = builder.task.Project.Key
