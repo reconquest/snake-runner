@@ -102,9 +102,9 @@ func (sidecar *Sidecar) create(ctx context.Context) error {
 	}
 
 	sidecar.hostSubDir = filepath.Join(sidecar.pipelinesDir, sidecar.name)
-	sidecar.containerDir = filepath.Join("/pipelines", sidecar.slug)
+	sidecar.containerDir = filepath.Join("/pipeline")
 
-	sidecar.gitDir = filepath.Join(sidecar.containerDir, GitSubDir)
+	sidecar.gitDir = filepath.Join(sidecar.containerDir, GitSubDir, sidecar.slug)
 	sidecar.sshDir = filepath.Join(sidecar.containerDir, SshSubDir)
 
 	volumes := []string{
