@@ -11,11 +11,11 @@ import (
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
-	"github.com/reconquest/snake-runner/internal/cloud"
-	"github.com/reconquest/snake-runner/internal/cloud/docker"
 	"github.com/reconquest/snake-runner/internal/pipeline"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
+	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/spawner/docker"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
@@ -23,12 +23,12 @@ import (
 
 type Scheduler struct {
 	client         *api.Client
-	cloud          cloud.Cloud
+	spawner        spawner.Spawner
 	pipelinesMap   safemap.IntToAny
 	pipelines      int64
 	pipelinesGroup sync.WaitGroup
 	cancels        safemap.IntToContextCancelFunc
-	utilization    chan cloud.Container
+	utilization    chan spawner.Container
 	runnerConfig   *runner.Config
 
 	sshKeyFactory *sshkey.Factory
@@ -56,8 +56,8 @@ func (runner *Runner) startScheduler() error {
 
 	scheduler := &Scheduler{
 		client:       runner.client,
-		cloud:        docker,
-		utilization:  make(chan cloud.Container, runner.config.MaxParallelPipelines*2),
+		spawner:      docker,
+		utilization:  make(chan spawner.Container, runner.config.MaxParallelPipelines*2),
 		runnerConfig: runner.config,
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
@@ -71,7 +71,7 @@ func (runner *Runner) startScheduler() error {
 		terminator:   runner,
 	}
 
-	err = docker.Cleanup(context.Background())
+	err = docker.Cleanup()
 	if err != nil {
 		return karma.Format(err, "unable to cleanup old containers")
 	}
@@ -185,13 +185,14 @@ func (scheduler *Scheduler) getAndServe() (bool, error) {
 
 func (scheduler *Scheduler) utilize() {
 	for container := range scheduler.utilization {
-		err := scheduler.cloud.DestroyContainer(context.Background(), container)
+		err := scheduler.spawner.Destroy(context.Background(), container)
 		if err != nil {
 			log.Errorf(
-				karma.Describe("id", container.ID).
+				karma.
+					Describe("id", container.ID).
 					Describe("container", container.String()).
 					Reason(err),
-				"unable to utilize (destroy) container after a job",
+				"unable to destroy container",
 			)
 		}
 
@@ -266,7 +267,7 @@ func (scheduler *Scheduler) startPipeline(
 		scheduler.client,
 		scheduler.runnerConfig,
 		task,
-		scheduler.cloud,
+		scheduler.spawner,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d]", task.Pipeline.ID)),
 		scheduler.utilization,
 		sshKey,

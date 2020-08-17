@@ -2,7 +2,6 @@ package env
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
@@ -13,14 +12,14 @@ import (
 
 //go:generate gonstructor -type Builder
 type Builder struct {
-	task         tasks.PipelineRun
-	pipeline     snake.Pipeline
-	job          snake.PipelineJob
-	config       config.Pipeline
-	configJob    config.Job
-	runnerConfig *runner.Config
-	gitDir       string
-	sshDir       string
+	task          tasks.PipelineRun
+	pipeline      snake.Pipeline
+	job           snake.PipelineJob
+	config        config.Pipeline
+	configJob     config.Job
+	runnerConfig  *runner.Config
+	gitDir        string
+	sshSocketPath string
 }
 
 //go:generate gonstructor --type=Env --init init
@@ -128,7 +127,7 @@ func (builder *Builder) build() map[string]string {
 
 	// special case: providing SSH_AUTH_SOCK — socket to ssh-agent that is
 	// running in sidecar
-	vars["SSH_AUTH_SOCK"] = filepath.Join(builder.sshDir, "ssh-agent.sock")
+	vars["SSH_AUTH_SOCK"] = builder.sshSocketPath
 
 	return vars
 }

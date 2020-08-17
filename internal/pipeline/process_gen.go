@@ -7,8 +7,8 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/api"
-	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/runner"
+	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
@@ -19,9 +19,9 @@ func NewProcess(
 	client *api.Client,
 	runnerConfig *runner.Config,
 	task tasks.PipelineRun,
-	cloud cloud.Cloud,
+	spawner spawner.Spawner,
 	log *cog.Logger,
-	utilization chan cloud.Container,
+	utilization chan spawner.Container,
 	sshKey sshkey.Key,
 ) *Process {
 	return &Process{
@@ -30,7 +30,7 @@ func NewProcess(
 		client:       client,
 		runnerConfig: runnerConfig,
 		task:         task,
-		cloud:        cloud,
+		spawner:      spawner,
 		log:          log,
 		utilization:  utilization,
 		sshKey:       sshKey,

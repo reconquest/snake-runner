@@ -32,6 +32,12 @@ tasks:
     desc: print version
     cmds:
       - printf "%s" "{{.version}}"
+
+  watch:
+    desc: watch for changes
+    cmds:
+      - ./taskutils/watch
+
   rr:
     cmds:
       - task: go:build
@@ -44,6 +50,7 @@ tasks:
         SNAKE_PIPELINES_DIR=.runners/{{.random_uuid}}/pipelines
         SNAKE_LOG_TRACE=true
         ./snake-runner -c ./conf/dev.conf
+
   dock:
     cmds:
       - task: docker:snake-runner@build

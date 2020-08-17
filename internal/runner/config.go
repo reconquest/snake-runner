@@ -14,11 +14,16 @@ import (
 	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/set"
+	"github.com/reconquest/snake-runner/internal/spawner"
 )
 
-var modes = set.NewStringSet("docker", "shell")
+const (
+	RUNNER_MODE_DOCKER = `docker`
+	RUNNER_MODE_SHELL  = `shell`
+)
+
+var modes = set.NewStringSet(RUNNER_MODE_DOCKER, RUNNER_MODE_SHELL)
 
 type Config struct {
 	// MasterAddress is actually required but it will be handled manually
@@ -31,12 +36,12 @@ type Config struct {
 	Name                 string        `yaml:"name"                   env:"SNAKE_NAME"`
 	RegistrationToken    string        `yaml:"registration_token"     env:"SNAKE_REGISTRATION_TOKEN"`
 	AccessToken          string        `yaml:"access_token"           env:"SNAKE_ACCESS_TOKEN"`
-	AccessTokenPath      string        `yaml:"access_token_path"      env:"SNAKE_ACCESS_TOKEN_PATH"      default:"/var/lib/snake-runner/secrets/access_token"`
+	AccessTokenPath      string        `yaml:"access_token_path"      env:"SNAKE_ACCESS_TOKEN_PATH"`
 	HeartbeatInterval    time.Duration `yaml:"heartbeat_interval"     env:"SNAKE_HEARTBEAT_INTERVAL"     default:"45s"`
 	SchedulerInterval    time.Duration `yaml:"scheduler_interval"     env:"SNAKE_SCHEDULER_INTERVAL"     default:"5s"`
-	Virtualization       string        `yaml:"virtualization"         env:"SNAKE_VIRTUALIZATION"         default:"docker"                          required:"true"`
+	Mode                 string        `yaml:"mode"                   env:"SNAKE_MODE"                   default:"docker"                          required:"true"`
 	MaxParallelPipelines int64         `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0"                               required:"true"`
-	PipelinesDir         string        `yaml:"pipelines_dir"          env:"SNAKE_PIPELINES_DIR"          default:"/var/lib/snake-runner/pipelines" required:"true"`
+	PipelinesDir         string        `yaml:"pipelines_dir"          env:"SNAKE_PIPELINES_DIR"`
 	Docker               struct {
 		Network string   `yaml:"network"     env:"SNAKE_DOCKER_NETWORK"`
 		Volumes []string `yaml:"volumes"     env:"SNAKE_DOCKER_VOLUMES"`
@@ -45,11 +50,11 @@ type Config struct {
 		// unmarshalling JSON as map
 		AuthConfigJSON string `yaml:"auth_config"`
 
-		authConfig cloud.PullConfig
+		authConfig spawner.PullConfig
 	} `yaml:"docker"`
 }
 
-func (config *Config) GetDockerAuthConfig() cloud.PullConfig {
+func (config *Config) GetDockerAuthConfig() spawner.PullConfig {
 	return config.Docker.authConfig
 }
 
@@ -79,17 +84,19 @@ func LoadConfig(path string) (*Config, error) {
 		config.AccessToken = strings.TrimSpace(string(tokenData))
 	}
 
-	if !modes.Has(config.Virtualization) {
+	if !modes.Has(config.Mode) {
 		return nil, karma.Format(
 			err,
-			"unknown type of virtualization specified: %q; known are: %v",
-			config.Virtualization, modes.List(),
+			"unknown mode specified: %q; known are: %v",
+			config.Mode, modes.List(),
 		)
 	}
 
-	if config.Virtualization == "none" {
-		log.Warningf(nil, "No virtualization is used, all commands will be "+
-			"executed on the local host with current permissions")
+	if config.Mode == "shell" {
+		log.Warning(
+			"Shell mode specified, all commands will be " +
+				"executed on the local host with current process permissions",
+		)
 	}
 
 	if config.MaxParallelPipelines == 0 {
@@ -97,7 +104,8 @@ func LoadConfig(path string) (*Config, error) {
 
 		log.Warningf(
 			nil,
-			"max_parallel_pipelines is not specified, number of CPU will be used instead: %d",
+			"max_parallel_pipelines is not specified, "+
+				"number of CPU will be used instead: %d",
 			config.MaxParallelPipelines,
 		)
 	}
@@ -116,7 +124,7 @@ func LoadConfig(path string) (*Config, error) {
 		if err != nil {
 			return nil, karma.Format(
 				err,
-				"unable to get absolute path of %s", config.PipelinesDir,
+				"unable to get absolute path of %q", config.PipelinesDir,
 			)
 		}
 	}

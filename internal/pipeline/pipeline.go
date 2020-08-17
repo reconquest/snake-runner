@@ -13,13 +13,13 @@ import (
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
-	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/job"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
+	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/status"
 	"github.com/reconquest/snake-runner/internal/syncdo"
@@ -38,20 +38,20 @@ type Process struct {
 	client       *api.Client
 	runnerConfig *runner.Config
 	task         tasks.PipelineRun
-	cloud        cloud.Cloud
+	spawner      spawner.Spawner
 	log          *cog.Logger
-	utilization  chan cloud.Container
+	utilization  chan spawner.Container
 
 	sshKey sshkey.Key
 
-	status      status.Status    `gonstructor:"-"`
-	sidecar     *sidecar.Sidecar `gonstructor:"-"`
-	initSidecar syncdo.Action    `gonstructor:"-"`
-	config      config.Pipeline  `gonstructor:"-"`
+	status      status.Status   `gonstructor:"-"`
+	sidecar     sidecar.Sidecar `gonstructor:"-"`
+	initSidecar syncdo.Action   `gonstructor:"-"`
+	config      config.Pipeline `gonstructor:"-"`
 
-	variableDockerConfig cloud.PullConfig `gonstructor:"-"`
-	envDockerConfig      cloud.PullConfig `gonstructor:"-"`
-	onceFail             sync.Once        `gonstructor:"-"`
+	variableDockerConfig spawner.PullConfig `gonstructor:"-"`
+	envDockerConfig      spawner.PullConfig `gonstructor:"-"`
+	onceFail             sync.Once          `gonstructor:"-"`
 }
 
 func (process *Process) Run() error {
@@ -247,7 +247,7 @@ func (process *Process) processJob(
 
 	job := job.NewProcess(
 		process.ctx,
-		process.cloud,
+		process.spawner,
 		process.client,
 		process.runnerConfig,
 		process.task,
@@ -302,27 +302,29 @@ func (process *Process) processJob(
 
 func (process *Process) readConfig(job *job.Process) error {
 	return process.initSidecar.Do(func() error {
-		process.sidecar = sidecar.NewSidecarBuilder().
-			Cloud(process.cloud).
-			Name(
-				fmt.Sprintf(
-					"pipeline-%d-uniq-%s",
-					process.task.Pipeline.ID,
-					utils.RandString(10),
-				),
-			).
-			Slug(
-				fmt.Sprintf(
-					"%s/%s",
-					process.task.Project.Key,
-					process.task.Repository.Slug,
-				),
-			).
-			PipelinesDir(process.runnerConfig.PipelinesDir).
-			PromptConsumer(job.SendPromptDirect).
-			OutputConsumer(job.LogDirect).
-			SshKey(process.sshKey).
-			Build()
+		if process.runnerConfig.Mode == runner.RUNNER_MODE_DOCKER {
+			process.sidecar = sidecar.NewCloudSidecarBuilder().
+				Spawner(process.spawner).
+				Name(
+					fmt.Sprintf(
+						"pipeline-%d-uniq-%s",
+						process.task.Pipeline.ID,
+						utils.RandString(10),
+					),
+				).
+				Slug(
+					fmt.Sprintf(
+						"%s/%s",
+						process.task.Project.Key,
+						process.task.Repository.Slug,
+					),
+				).
+				PipelinesDir(process.runnerConfig.PipelinesDir).
+				PromptConsumer(job.SendPromptDirect).
+				OutputConsumer(job.LogDirect).
+				SshKey(process.sshKey).
+				Build()
+		}
 
 		err := process.sidecar.Serve(
 			process.ctx,
@@ -336,9 +338,9 @@ func (process *Process) readConfig(job *job.Process) error {
 			)
 		}
 
-		yamlContents, err := process.cat(
-			process.sidecar.GetContainer(),
-			process.sidecar.GetGitDir(),
+		yamlContents, err := process.sidecar.ReadFile(
+			process.ctx,
+			process.sidecar.GitDir(),
 			process.task.Pipeline.Filename,
 		)
 		if err != nil {
@@ -477,36 +479,4 @@ func (process *Process) destroy() {
 	if process.sidecar != nil {
 		process.sidecar.Destroy()
 	}
-}
-
-func (process *Process) cat(
-	container cloud.Container,
-	cwd string,
-	path string,
-) (string, error) {
-	data := ""
-	callback := func(line string) {
-		if data == "" {
-			data = line
-		} else {
-			data = data + "\n" + line
-		}
-	}
-
-	err := process.cloud.Exec(
-		process.ctx,
-		container,
-		cloud.ExecConfig{
-			AttachStdout: true,
-			AttachStderr: true,
-			Cmd:          []string{"cat", path},
-			WorkingDir:   cwd,
-		},
-		callback,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return data, nil
 }

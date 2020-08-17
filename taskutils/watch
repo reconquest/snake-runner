@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [[ "$1" ]]; then
+    if grep -q "go:generate" "$1"; then
+        time go generate -v -x "$1"
+    fi
+
+    time go build -v ./...
+
+    exit 0
+fi
+
+self=$(realpath --relative-to=. $0)
+
+watcher '\.go$' -- "$self" "%s"

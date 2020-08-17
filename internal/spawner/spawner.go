@@ -1,21 +1,15 @@
-package cloud
+package spawner
 
 import (
 	"context"
 )
 
-type Cloud interface {
-	CreateContainer(ctx context.Context, image, name string, volumes []string) (Container, error)
-	DestroyContainer(ctx context.Context, container Container) error
-	PullImage(
-		ctx context.Context,
-		reference string,
-		callback OutputConsumer,
-		pullConfig []PullConfig,
-	) error
-	Exec(ctx context.Context, container Container, config ExecConfig, callback OutputConsumer) error
-	Cleanup(ctx context.Context) error
-	GetImageWithTag(ctx context.Context, tag string) (*Image, error)
+type Spawner interface {
+	Create(context.Context, Name, Image, []Volume) (Container, error)
+	Destroy(context.Context, Container) error
+	Prepare(ctx context.Context, image Image, output, info OutputConsumer, pullConfig []PullConfig) error
+	Exec(context.Context, Container, ExecConfig, OutputConsumer) error
+	Cleanup() error
 }
 
 type Container interface {
@@ -24,9 +18,17 @@ type Container interface {
 }
 
 type (
+	Name   string
+	Image  string
+	Volume string
+)
+
+type (
 	OutputConsumer func(string)
 	PromptConsumer func([]string)
 )
+
+func DiscardConsumer(string) {}
 
 type ExecConfig struct {
 	Cmd          []string
@@ -34,11 +36,6 @@ type ExecConfig struct {
 	WorkingDir   string
 	AttachStdout bool
 	AttachStderr bool
-}
-
-type Image struct {
-	ID   string
-	Tags []string
 }
 
 type PullConfig struct {

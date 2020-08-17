@@ -14,7 +14,6 @@ import (
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/bufferer"
-	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/env"
@@ -22,26 +21,36 @@ import (
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
+	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
 
 type ContextPullConfig struct {
-	Runner   cloud.PullConfig
-	Env      cloud.PullConfig
-	Pipeline cloud.PullConfig
-	Job      cloud.PullConfig
+	Runner   spawner.PullConfig
+	Env      spawner.PullConfig
+	Pipeline spawner.PullConfig
+	Job      spawner.PullConfig
+}
+
+func (config *ContextPullConfig) List() []spawner.PullConfig {
+	return []spawner.PullConfig{
+		config.Runner,
+		config.Env,
+		config.Pipeline,
+		config.Job,
+	}
 }
 
 //go:generate gonstructor -type Process -init init
 type Process struct {
 	ctx          context.Context
-	cloud        cloud.Cloud
+	spawner      spawner.Spawner
 	client       *api.Client
 	runnerConfig *runner.Config
 
 	task        tasks.PipelineRun
-	utilization chan cloud.Container
+	utilization chan spawner.Container
 
 	configPipeline    config.Pipeline
 	job               snake.PipelineJob
@@ -50,11 +59,11 @@ type Process struct {
 
 	configJob config.Job `gonstructor:"-"`
 
-	mutex     sync.Mutex       `gonstructor:"-"`
-	container cloud.Container  `gonstructor:"-"`
-	sidecar   *sidecar.Sidecar `gonstructor:"-"`
-	shell     string           `gonstructor:"-"`
-	env       *env.Env         `gonstructor:"-"`
+	mutex     sync.Mutex        `gonstructor:"-"`
+	container spawner.Container `gonstructor:"-"`
+	sidecar   sidecar.Sidecar   `gonstructor:"-"`
+	shell     string            `gonstructor:"-"`
+	env       *env.Env          `gonstructor:"-"`
 	logs      struct {
 		masker       masker.Masker
 		maskWriter   *lineflushwriter.Writer
@@ -66,7 +75,7 @@ func (job *Process) init() {
 	job.setupDirectWriter()
 }
 
-func (job *Process) SetSidecar(car *sidecar.Sidecar) {
+func (job *Process) SetSidecar(car sidecar.Sidecar) {
 	job.sidecar = car
 }
 
@@ -139,8 +148,8 @@ func (process *Process) Run() error {
 		process.configPipeline,
 		process.configJob,
 		process.runnerConfig,
-		process.sidecar.GetGitDir(),
-		process.sidecar.GetSshDir(),
+		process.sidecar.GitDir(),
+		process.sidecar.SshSocketPath(),
 	).Build()
 
 	process.setupMaskWriter(process.env)
@@ -177,21 +186,27 @@ func (process *Process) Run() error {
 		"docker auth configs",
 	)
 
-	err = process.ensureImage(image)
+	err = process.spawner.Prepare(
+		process.ctx,
+		spawner.Image(image),
+		process.logMask,
+		process.logMask,
+		process.contextPullConfig.List(),
+	)
 	if err != nil {
 		return process.errorfRemote(err, "unable to pull image %q", image)
 	}
 
-	process.container, err = process.cloud.CreateContainer(
+	process.container, err = process.spawner.Create(
 		process.ctx,
-		image,
-		fmt.Sprintf(
+		spawner.Name(fmt.Sprintf(
 			"pipeline-%d-job-%d-uniq-%v",
 			process.task.Pipeline.ID,
 			process.job.ID,
 			utils.RandString(8),
-		),
-		process.sidecar.GetContainerVolumes(),
+		)),
+		spawner.Image(image),
+		process.sidecar.ContainerVolumes(),
 	)
 	if err != nil {
 		return process.errorfRemote(err, "unable to create a container")
@@ -237,11 +252,11 @@ func (process *Process) getImage() (string, string) {
 	return image, expanded
 }
 
-func (process *Process) getDockerAuthConfig() (cloud.PullConfig, error) {
+func (process *Process) getDockerAuthConfig() (spawner.PullConfig, error) {
 	if process.configJob.Variables != nil {
 		raw, ok := process.configJob.Variables["DOCKER_AUTH_CONFIG"]
 		if ok {
-			var cfg cloud.PullConfig
+			var cfg spawner.PullConfig
 			err := json.Unmarshal([]byte(raw), &cfg)
 			if err != nil {
 				return cfg, karma.Format(
@@ -255,7 +270,7 @@ func (process *Process) getDockerAuthConfig() (cloud.PullConfig, error) {
 		}
 	}
 
-	return cloud.PullConfig{}, nil
+	return spawner.PullConfig{}, nil
 }
 
 func (process *Process) expandEnv(target string) string {
@@ -309,12 +324,12 @@ func (process *Process) execShell(cmd string) error {
 	go func() {
 		defer audit.Go("exec", cmd)()
 
-		err <- process.cloud.Exec(
+		err <- process.spawner.Exec(
 			process.ctx,
 			process.container,
-			cloud.ExecConfig{
+			spawner.ExecConfig{
 				Env:          process.env.GetAll(),
-				WorkingDir:   process.sidecar.GetGitDir(),
+				WorkingDir:   process.sidecar.GitDir(),
 				Cmd:          []string{process.shell, "-c", cmd},
 				AttachStdout: true,
 				AttachStderr: true,
@@ -378,10 +393,10 @@ func (process *Process) detectShell() error {
 
 	cmd := []string{"sh", "-c", consts.DETECT_SHELL_COMMAND}
 
-	err := process.cloud.Exec(
+	err := process.spawner.Exec(
 		process.ctx,
 		process.container,
-		cloud.ExecConfig{
+		spawner.ExecConfig{
 			Cmd:          cmd,
 			AttachStdout: true,
 			AttachStderr: true,
@@ -410,61 +425,4 @@ func (process *Process) detectShell() error {
 	}
 
 	return nil
-}
-
-func (process *Process) ensureImage(tag string) error {
-	if !strings.Contains(tag, ":") {
-		tag = tag + ":latest"
-	}
-
-	image, err := process.cloud.GetImageWithTag(process.ctx, tag)
-	if err != nil {
-		return err
-	}
-
-	if image == nil {
-		process.LogDirect(
-			fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
-		)
-
-		err := process.cloud.PullImage(
-			process.ctx,
-			tag,
-			process.logMask,
-			[]cloud.PullConfig{
-				process.contextPullConfig.Job,
-				process.contextPullConfig.Pipeline,
-				process.contextPullConfig.Env,
-				process.contextPullConfig.Runner,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		image, err = process.cloud.GetImageWithTag(process.ctx, tag)
-		if err != nil {
-			return karma.Format(err, "unable to get image after pulling")
-		}
-
-		if image == nil {
-			return karma.Format(err, "image not found after pulling")
-		}
-	}
-
-	process.LogDirect(
-		fmt.Sprintf(
-			"\n:: Using docker image: %s @ %s\n",
-			strings.Join(image.Tags, ", "),
-			image.ID,
-		),
-	)
-
-	return nil
-}
-
-func (process *Process) withLock(fn func()) {
-	process.mutex.Lock()
-	defer process.mutex.Unlock()
-	fn()
 }
