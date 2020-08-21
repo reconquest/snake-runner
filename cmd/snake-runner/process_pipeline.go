@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -23,6 +24,13 @@ import (
 	"github.com/reconquest/snake-runner/internal/utils"
 )
 
+type DockerAuthConfigs struct {
+	Runner   cloud.DockerConfig
+	Env      cloud.DockerConfig
+	Pipeline cloud.DockerConfig
+	Job      cloud.DockerConfig
+}
+
 const (
 	FailAllJobs = -1
 )
@@ -38,14 +46,16 @@ type ProcessPipeline struct {
 	log          *cog.Logger
 	utilization  chan *cloud.Container
 
+	sshKey sshkey.Key
+
 	status      string           `gonstructor:"-"`
 	sidecar     *sidecar.Sidecar `gonstructor:"-"`
 	initSidecar syncdo.Action    `gonstructor:"-"`
 	config      config.Pipeline  `gonstructor:"-"`
 
-	sshKey sshkey.Key
-
-	onceFail sync.Once `gonstructor:"-"`
+	variableDockerConfig cloud.DockerConfig `gonstructor:"-"`
+	envDockerConfig      cloud.DockerConfig `gonstructor:"-"`
+	onceFail             sync.Once          `gonstructor:"-"`
 }
 
 func (process *ProcessPipeline) run() error {
@@ -70,6 +80,13 @@ func (process *ProcessPipeline) run() error {
 			err,
 			"unable to update pipeline status",
 		)
+	}
+
+	err = process.parseVariables()
+	if err != nil {
+		process.status = StatusFailed
+		process.fail(FailAllJobs)
+		return err
 	}
 
 	process.status, err = process.runJobs()
@@ -246,6 +263,11 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status str
 				target.ID,
 			),
 		),
+		DockerAuthConfigs{
+			Runner:   process.runnerConfig.GetDockerAuthConfig(),
+			Pipeline: process.variableDockerConfig,
+			Env:      process.envDockerConfig,
+		},
 	)
 
 	defer job.Destroy()
@@ -416,6 +438,38 @@ func (process *ProcessPipeline) updateJob(
 		startedAt,
 		finishedAt,
 	)
+}
+
+func (process *ProcessPipeline) parseVariables() error {
+	if process.config.Variables != nil {
+		raw, ok := process.config.Variables["DOCKER_AUTH_CONFIG"]
+		if ok {
+			err := json.Unmarshal([]byte(raw), &process.variableDockerConfig)
+			if err != nil {
+				return karma.Format(
+					err,
+					"json: unable to decode DOCKER_AUTH_CONFIG "+
+						"specified on the pipeline level",
+				)
+			}
+		}
+	}
+
+	if process.task.Env != nil {
+		raw, ok := process.task.Env["DOCKER_AUTH_CONFIG"]
+		if ok {
+			err := json.Unmarshal([]byte(raw), &process.envDockerConfig)
+			if err != nil {
+				return karma.Format(
+					err,
+					"json: unable to decode DOCKER_AUTH_CONFIG "+
+						"specified as a pipeline environment variable",
+				)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (process *ProcessPipeline) destroy() {

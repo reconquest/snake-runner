@@ -23,17 +23,19 @@ func NewProcessJob(
 	utilization chan *cloud.Container,
 	job snake.PipelineJob,
 	log *cog.Logger,
+	dockerConfigs DockerAuthConfigs,
 ) *ProcessJob {
 	r := &ProcessJob{
-		ctx:          ctx,
-		cloud:        cloud,
-		client:       client,
-		config:       config,
-		runnerConfig: runnerConfig,
-		task:         task,
-		utilization:  utilization,
-		job:          job,
-		log:          log,
+		ctx:           ctx,
+		cloud:         cloud,
+		client:        client,
+		config:        config,
+		runnerConfig:  runnerConfig,
+		task:          task,
+		utilization:   utilization,
+		job:           job,
+		log:           log,
+		dockerConfigs: dockerConfigs,
 	}
 
 	r.init()

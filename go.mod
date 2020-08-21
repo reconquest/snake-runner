@@ -11,9 +11,11 @@ require (
 	github.com/cheekybits/genny v1.0.0
 	github.com/containerd/containerd v1.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/cli v0.0.0-20200116142428-c6d10b6da090
+	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v1.4.2-0.20200117050326-e5c8eca2eebf
-	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/docker-credential-helpers v0.6.3 // indirect
+	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
@@ -21,7 +23,6 @@ require (
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kovetskiy/ko v0.0.0-20200107130756-5aeb3d88d1de
 	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
 	github.com/kovetskiy/toml v0.2.0 // indirect
@@ -29,8 +30,8 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936
 	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
 	github.com/reconquest/lineflushwriter-go v0.0.0-20200617113125-f7349730c72d
@@ -39,9 +40,11 @@ require (
 	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/testify v1.5.1
+	github.com/theupdateframework/notary v0.6.2-0.20200804143915-84287fd8df4f // indirect
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
-	golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a
+	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
 	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
 	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect
 	golang.org/x/text v0.3.2 // indirect

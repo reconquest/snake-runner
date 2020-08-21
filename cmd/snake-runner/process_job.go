@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -39,8 +40,9 @@ type ProcessJob struct {
 	task        tasks.PipelineRun
 	utilization chan *cloud.Container
 
-	job snake.PipelineJob
-	log *cog.Logger
+	job           snake.PipelineJob
+	log           *cog.Logger
+	dockerConfigs DockerAuthConfigs
 
 	configJob config.Job `gonstructor:"-"`
 
@@ -135,7 +137,35 @@ func (process *ProcessJob) Run() error {
 
 	process.log.Debugf(nil, "image: %s → %s", imageExpr, image)
 
-	err := process.ensureImage(image)
+	jobDockerConfig, err := process.getDockerAuthConfig()
+	if err != nil {
+		return process.maskRemoteError(err)
+	}
+
+	process.dockerConfigs.Job = jobDockerConfig
+
+	process.log.Tracef(
+		karma.
+			Describe(
+				"runner",
+				fmt.Sprintf("%d items", len(process.dockerConfigs.Runner.Auths)),
+			).
+			Describe(
+				"env",
+				fmt.Sprintf("%d items", len(process.dockerConfigs.Env.Auths)),
+			).
+			Describe(
+				"pipeline",
+				fmt.Sprintf("%d items", len(process.dockerConfigs.Pipeline.Auths)),
+			).
+			Describe(
+				"job",
+				fmt.Sprintf("%d items", len(process.dockerConfigs.Job.Auths)),
+			),
+		"docker auth configs",
+	)
+
+	err = process.ensureImage(image)
 	if err != nil {
 		return process.maskRemoteErrorf(err, "unable to pull image %q", image)
 	}
@@ -195,6 +225,27 @@ func (process *ProcessJob) getImage() (string, string) {
 	return image, expanded
 }
 
+func (process *ProcessJob) getDockerAuthConfig() (cloud.DockerConfig, error) {
+	if process.configJob.Variables != nil {
+		raw, ok := process.configJob.Variables["DOCKER_AUTH_CONFIG"]
+		if ok {
+			var cfg cloud.DockerConfig
+			err := json.Unmarshal([]byte(raw), &cfg)
+			if err != nil {
+				return cfg, karma.Format(
+					err,
+					"unable to decode DOCKER_AUTH_CONFIG "+
+						"specified on the job level",
+				)
+			}
+
+			return cfg, nil
+		}
+	}
+
+	return cloud.DockerConfig{}, nil
+}
+
 func (process *ProcessJob) expandEnv(target string) string {
 	return os.Expand(target, func(name string) string {
 		value, _ := process.env.Get(name)
@@ -212,6 +263,11 @@ func (process *ProcessJob) directRemoteLog(text string) {
 	process.log.Debugf(nil, "%s", strings.TrimSpace(text))
 
 	process.logs.directWriter.Write([]byte(text))
+}
+
+func (process *ProcessJob) maskRemoteError(err error) error {
+	process.logs.maskWriter.Write([]byte("\n\n" + err.Error() + "\n"))
+	return err
 }
 
 func (process *ProcessJob) maskRemoteErrorf(
@@ -359,7 +415,17 @@ func (process *ProcessJob) ensureImage(tag string) error {
 			fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
 		)
 
-		err := process.cloud.PullImage(process.ctx, tag, process.maskRemoteLog)
+		err := process.cloud.PullImage(
+			process.ctx,
+			tag,
+			process.maskRemoteLog,
+			[]cloud.DockerConfig{
+				process.dockerConfigs.Job,
+				process.dockerConfigs.Pipeline,
+				process.dockerConfigs.Env,
+				process.dockerConfigs.Runner,
+			},
+		)
 		if err != nil {
 			return err
 		}

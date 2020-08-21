@@ -41,11 +41,12 @@ type Sidecar struct {
 	name  string
 	// pipelinesDir is the directory on the host file system where all pipelines
 	// and temporary stuff such as git repos and ssh sockets are stored
-	pipelinesDir   string
-	slug           string
-	promptConsumer cloud.PromptConsumer
-	outputConsumer cloud.OutputConsumer
-	sshKey         sshkey.Key
+	pipelinesDir      string
+	slug              string
+	promptConsumer    cloud.PromptConsumer
+	outputConsumer    cloud.OutputConsumer
+	sshKey            sshkey.Key
+	dockerAuthConfigs []cloud.DockerConfig
 
 	container *cloud.Container `gonstructor:"-"`
 
@@ -87,7 +88,12 @@ func (sidecar *Sidecar) create(ctx context.Context) error {
 	}
 
 	if img == nil {
-		err := sidecar.cloud.PullImage(ctx, SidecarImage, sidecar.outputConsumer)
+		err := sidecar.cloud.PullImage(
+			ctx,
+			SidecarImage,
+			sidecar.outputConsumer,
+			sidecar.dockerAuthConfigs,
+		)
 		if err != nil {
 			return karma.Format(
 				err,

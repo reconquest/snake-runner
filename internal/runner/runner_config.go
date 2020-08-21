@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,12 +14,14 @@ import (
 	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/cloud"
 )
 
 type Config struct {
 	// MasterAddress is actually required but it will be handled manually
 	MasterAddress string `yaml:"master_address" env:"SNAKE_MASTER_ADDRESS"`
-	Log           struct {
+
+	Log struct {
 		Debug bool `yaml:"debug" env:"SNAKE_LOG_DEBUG"`
 		Trace bool `yaml:"trace" env:"SNAKE_LOG_TRACE"`
 	}
@@ -32,9 +35,19 @@ type Config struct {
 	MaxParallelPipelines int64         `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0"                               required:"true"`
 	PipelinesDir         string        `yaml:"pipelines_dir"          env:"SNAKE_PIPELINES_DIR"          default:"/var/lib/snake-runner/pipelines" required:"true"`
 	Docker               struct {
-		Network string   `yaml:"network" env:"SNAKE_DOCKER_NETWORK"`
-		Volumes []string `yaml:"volumes" env:"SNAKE_DOCKER_VOLUMES"`
+		Network string   `yaml:"network"     env:"SNAKE_DOCKER_NETWORK"`
+		Volumes []string `yaml:"volumes"     env:"SNAKE_DOCKER_VOLUMES"`
+
+		// We also read SNAKE_DOCKER_AUTH_CONFIG but we do it manually to avoid
+		// unmarshalling JSON as map
+		AuthConfigJSON string `yaml:"auth_config"`
+
+		authConfig cloud.DockerConfig
 	} `yaml:"docker"`
+}
+
+func (config *Config) GetDockerAuthConfig() cloud.DockerConfig {
+	return config.Docker.authConfig
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -93,6 +106,31 @@ func LoadConfig(path string) (*Config, error) {
 			return nil, karma.Format(
 				err,
 				"unable to get absolute path of %s", config.PipelinesDir,
+			)
+		}
+	}
+
+	var asEnv bool
+	if config.Docker.AuthConfigJSON == "" {
+		asEnv = true
+		config.Docker.AuthConfigJSON = os.Getenv("SNAKE_DOCKER_AUTH_CONFIG")
+	}
+
+	if config.Docker.AuthConfigJSON != "" {
+		if err := json.Unmarshal(
+			[]byte(config.Docker.AuthConfigJSON), &config.Docker.authConfig,
+		); err != nil {
+			var origin string
+			if asEnv {
+				origin = "the SNAKE_DOCKER_AUTH_CONFIG environment variable"
+			} else {
+				origin = "the docker.auth_config config parameter"
+			}
+
+			return nil, karma.Format(
+				err,
+				"unable to decode JSON in the docker auth config specified as %s",
+				origin,
 			)
 		}
 	}

@@ -2,17 +2,28 @@ package cloud
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"strings"
+
+	"github.com/docker/cli/cli/trust"
+	docker_reference "github.com/docker/distribution/reference"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/registry"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 )
+
+type DockerConfig struct {
+	Auths map[string]types.AuthConfig `json:"auths"`
+}
 
 var SSHConfigWithoutVerification = `Host *
 	StrictHostKeyChecking no
@@ -59,8 +70,62 @@ func (cloud *Cloud) PullImage(
 	ctx context.Context,
 	reference string,
 	callback OutputConsumer,
+	configs []DockerConfig,
 ) error {
-	reader, err := cloud.client.ImagePull(ctx, reference, types.ImagePullOptions{})
+	distributionRef, err := docker_reference.ParseNormalizedNamed(reference)
+	if err != nil {
+		return karma.Format(err, "unable to parse ref: %s", reference)
+	}
+	if docker_reference.IsNameOnly(distributionRef) {
+		distributionRef = docker_reference.TagNameOnly(distributionRef)
+	}
+
+	var serverAddress string
+	imgRefAndAuth, err := trust.GetImageReferencesAndAuth(
+		ctx,
+		nil,
+		func(ctx context.Context, index *registrytypes.IndexInfo) types.AuthConfig {
+			configKey := index.Name
+			if index.Official {
+				configKey = registry.IndexServer
+			}
+
+			var found types.AuthConfig
+			for _, config := range configs {
+				if len(config.Auths) > 0 {
+					auth, ok := config.Auths[configKey]
+					if ok {
+						found = auth
+						serverAddress = configKey
+					}
+				}
+			}
+
+			return found
+		},
+		distributionRef.String(),
+	)
+	if err != nil {
+		return err
+	}
+
+	auth, err := cloud.encodeAuth(serverAddress, *imgRefAndAuth.AuthConfig())
+	if err != nil {
+		return err
+	}
+
+	pullOptions := types.ImagePullOptions{
+		RegistryAuth: auth,
+		PrivilegeFunc: func() (string, error) {
+			return auth, nil
+		},
+	}
+
+	reader, err := cloud.client.ImagePull(
+		ctx,
+		distributionRef.String(),
+		pullOptions,
+	)
 	if err != nil {
 		return err
 	}
@@ -85,6 +150,46 @@ func (cloud *Cloud) PullImage(
 	}
 
 	return nil
+}
+
+func (cloud *Cloud) encodeAuth(serverAddress string, auth types.AuthConfig) (string, error) {
+	// https://github.com/docker/cli/blob/75ab44af6f20784b624419ce2df458f1b0322b26/cli/config/configfile/file.go#L106
+	if auth.Auth != "" && auth.Username == "" && auth.Password == "" {
+		decoded, err := base64.URLEncoding.DecodeString(auth.Auth)
+		if err != nil {
+			return "", karma.Format(
+				err,
+				"unable to decode 'auth' field as base64",
+			)
+		}
+
+		chunks := strings.SplitN(string(decoded), ":", 2)
+		if len(chunks) == 2 {
+			auth.Auth = ""
+			auth.Username = chunks[0]
+			auth.Password = chunks[1]
+			auth.ServerAddress = serverAddress
+		}
+	}
+
+	if auth.Username == "" &&
+		auth.Auth == "" &&
+		auth.IdentityToken == "" &&
+		auth.RegistryToken == "" &&
+		auth.Password == "" &&
+		auth.Email == "" {
+		return "", nil
+	}
+
+	json, err := json.Marshal(auth)
+	if err != nil {
+		return "", karma.Format(
+			err,
+			"unable to encode docker auth config",
+		)
+	}
+
+	return base64.URLEncoding.EncodeToString(json), nil
 }
 
 func (cloud *Cloud) ListImages(

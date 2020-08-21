@@ -114,7 +114,7 @@ func (request *Request) Do() error {
 		request.setContentTypeJSON()
 
 		buffer := bytes.NewBuffer(nil)
-		err := json.NewEncoder(buffer).Encode(request.payload)
+		err = json.NewEncoder(buffer).Encode(request.payload)
 		if err != nil {
 			return karma.Format(
 				err,

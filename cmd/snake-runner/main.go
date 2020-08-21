@@ -93,7 +93,7 @@ func main() {
 		return true
 	}, syscall.SIGHUP)
 
-	interrupts := make(chan os.Signal, 0)
+	interrupts := make(chan os.Signal)
 	signal.Notify(interrupts, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	select {
