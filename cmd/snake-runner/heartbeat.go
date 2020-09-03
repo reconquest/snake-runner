@@ -10,7 +10,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/requests"
 )
 
-func (runner *Runner) startHeartbeats() {
+func (runner *Snake) startHeartbeats() {
 	runner.workers.Add(1)
 	go func() {
 		defer audit.Go("heartbeats")()

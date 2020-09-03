@@ -45,8 +45,6 @@ type Image struct {
 	Tags []string
 }
 
-var _ spawner.Spawner = (*Docker)(nil)
-
 type Docker struct {
 	client *docker_client.Client
 
@@ -74,11 +72,15 @@ func NewDocker(network string, volumes []string) (*Docker, error) {
 	return docker, err
 }
 
+func (docker *Docker) Type() spawner.SpawnerType {
+	return spawner.SPAWNER_DOCKER
+}
+
 func (docker *Docker) PullImage(
 	ctx context.Context,
 	reference string,
 	callback spawner.OutputConsumer,
-	configs []spawner.PullConfig,
+	auths []spawner.Auths,
 ) error {
 	distributionRef, err := docker_reference.ParseNormalizedNamed(reference)
 	if err != nil {
@@ -99,9 +101,9 @@ func (docker *Docker) PullImage(
 			}
 
 			var found spawner.AuthConfig
-			for _, config := range configs {
-				if len(config.Auths) > 0 {
-					auth, ok := config.Auths[configKey]
+			for _, auth := range auths {
+				if len(auth) > 0 {
+					auth, ok := auth[configKey]
 					if ok {
 						found = auth
 						serverAddress = configKey
@@ -180,12 +182,10 @@ func (docker *Docker) ListImages(
 
 func (docker *Docker) Create(
 	ctx context.Context,
-	name spawner.Name,
-	image spawner.Image,
-	volumes []spawner.Volume,
+	opts spawner.CreateOptions,
 ) (spawner.Container, error) {
 	config := &docker_container.Config{
-		Image: string(image),
+		Image: opts.Image,
 		Labels: map[string]string{
 			IMAGE_LABEL_KEY: "true",
 		},
@@ -200,7 +200,7 @@ func (docker *Docker) Create(
 		Binds: append([]string{}, docker.volumes...),
 	}
 
-	for _, vol := range volumes {
+	for _, vol := range opts.Volumes {
 		hostConfig.Binds = append(hostConfig.Binds, string(vol))
 	}
 
@@ -210,7 +210,7 @@ func (docker *Docker) Create(
 
 	created, err := docker.client.ContainerCreate(
 		ctx, config,
-		hostConfig, nil, string(name),
+		hostConfig, nil, opts.Name,
 	)
 	if err != nil {
 		return nil, err
@@ -226,7 +226,7 @@ func (docker *Docker) Create(
 		)
 	}
 
-	return Container{id: id, name: string(name)}, nil
+	return Container{id: id, name: opts.Name}, nil
 }
 
 func (docker *Docker) Destroy(
@@ -253,18 +253,17 @@ func (docker *Docker) Destroy(
 func (docker *Docker) Exec(
 	ctx context.Context,
 	container spawner.Container,
-	config spawner.ExecConfig,
-	callback spawner.OutputConsumer,
+	opts spawner.ExecOptions,
 ) error {
 	exec, err := docker.client.ContainerExecCreate(
 		ctx,
 		container.ID(),
 		docker_types.ExecConfig{
-			AttachStderr: config.AttachStderr,
-			AttachStdout: config.AttachStdout,
-			Env:          config.Env,
-			WorkingDir:   config.WorkingDir,
-			Cmd:          config.Cmd,
+			AttachStderr: opts.AttachStderr,
+			AttachStdout: opts.AttachStdout,
+			Env:          opts.Env,
+			WorkingDir:   opts.WorkingDir,
+			Cmd:          opts.Cmd,
 		},
 	)
 	if err != nil {
@@ -279,7 +278,7 @@ func (docker *Docker) Exec(
 		return err
 	}
 
-	writer := callbackWriter{ctx: ctx, callback: callback}
+	writer := callbackWriter{ctx: ctx, callback: opts.OutputConsumer}
 
 	_, err = stdcopy.StdCopy(writer, writer, response.Reader)
 	if err != nil {
@@ -414,12 +413,9 @@ func (docker *Docker) encodeAuth(serverAddress string, auth docker_types.AuthCon
 
 func (docker *Docker) Prepare(
 	ctx context.Context,
-	tagImage spawner.Image,
-	output spawner.OutputConsumer,
-	info spawner.OutputConsumer,
-	configs []spawner.PullConfig,
+	opts spawner.PrepareOptions,
 ) error {
-	tag := string(tagImage)
+	tag := opts.Image
 	if !strings.Contains(tag, ":") {
 		tag = tag + ":latest"
 	}
@@ -430,13 +426,13 @@ func (docker *Docker) Prepare(
 	}
 
 	if image == nil {
-		if info != nil {
-			info(
+		if opts.InfoConsumer != nil {
+			opts.InfoConsumer(
 				fmt.Sprintf("\n:: pulling docker image: %s\n", tag),
 			)
 		}
 
-		err := docker.PullImage(ctx, tag, output, configs)
+		err := docker.PullImage(ctx, tag, opts.OutputConsumer, opts.Auths)
 		if err != nil {
 			return err
 		}
@@ -451,8 +447,8 @@ func (docker *Docker) Prepare(
 		}
 	}
 
-	if info != nil {
-		info(
+	if opts.InfoConsumer != nil {
+		opts.InfoConsumer(
 			fmt.Sprintf(
 				"\n:: Using docker image: %s @ %s\n",
 				strings.Join(image.Tags, ", "),

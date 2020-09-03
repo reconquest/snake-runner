@@ -8,7 +8,6 @@ require (
 	github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38
 	github.com/alecthomas/colour v0.1.0 // indirect
 	github.com/alecthomas/repr v0.0.0-20200325044227-4184120f674c // indirect
-	github.com/brentp/gargs v0.3.9
 	github.com/cheekybits/genny v1.0.0
 	github.com/containerd/containerd v1.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
@@ -19,7 +18,10 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
+	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
@@ -27,10 +29,13 @@ require (
 	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
 	github.com/kovetskiy/toml v0.2.0 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
+	github.com/lib/pq v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mattn/go-sqlite3 v1.11.0 // indirect
+	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
+	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936
@@ -40,21 +45,23 @@ require (
 	github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae
 	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/sirupsen/logrus v1.4.2 // indirect
+	github.com/sirupsen/logrus v1.5.0 // indirect
+	github.com/spf13/afero v1.2.2 // indirect
+	github.com/spf13/cast v1.3.1 // indirect
+	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.6.2 // indirect
 	github.com/stretchr/testify v1.5.1
 	github.com/theupdateframework/notary v0.6.2-0.20200804143915-84287fd8df4f // indirect
 	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
-	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
-	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect
+	golang.org/x/crypto v0.0.0-20200320181102-891825fb96df
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
+	golang.org/x/sys v0.0.0-20200331124033-c3d80250170d // indirect
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
+	google.golang.org/appengine v1.6.2
 	google.golang.org/grpc v1.26.0 // indirect
+	gopkg.in/ini.v1 v1.55.0 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2
 	gotest.tools v2.2.0+incompatible // indirect
-	k8s.io/api v0.18.6
-	k8s.io/apimachinery v0.18.6
-	k8s.io/client-go v0.17.0
-	k8s.io/utils v0.0.0-20200729134348-d5654de09c73 // indirect
 )

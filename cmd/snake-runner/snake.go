@@ -12,7 +12,7 @@ import (
 
 var FailedRegisterRepeatTimeout = time.Second * 10
 
-type Runner struct {
+type Snake struct {
 	config     *runner.Config
 	scheduler  *Scheduler
 	client     *api.Client
@@ -22,9 +22,9 @@ type Runner struct {
 	terminated chan struct{}
 }
 
-func NewRunner(config *runner.Config) *Runner {
+func NewSnake(config *runner.Config) *Snake {
 	context, cancel := context.WithCancel(context.Background())
-	return &Runner{
+	return &Snake{
 		config:     config,
 		client:     api.NewClient(config),
 		context:    context,
@@ -33,8 +33,8 @@ func NewRunner(config *runner.Config) *Runner {
 	}
 }
 
-func (runner *Runner) Start() {
-	accessToken := runner.config.AccessToken
+func (snake *Snake) Start() {
+	accessToken := snake.config.AccessToken
 	if accessToken == "" {
 		// if there is no token for authentication then we need to obtain it by
 		// registering the runner
@@ -42,7 +42,7 @@ func (runner *Runner) Start() {
 		// we write empty token to token file in order to make sure that we can
 		// save the token after registration otherwise users will have to
 		// delete runner from CI manually and repeat registration
-		err := runner.writeAccessToken("")
+		err := snake.writeAccessToken("")
 		if err != nil {
 			log.Fatalf(
 				err,
@@ -51,9 +51,9 @@ func (runner *Runner) Start() {
 			)
 		}
 
-		accessToken := runner.mustRegister()
+		accessToken := snake.mustRegister()
 
-		err = runner.writeAccessToken(accessToken)
+		err = snake.writeAccessToken(accessToken)
 		if err != nil {
 			log.Fatalf(
 				err,
@@ -62,31 +62,31 @@ func (runner *Runner) Start() {
 			)
 		}
 
-		runner.config.AccessToken = accessToken
+		snake.config.AccessToken = accessToken
 	}
 
-	err := runner.startScheduler()
+	err := snake.startScheduler()
 	if err != nil {
 		log.Fatalf(err, "unable to start scheduler")
 	}
 
-	runner.startHeartbeats()
+	snake.startHeartbeats()
 }
 
-func (runner *Runner) Shutdown() {
-	runner.cancel()
+func (snake *Snake) Shutdown() {
+	snake.cancel()
 
-	if runner.scheduler != nil {
-		runner.scheduler.shutdown()
+	if snake.scheduler != nil {
+		snake.scheduler.shutdown()
 	}
 
-	runner.workers.Wait()
+	snake.workers.Wait()
 }
 
-func (runner *Runner) Terminate() {
-	close(runner.terminated)
+func (snake *Snake) Terminate() {
+	close(snake.terminated)
 }
 
-func (runner *Runner) Terminated() <-chan struct{} {
-	return runner.terminated
+func (snake *Snake) Terminated() <-chan struct{} {
+	return snake.terminated
 }

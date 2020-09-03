@@ -14,8 +14,10 @@ import (
 	"github.com/reconquest/snake-runner/internal/pipeline"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
+	"github.com/reconquest/snake-runner/internal/signal"
 	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/spawner/docker"
+	"github.com/reconquest/snake-runner/internal/spawner/shell"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
@@ -28,7 +30,6 @@ type Scheduler struct {
 	pipelines      int64
 	pipelinesGroup sync.WaitGroup
 	cancels        safemap.IntToContextCancelFunc
-	utilization    chan spawner.Container
 	runnerConfig   *runner.Config
 
 	sshKeyFactory *sshkey.Factory
@@ -43,44 +44,66 @@ type Scheduler struct {
 	alive      bool
 }
 
-func (runner *Runner) startScheduler() error {
-	docker, err := docker.NewDocker(
-		runner.config.Docker.Network,
-		runner.config.Docker.Volumes,
-	)
-	if err != nil {
-		return karma.Format(err, "unable to initialize container provider")
+func (snake *Snake) startScheduler() error {
+	var spawn spawner.Spawner
+	var err error
+	switch snake.config.Mode {
+	case runner.RUNNER_MODE_DOCKER:
+		log.Infof(nil, "initializing docker provider")
+
+		spawn, err = docker.NewDocker(
+			snake.config.Docker.Network,
+			snake.config.Docker.Volumes,
+		)
+		if err != nil {
+			return karma.Format(err, "unable to initialize new container provider")
+		}
+
+	case runner.RUNNER_MODE_SHELL:
+		log.Infof(nil, "initializing shell provider")
+
+		spawn, err = shell.NewShell()
+		if err != nil {
+			return karma.Format(
+				err,
+				"unable to initialize new shell provider",
+			)
+		}
+
+	default:
+		return fmt.Errorf(
+			"unexpected runner mode: %s", snake.config.Mode,
+		)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	scheduler := &Scheduler{
-		client:       runner.client,
-		spawner:      docker,
-		utilization:  make(chan spawner.Container, runner.config.MaxParallelPipelines*2),
-		runnerConfig: runner.config,
+		client:       snake.client,
+		spawner:      spawn,
+		runnerConfig: snake.config,
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
-			int(runner.config.MaxParallelPipelines),
+			int(snake.config.MaxParallelPipelines),
 			sshkey.DefaultBlockSize,
 		),
 		pipelinesMap: safemap.NewIntToAny(),
 		cancels:      safemap.NewIntToContextCancelFunc(),
 		context:      ctx,
 		cancel:       cancel,
-		terminator:   runner,
+		terminator:   snake,
 	}
 
-	err = docker.Cleanup()
+	err = spawn.Cleanup()
 	if err != nil {
-		return karma.Format(err, "unable to cleanup old containers")
+		return karma.Format(err, "unable to cleanup old resources")
 	}
 
 	log.Infof(nil, "task scheduler started")
 
-	runner.scheduler = scheduler
+	snake.scheduler = scheduler
 
-	runner.scheduler.start()
+	snake.scheduler.start()
 
 	return nil
 }
@@ -96,11 +119,6 @@ func (scheduler *Scheduler) start() {
 		defer audit.Go("scheduler", "loop")()
 		defer scheduler.routines.Done()
 		scheduler.loop()
-	}()
-	go func() {
-		defer audit.Go("scheduler", "utilizer")()
-		defer scheduler.routines.Done()
-		scheduler.utilize()
 	}()
 }
 
@@ -183,28 +201,6 @@ func (scheduler *Scheduler) getAndServe() (bool, error) {
 	}
 }
 
-func (scheduler *Scheduler) utilize() {
-	for container := range scheduler.utilization {
-		err := scheduler.spawner.Destroy(context.Background(), container)
-		if err != nil {
-			log.Errorf(
-				karma.
-					Describe("id", container.ID).
-					Describe("container", container.String()).
-					Reason(err),
-				"unable to destroy container",
-			)
-		}
-
-		log.Debugf(
-			nil,
-			"container utilized: %s %s",
-			container.ID,
-			container.String(),
-		)
-	}
-}
-
 func (scheduler *Scheduler) serveTask(task interface{}, sshKey sshkey.Key) error {
 	switch task := task.(type) {
 	case *tasks.PipelineRun:
@@ -269,8 +265,8 @@ func (scheduler *Scheduler) startPipeline(
 		task,
 		scheduler.spawner,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d]", task.Pipeline.ID)),
-		scheduler.utilization,
 		sshKey,
+		signal.NewCondition(),
 	)
 
 	scheduler.pipelinesMap.Store(task.Pipeline.ID, struct{}{})
@@ -355,7 +351,6 @@ func (scheduler *Scheduler) shutdown() {
 
 	log.Warningf(nil, "shutdown: waiting for all containers to be terminated")
 
-	close(scheduler.utilization)
 	scheduler.routines.Wait()
 
 	log.Warningf(nil, "shutdown: scheduler gracefully terminated")

@@ -3,9 +3,11 @@
 if [[ "$1" ]]; then
     if grep -q "go:generate" "$1"; then
         time go generate -v -x "$1"
-    fi
+	else
+		exit 0
+	fi
 
-    time go build -v ./...
+	time go build -v "$(dirname "$1")"
 
     exit 0
 fi

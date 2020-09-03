@@ -3,8 +3,6 @@
 package sidecar
 
 import (
-	"sync"
-
 	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
@@ -17,7 +15,6 @@ type CloudSidecarBuilder struct {
 	promptConsumer spawner.PromptConsumer
 	outputConsumer spawner.OutputConsumer
 	sshKey         sshkey.Key
-	sshAgent       sync.WaitGroup
 }
 
 func NewCloudSidecarBuilder() *CloudSidecarBuilder {
@@ -59,11 +56,6 @@ func (b *CloudSidecarBuilder) SshKey(sshKey sshkey.Key) *CloudSidecarBuilder {
 	return b
 }
 
-func (b *CloudSidecarBuilder) SshAgent(sshAgent sync.WaitGroup) *CloudSidecarBuilder {
-	b.sshAgent = sshAgent
-	return b
-}
-
 func (b *CloudSidecarBuilder) Build() *CloudSidecar {
 	return &CloudSidecar{
 		spawner:        b.spawner,
@@ -73,6 +65,5 @@ func (b *CloudSidecarBuilder) Build() *CloudSidecar {
 		promptConsumer: b.promptConsumer,
 		outputConsumer: b.outputConsumer,
 		sshKey:         b.sshKey,
-		sshAgent:       b.sshAgent,
 	}
 }

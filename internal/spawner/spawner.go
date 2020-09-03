@@ -2,13 +2,22 @@ package spawner
 
 import (
 	"context"
+	"io"
+)
+
+type SpawnerType string
+
+const (
+	SPAWNER_DOCKER SpawnerType = "SPAWNER_DOCKER"
+	SPAWNER_SHELL  SpawnerType = "SPAWNER_SHELL"
 )
 
 type Spawner interface {
-	Create(context.Context, Name, Image, []Volume) (Container, error)
+	Type() SpawnerType
+	Create(context.Context, CreateOptions) (Container, error)
 	Destroy(context.Context, Container) error
-	Prepare(ctx context.Context, image Image, output, info OutputConsumer, pullConfig []PullConfig) error
-	Exec(context.Context, Container, ExecConfig, OutputConsumer) error
+	Prepare(context.Context, PrepareOptions) error
+	Exec(context.Context, Container, ExecOptions) error
 	Cleanup() error
 }
 
@@ -18,8 +27,6 @@ type Container interface {
 }
 
 type (
-	Name   string
-	Image  string
 	Volume string
 )
 
@@ -30,17 +37,30 @@ type (
 
 func DiscardConsumer(string) {}
 
-type ExecConfig struct {
-	Cmd          []string
-	Env          []string
-	WorkingDir   string
-	AttachStdout bool
-	AttachStderr bool
+type CreateOptions struct {
+	Name    string
+	Image   string
+	Volumes []Volume
 }
 
-type PullConfig struct {
-	Auths map[string]AuthConfig `json:"auths"`
+type ExecOptions struct {
+	Cmd            []string
+	Env            []string
+	WorkingDir     string
+	AttachStdout   bool
+	AttachStderr   bool
+	OutputConsumer OutputConsumer
+	Stdin          io.Reader
 }
+
+type PrepareOptions struct {
+	Image          string
+	OutputConsumer OutputConsumer
+	InfoConsumer   OutputConsumer
+	Auths          []Auths
+}
+
+type Auths map[string]AuthConfig
 
 type AuthConfig struct {
 	Username string `json:"username,omitempty"`
@@ -55,4 +75,8 @@ type AuthConfig struct {
 
 	// RegistryToken is a bearer token to be sent to a registry
 	RegistryToken string `json:"registrytoken,omitempty"`
+}
+
+type DockerAuths struct {
+	Auths Auths
 }

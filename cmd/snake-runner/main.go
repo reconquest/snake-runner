@@ -64,8 +64,8 @@ func main() {
 
 	log.Infof(nil, "runner name: %s", config.Name)
 
-	runner := NewRunner(config)
-	runner.Start()
+	snake := NewSnake(config)
+	snake.Start()
 
 	// uncomment if you want to trace goroutines
 	//
@@ -80,7 +80,7 @@ func main() {
 	//    }
 	//}()
 
-	go sign.Notify(func(signal os.Signal) bool {
+	go sign.Notify(func(_ os.Signal) bool {
 		defer audit.Go("audit", "sighup")()
 
 		routines := audit.Goroutines()
@@ -97,13 +97,13 @@ func main() {
 	signal.Notify(interrupts, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	select {
-	case <-runner.Terminated():
+	case <-snake.Terminated():
 		// exit
 
 	case signal := <-interrupts:
 		log.Warningf(nil, "got signal: %s, shutting down runner", signal)
 	}
 
-	runner.Shutdown()
+	snake.Shutdown()
 	log.Warningf(nil, "shutdown: runner gracefully terminated")
 }

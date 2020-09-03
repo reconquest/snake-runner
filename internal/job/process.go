@@ -11,11 +11,11 @@ import (
 	"github.com/reconquest/cog"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/lineflushwriter-go"
+	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/bufferer"
 	"github.com/reconquest/snake-runner/internal/config"
-	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/env"
 	"github.com/reconquest/snake-runner/internal/masker"
 	"github.com/reconquest/snake-runner/internal/runner"
@@ -26,15 +26,32 @@ import (
 	"github.com/reconquest/snake-runner/internal/utils"
 )
 
-type ContextPullConfig struct {
-	Runner   spawner.PullConfig
-	Env      spawner.PullConfig
-	Pipeline spawner.PullConfig
-	Job      spawner.PullConfig
+const (
+	DEFAULT_CONTAINER_JOB_IMAGE = "alpine:latest"
+
+	LINUX_DEFAULT_SHELL_COMMAND = `IFS=:;
+if [ -z "$PATH" ]; then
+	set -- $(getconf PATH)
+else 
+	set -- $PATH;
+fi;
+for dir; do
+	if [ -x $dir/bash ]; then
+		echo $dir/bash;
+		exit 0;
+	fi;
+done;`
+)
+
+type ContextSpawnerAuth struct {
+	Runner   spawner.Auths
+	Env      spawner.Auths
+	Pipeline spawner.Auths
+	Job      spawner.Auths
 }
 
-func (config *ContextPullConfig) List() []spawner.PullConfig {
-	return []spawner.PullConfig{
+func (config *ContextSpawnerAuth) List() []spawner.Auths {
+	return []spawner.Auths{
 		config.Runner,
 		config.Env,
 		config.Pipeline,
@@ -49,13 +66,12 @@ type Process struct {
 	client       *api.Client
 	runnerConfig *runner.Config
 
-	task        tasks.PipelineRun
-	utilization chan spawner.Container
+	task tasks.PipelineRun
 
-	configPipeline    config.Pipeline
-	job               snake.PipelineJob
-	log               *cog.Logger
-	contextPullConfig ContextPullConfig
+	configPipeline  config.Pipeline
+	job             snake.PipelineJob
+	log             *cog.Logger
+	contextPullAuth ContextSpawnerAuth
 
 	configJob config.Job `gonstructor:"-"`
 
@@ -163,35 +179,37 @@ func (process *Process) Run() error {
 		return process.errorRemote(err)
 	}
 
-	process.contextPullConfig.Job = jobDockerConfig
+	process.contextPullAuth.Job = jobDockerConfig
 
 	process.log.Tracef(
 		karma.
 			Describe(
 				"runner",
-				fmt.Sprintf("%d items", len(process.contextPullConfig.Runner.Auths)),
+				fmt.Sprintf("%d items", len(process.contextPullAuth.Runner)),
 			).
 			Describe(
 				"env",
-				fmt.Sprintf("%d items", len(process.contextPullConfig.Env.Auths)),
+				fmt.Sprintf("%d items", len(process.contextPullAuth.Env)),
 			).
 			Describe(
 				"pipeline",
-				fmt.Sprintf("%d items", len(process.contextPullConfig.Pipeline.Auths)),
+				fmt.Sprintf("%d items", len(process.contextPullAuth.Pipeline)),
 			).
 			Describe(
 				"job",
-				fmt.Sprintf("%d items", len(process.contextPullConfig.Job.Auths)),
+				fmt.Sprintf("%d items", len(process.contextPullAuth.Job)),
 			),
 		"docker auth configs",
 	)
 
 	err = process.spawner.Prepare(
 		process.ctx,
-		spawner.Image(image),
-		process.logMask,
-		process.logMask,
-		process.contextPullConfig.List(),
+		spawner.PrepareOptions{
+			Image:          image,
+			OutputConsumer: process.logMask,
+			InfoConsumer:   process.logMask,
+			Auths:          process.contextPullAuth.List(),
+		},
 	)
 	if err != nil {
 		return process.errorfRemote(err, "unable to pull image %q", image)
@@ -199,21 +217,39 @@ func (process *Process) Run() error {
 
 	process.container, err = process.spawner.Create(
 		process.ctx,
-		spawner.Name(fmt.Sprintf(
-			"pipeline-%d-job-%d-uniq-%v",
-			process.task.Pipeline.ID,
-			process.job.ID,
-			utils.RandString(8),
-		)),
-		spawner.Image(image),
-		process.sidecar.ContainerVolumes(),
+		spawner.CreateOptions{
+			Name: fmt.Sprintf(
+				"pipeline-%d-job-%d-uniq-%v",
+				process.task.Pipeline.ID,
+				process.job.ID,
+				utils.RandString(8),
+			),
+			Image:   image,
+			Volumes: process.sidecar.ContainerVolumes(),
+		},
 	)
 	if err != nil {
 		return process.errorfRemote(err, "unable to create a container")
 	}
 
 	defer func() {
-		process.utilization <- process.container
+		err := process.spawner.Destroy(context.Background(), process.container)
+		if err != nil {
+			log.Errorf(
+				karma.
+					Describe("id", process.container.ID).
+					Describe("container", process.container.String()).
+					Reason(err),
+				"unable to destroy container",
+			)
+		}
+
+		log.Debugf(
+			nil,
+			"container utilized: %s %s",
+			process.container.ID(),
+			process.container.String(),
+		)
 	}()
 
 	err = process.detectShell()
@@ -244,7 +280,7 @@ func (process *Process) getImage() (string, string) {
 	case process.configPipeline.Image != "":
 		image = process.configPipeline.Image
 	default:
-		image = consts.DEFAULT_CONTAINER_JOB_IMAGE
+		image = DEFAULT_CONTAINER_JOB_IMAGE
 	}
 
 	expanded := process.expandEnv(image)
@@ -252,11 +288,11 @@ func (process *Process) getImage() (string, string) {
 	return image, expanded
 }
 
-func (process *Process) getDockerAuthConfig() (spawner.PullConfig, error) {
+func (process *Process) getDockerAuthConfig() (spawner.Auths, error) {
 	if process.configJob.Variables != nil {
 		raw, ok := process.configJob.Variables["DOCKER_AUTH_CONFIG"]
 		if ok {
-			var cfg spawner.PullConfig
+			var cfg spawner.Auths
 			err := json.Unmarshal([]byte(raw), &cfg)
 			if err != nil {
 				return cfg, karma.Format(
@@ -270,7 +306,7 @@ func (process *Process) getDockerAuthConfig() (spawner.PullConfig, error) {
 		}
 	}
 
-	return spawner.PullConfig{}, nil
+	return spawner.Auths{}, nil
 }
 
 func (process *Process) expandEnv(target string) string {
@@ -327,14 +363,14 @@ func (process *Process) execShell(cmd string) error {
 		err <- process.spawner.Exec(
 			process.ctx,
 			process.container,
-			spawner.ExecConfig{
-				Env:          process.env.GetAll(),
-				WorkingDir:   process.sidecar.GitDir(),
-				Cmd:          []string{process.shell, "-c", cmd},
-				AttachStdout: true,
-				AttachStderr: true,
+			spawner.ExecOptions{
+				Env:            process.env.GetAll(),
+				WorkingDir:     process.sidecar.GitDir(),
+				Cmd:            []string{process.shell, "-c", cmd},
+				AttachStdout:   true,
+				AttachStderr:   true,
+				OutputConsumer: process.logMask,
 			},
-			process.logMask,
 		)
 	}()
 
@@ -391,17 +427,17 @@ func (process *Process) detectShell() error {
 		}
 	}
 
-	cmd := []string{"sh", "-c", consts.DETECT_SHELL_COMMAND}
+	cmd := []string{"sh", "-c", LINUX_DEFAULT_SHELL_COMMAND}
 
 	err := process.spawner.Exec(
 		process.ctx,
 		process.container,
-		spawner.ExecConfig{
-			Cmd:          cmd,
-			AttachStdout: true,
-			AttachStderr: true,
+		spawner.ExecOptions{
+			Cmd:            cmd,
+			AttachStdout:   true,
+			AttachStderr:   true,
+			OutputConsumer: callback,
 		},
-		callback,
 	)
 	if err != nil {
 		return karma.Format(

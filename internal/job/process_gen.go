@@ -20,23 +20,21 @@ func NewProcess(
 	client *api.Client,
 	runnerConfig *runner.Config,
 	task tasks.PipelineRun,
-	utilization chan spawner.Container,
 	configPipeline config.Pipeline,
 	job snake.PipelineJob,
 	log *cog.Logger,
-	contextPullConfig ContextPullConfig,
+	contextPullAuth ContextSpawnerAuth,
 ) *Process {
 	r := &Process{
-		ctx:               ctx,
-		spawner:           spawner,
-		client:            client,
-		runnerConfig:      runnerConfig,
-		task:              task,
-		utilization:       utilization,
-		configPipeline:    configPipeline,
-		job:               job,
-		log:               log,
-		contextPullConfig: contextPullConfig,
+		ctx:             ctx,
+		spawner:         spawner,
+		client:          client,
+		runnerConfig:    runnerConfig,
+		task:            task,
+		configPipeline:  configPipeline,
+		job:             job,
+		log:             log,
+		contextPullAuth: contextPullAuth,
 	}
 
 	r.init()

@@ -39,8 +39,8 @@ type Config struct {
 	AccessTokenPath      string        `yaml:"access_token_path"      env:"SNAKE_ACCESS_TOKEN_PATH"`
 	HeartbeatInterval    time.Duration `yaml:"heartbeat_interval"     env:"SNAKE_HEARTBEAT_INTERVAL"     default:"45s"`
 	SchedulerInterval    time.Duration `yaml:"scheduler_interval"     env:"SNAKE_SCHEDULER_INTERVAL"     default:"5s"`
-	Mode                 string        `yaml:"mode"                   env:"SNAKE_MODE"                   default:"docker"                          required:"true"`
-	MaxParallelPipelines int64         `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0"                               required:"true"`
+	Mode                 string        `yaml:"exec_mode"              env:"SNAKE_EXEC_MODE"              default:"docker" required:"true"`
+	MaxParallelPipelines int64         `yaml:"max_parallel_pipelines" env:"SNAKE_MAX_PARALLEL_PIPELINES" default:"0"      required:"true"`
 	PipelinesDir         string        `yaml:"pipelines_dir"          env:"SNAKE_PIPELINES_DIR"`
 	Docker               struct {
 		Network string   `yaml:"network"     env:"SNAKE_DOCKER_NETWORK"`
@@ -50,12 +50,12 @@ type Config struct {
 		// unmarshalling JSON as map
 		AuthConfigJSON string `yaml:"auth_config"`
 
-		authConfig spawner.PullConfig
+		auths spawner.DockerAuths
 	} `yaml:"docker"`
 }
 
-func (config *Config) GetDockerAuthConfig() spawner.PullConfig {
-	return config.Docker.authConfig
+func (config *Config) GetDockerAuthConfig() spawner.Auths {
+	return config.Docker.auths.Auths
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -70,6 +70,10 @@ func LoadConfig(path string) (*Config, error) {
 	if config.MasterAddress == "" || config.RegistrationToken == "" {
 		ShowMessageNotConfigured(config)
 		os.Exit(1)
+	}
+
+	if config.AccessTokenPath == "" {
+		config.AccessTokenPath = DEFAULT_ACCESS_TOKEN_PATH
 	}
 
 	if config.AccessTokenPath != "" && config.AccessToken == "" {
@@ -119,6 +123,10 @@ func LoadConfig(path string) (*Config, error) {
 		config.Name = hostname
 	}
 
+	if config.PipelinesDir == "" {
+		config.PipelinesDir = DEFAULT_PIPELINES_DIR
+	}
+
 	if !filepath.IsAbs(config.PipelinesDir) {
 		config.PipelinesDir, err = filepath.Abs(config.PipelinesDir)
 		if err != nil {
@@ -137,7 +145,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	if config.Docker.AuthConfigJSON != "" {
 		if err := json.Unmarshal(
-			[]byte(config.Docker.AuthConfigJSON), &config.Docker.authConfig,
+			[]byte(config.Docker.AuthConfigJSON), &config.Docker.auths,
 		); err != nil {
 			var origin string
 			if asEnv {

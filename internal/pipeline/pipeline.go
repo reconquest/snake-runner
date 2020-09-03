@@ -18,11 +18,11 @@ import (
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
+	"github.com/reconquest/snake-runner/internal/signal"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/status"
-	"github.com/reconquest/snake-runner/internal/syncdo"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
@@ -40,18 +40,20 @@ type Process struct {
 	task         tasks.PipelineRun
 	spawner      spawner.Spawner
 	log          *cog.Logger
-	utilization  chan spawner.Container
 
 	sshKey sshkey.Key
 
-	status      status.Status   `gonstructor:"-"`
-	sidecar     sidecar.Sidecar `gonstructor:"-"`
-	initSidecar syncdo.Action   `gonstructor:"-"`
-	config      config.Pipeline `gonstructor:"-"`
+	status  status.Status   `gonstructor:"-"`
+	sidecar sidecar.Sidecar `gonstructor:"-"`
+	config  config.Pipeline `gonstructor:"-"`
 
-	variableDockerConfig spawner.PullConfig `gonstructor:"-"`
-	envDockerConfig      spawner.PullConfig `gonstructor:"-"`
-	onceFail             sync.Once          `gonstructor:"-"`
+	auth struct {
+		variable    spawner.Auths `gonstructor:"-"`
+		environment spawner.Auths `gonstructor:"-"`
+	} `gonstructor:"-"`
+
+	onceFail   sync.Once `gonstructor:"-"`
+	configCond signal.Condition
 }
 
 func (process *Process) Run() error {
@@ -198,7 +200,7 @@ func (process *Process) runJob(total, index int, job snake.PipelineJob) (status.
 		)
 	}
 
-	status, jobErr := process.processJob(job)
+	status, jobErr := process.processJob(index, job)
 
 	process.log.Infof(
 		nil,
@@ -230,8 +232,11 @@ func (process *Process) runJob(total, index int, job snake.PipelineJob) (status.
 }
 
 func (process *Process) processJob(
+	index int,
 	target snake.PipelineJob,
 ) (result status.Status, err error) {
+	var task *job.Process
+
 	defer func() {
 		tears := recover()
 		if tears != nil {
@@ -242,16 +247,26 @@ func (process *Process) processJob(
 			log.Error(err)
 
 			result = status.FAILED
+
+			if task != nil {
+				task.ErrorfDirect(
+					err,
+					"the job failed due to an internal error, please report it",
+				)
+			}
+		}
+
+		if task != nil {
+			task.Destroy()
 		}
 	}()
 
-	job := job.NewProcess(
+	task = job.NewProcess(
 		process.ctx,
 		process.spawner,
 		process.client,
 		process.runnerConfig,
 		process.task,
-		process.utilization,
 		process.config,
 		target,
 		process.log.NewChildWithPrefix(
@@ -261,32 +276,39 @@ func (process *Process) processJob(
 				target.ID,
 			),
 		),
-		job.ContextPullConfig{
+		job.ContextSpawnerAuth{
 			Runner:   process.runnerConfig.GetDockerAuthConfig(),
-			Pipeline: process.variableDockerConfig,
-			Env:      process.envDockerConfig,
+			Pipeline: process.auth.variable,
+			Env:      process.auth.environment,
 		},
 	)
 
-	defer job.Destroy()
+	// we want to read config only in the first container because users would
+	// expect to see logs for git clone and other stuff in the first job in the
+	// list instead of what job comes up first in a race
+	if index == 1 {
+		err = process.readConfig(task)
+		if err != nil {
+			return status.FAILED, task.ErrorfDirect(
+				err,
+				"unable to read config file",
+			)
+		}
 
-	err = process.readConfig(job)
-	if err != nil {
-		return status.FAILED, job.ErrorfDirect(
-			err,
-			"unable to read config file",
-		)
+		process.configCond.Satisfy()
+	} else {
+		process.configCond.Wait()
 	}
 
-	job.SetSidecar(process.sidecar)
-	job.SetConfigPipeline(process.config)
+	task.SetSidecar(process.sidecar)
+	task.SetConfigPipeline(process.config)
 
-	err = job.Run()
+	err = task.Run()
 	if err != nil {
 		if utils.IsCanceled(err) {
 			// special case when runner gets terminated
 			if utils.IsDone(process.parentCtx) {
-				job.LogDirect("\n\nWARNING: snake-runner has been terminated")
+				task.LogDirect("\n\nWARNING: snake-runner has been terminated")
 
 				return status.FAILED, err
 			}
@@ -301,67 +323,79 @@ func (process *Process) processJob(
 }
 
 func (process *Process) readConfig(job *job.Process) error {
-	return process.initSidecar.Do(func() error {
-		if process.runnerConfig.Mode == runner.RUNNER_MODE_DOCKER {
-			process.sidecar = sidecar.NewCloudSidecarBuilder().
-				Spawner(process.spawner).
-				Name(
-					fmt.Sprintf(
-						"pipeline-%d-uniq-%s",
-						process.task.Pipeline.ID,
-						utils.RandString(10),
-					),
-				).
-				Slug(
-					fmt.Sprintf(
-						"%s/%s",
-						process.task.Project.Key,
-						process.task.Repository.Slug,
-					),
-				).
-				PipelinesDir(process.runnerConfig.PipelinesDir).
-				PromptConsumer(job.SendPromptDirect).
-				OutputConsumer(job.LogDirect).
-				SshKey(process.sshKey).
-				Build()
-		}
+	process.sidecar = process.buildSidecar(job)
 
-		err := process.sidecar.Serve(
-			process.ctx,
-			process.task.CloneURL.SSH,
-			process.task.Pipeline.Commit,
+	err := process.sidecar.Serve(
+		process.ctx,
+		process.task.CloneURL.SSH,
+		process.task.Pipeline.Commit,
+	)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable ot start sidecar container with repository",
 		)
-		if err != nil {
-			return karma.Format(
-				err,
-				"unable ot start sidecar container with repository",
-			)
-		}
+	}
 
-		yamlContents, err := process.sidecar.ReadFile(
-			process.ctx,
-			process.sidecar.GitDir(),
+	yamlContents, err := process.sidecar.ReadFile(
+		process.ctx,
+		process.sidecar.GitDir(),
+		process.task.Pipeline.Filename,
+	)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to obtain file from sidecar container with repository: %q",
 			process.task.Pipeline.Filename,
 		)
-		if err != nil {
-			return karma.Format(
-				err,
-				"unable to obtain file from sidecar container with repository: %q",
-				process.task.Pipeline.Filename,
-			)
-		}
+	}
 
-		process.config, err = config.Unmarshal([]byte(yamlContents))
-		if err != nil {
-			return karma.Format(
-				err,
-				"unable to unmarshal yaml data: %q",
-				process.task.Pipeline.Filename,
-			)
-		}
+	process.config, err = config.Unmarshal([]byte(yamlContents))
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to unmarshal yaml data: %q",
+			process.task.Pipeline.Filename,
+		)
+	}
 
-		return nil
-	})
+	return nil
+}
+
+func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
+	name := fmt.Sprintf(
+		"pipeline-%d-uniq-%s", process.task.Pipeline.ID, utils.RandString(10),
+	)
+
+	slug := fmt.Sprintf(
+		"%s/%s", process.task.Project.Key, process.task.Repository.Slug,
+	)
+
+	switch process.runnerConfig.Mode {
+	case runner.RUNNER_MODE_DOCKER:
+		return sidecar.NewCloudSidecarBuilder().
+			Spawner(process.spawner).
+			Name(name).
+			Slug(slug).
+			PipelinesDir(process.runnerConfig.PipelinesDir).
+			PromptConsumer(job.SendPromptDirect).
+			OutputConsumer(job.LogDirect).
+			SshKey(process.sshKey).
+			Build()
+	case runner.RUNNER_MODE_SHELL:
+		return sidecar.NewShellSidecarBuilder().
+			Spawner(process.spawner).
+			Name(name).
+			Slug(slug).
+			PipelinesDir(process.runnerConfig.PipelinesDir).
+			PromptConsumer(job.SendPromptDirect).
+			OutputConsumer(job.LogDirect).
+			SshKey(process.sshKey).
+			Build()
+
+	default:
+		panic("BUG: unexpected runner mode: " + process.runnerConfig.Mode)
+	}
 }
 
 func (process *Process) fail(failedID int) {
@@ -447,7 +481,7 @@ func (process *Process) parseVariables() error {
 	if process.config.Variables != nil {
 		raw, ok := process.config.Variables["DOCKER_AUTH_CONFIG"]
 		if ok {
-			err := json.Unmarshal([]byte(raw), &process.variableDockerConfig)
+			err := json.Unmarshal([]byte(raw), &process.auth.variable)
 			if err != nil {
 				return karma.Format(
 					err,
@@ -461,7 +495,7 @@ func (process *Process) parseVariables() error {
 	if process.task.Env != nil {
 		raw, ok := process.task.Env["DOCKER_AUTH_CONFIG"]
 		if ok {
-			err := json.Unmarshal([]byte(raw), &process.envDockerConfig)
+			err := json.Unmarshal([]byte(raw), &process.auth.environment)
 			if err != nil {
 				return karma.Format(
 					err,

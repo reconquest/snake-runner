@@ -8,7 +8,6 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
@@ -16,15 +15,10 @@ import (
 //go:generate gonstructor -type CloudSidecar -constructorTypes builder
 
 const (
-	CLOUD_SIDECAR_IMAGE spawner.Image = "reconquest/snake-runner-sidecar"
+	CLOUD_SIDECAR_IMAGE = "reconquest/snake-runner-sidecar"
 )
 
 var _ Sidecar = (*CloudSidecar)(nil)
-
-var capabilitiesCloud = capabilities{
-	//containers: true,
-	volumes: true,
-}
 
 // CloudSidecar produces the following volumes:
 // * volume with git repository cloned from the bitbucket instance
@@ -52,11 +46,7 @@ type CloudSidecar struct {
 	sshDir    string `gonstructor:"-"`
 	sshSocket string `gonstructor:"-"`
 
-	sshAgent sync.WaitGroup
-}
-
-func (sidecar *CloudSidecar) Capabilities() Capabilities {
-	return capabilitiesCloud
+	sshAgent *sync.WaitGroup `gonstructor:"-"`
 }
 
 func (sidecar *CloudSidecar) ContainerVolumes() []spawner.Volume {
@@ -71,7 +61,7 @@ func (sidecar *CloudSidecar) GitDir() string {
 }
 
 func (sidecar *CloudSidecar) SshSocketPath() string {
-	return sidecar.sshDir
+	return sidecar.sshSocket
 }
 
 func (sidecar *CloudSidecar) Container() spawner.Container {
@@ -81,10 +71,12 @@ func (sidecar *CloudSidecar) Container() spawner.Container {
 func (sidecar *CloudSidecar) create(ctx context.Context) error {
 	err := sidecar.spawner.Prepare(
 		ctx,
-		CLOUD_SIDECAR_IMAGE,
-		sidecar.outputConsumer,
-		spawner.DiscardConsumer,
-		[]spawner.PullConfig{},
+		spawner.PrepareOptions{
+			Image:          CLOUD_SIDECAR_IMAGE,
+			OutputConsumer: sidecar.outputConsumer,
+			InfoConsumer:   spawner.DiscardConsumer,
+			Auths:          nil,
+		},
 	)
 	if err != nil {
 		return karma.Format(
@@ -109,9 +101,11 @@ func (sidecar *CloudSidecar) create(ctx context.Context) error {
 
 	sidecar.container, err = sidecar.spawner.Create(
 		ctx,
-		spawner.Name("snake-runner-sidecar-"+sidecar.name),
-		CLOUD_SIDECAR_IMAGE,
-		volumes,
+		spawner.CreateOptions{
+			Name:    "snake-runner-sidecar-" + sidecar.name,
+			Image:   CLOUD_SIDECAR_IMAGE,
+			Volumes: volumes,
+		},
 	)
 	if err != nil {
 		return karma.Format(
@@ -135,11 +129,12 @@ func (sidecar *CloudSidecar) Serve(
 	}
 
 	// preparing _directories_ such as 'git' and 'ssh'
-	err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecConfig{
-		Cmd:          []string{"mkdir", "-p", sidecar.gitDir, sidecar.sshDir},
-		AttachStdout: true,
-		AttachStderr: true,
-	}, sidecar.getLogger("mkdir"))
+	err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
+		Cmd:            []string{"mkdir", "-p", sidecar.gitDir, sidecar.sshDir},
+		AttachStdout:   true,
+		AttachStderr:   true,
+		OutputConsumer: sidecar.getLogger("mkdir"),
+	})
 	if err != nil {
 		return karma.Format(
 			err,
@@ -150,7 +145,13 @@ func (sidecar *CloudSidecar) Serve(
 	}
 
 	// starting ssh-agent
-	sidecar.sshSocket, err = sidecar.startSshAgent(ctx)
+	sidecar.sshAgent, sidecar.sshSocket, err = startSshAgent(
+		ctx,
+		sidecar.spawner,
+		sidecar.container,
+		sidecar.getLogger("ssh-agent"),
+		sidecar.sshDir,
+	)
 	if err != nil {
 		return karma.Format(
 			err,
@@ -161,7 +162,7 @@ func (sidecar *CloudSidecar) Serve(
 	env := []string{
 		SSH_SOCKET_VAR + "=" + sidecar.sshSocket,
 		"__SNAKE_PRIVATE_KEY=" + string(sidecar.sshKey.Private),
-		"__SNAKE_SSH_CONFIG=" + SSH_CONFIG_NO_VERIFICATION,
+		"__SNAKE_SSH_CONFIG=" + SSH_CONFIG_NO_STRICT_HOST_KEY_CHECKING,
 	}
 
 	// adding ssh key to the ssh-agent and tuning up git a bit
@@ -174,12 +175,13 @@ func (sidecar *CloudSidecar) Serve(
 
 	cmd := []string{"bash", "-c", strings.Join(basic, " && ")}
 
-	err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecConfig{
-		Cmd:          cmd,
-		Env:          env,
-		AttachStdout: true,
-		AttachStderr: true,
-	}, sidecar.getLogger("prep"))
+	err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
+		Cmd:            cmd,
+		Env:            env,
+		AttachStdout:   true,
+		AttachStderr:   true,
+		OutputConsumer: sidecar.getLogger("prepare"),
+	})
 	if err != nil {
 		return karma.Describe("cmd", cmd).Format(
 			err,
@@ -196,16 +198,17 @@ func (sidecar *CloudSidecar) Serve(
 	for _, cmd := range commands {
 		sidecar.promptConsumer(cmd)
 
-		err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecConfig{
+		err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
 			Env: []string{
 				SSH_SOCKET_VAR + "=" + sidecar.sshSocket,
 				// NOTE: the private key is not passed anymore but it's already
 				// in ssh-agent's memory
 			},
-			Cmd:          cmd,
-			AttachStdout: true,
-			AttachStderr: true,
-		}, sidecar.outputConsumer)
+			Cmd:            cmd,
+			AttachStdout:   true,
+			AttachStderr:   true,
+			OutputConsumer: sidecar.outputConsumer,
+		})
 		if err != nil {
 			return karma.
 				Describe("cmd", cmd).
@@ -214,56 +217,6 @@ func (sidecar *CloudSidecar) Serve(
 	}
 
 	return nil
-}
-
-func (sidecar *CloudSidecar) startSshAgent(ctx context.Context) (string, error) {
-	started := make(chan struct{}, 1)
-	failed := make(chan error, 1)
-
-	logger := sidecar.getLogger("ssh-agent")
-	callback := func(text string) {
-		logger(text)
-
-		if strings.Contains(text, SSH_SOCKET_VAR+"=") {
-			started <- struct{}{}
-		}
-	}
-
-	sshSocket := filepath.Join(sidecar.sshDir, SSH_SOCKET_FILENAME)
-
-	sidecar.sshAgent.Add(1)
-	go func() {
-		defer audit.Go("sidecar", "ssh-agent")()
-
-		defer sidecar.sshAgent.Done()
-
-		err := sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecConfig{
-			Cmd: []string{
-				"ssh-agent",
-				"-d", "-a", sshSocket,
-			},
-
-			AttachStdout: true,
-			AttachStderr: true,
-		}, callback)
-		if err != nil {
-			failed <- karma.Format(
-				err,
-				"unable to run ssh-agent in sidecar container",
-			)
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return "", context.Canceled
-
-	case err := <-failed:
-		return "", err
-
-	case <-started:
-		return sshSocket, nil
-	}
 }
 
 func (sidecar *CloudSidecar) getLogger(tag string) func(string) {
@@ -295,8 +248,12 @@ func (sidecar *CloudSidecar) Destroy() {
 		err := sidecar.spawner.Exec(
 			context.Background(),
 			sidecar.container,
-			spawner.ExecConfig{Cmd: cmd, AttachStderr: true, AttachStdout: true},
-			sidecar.getLogger("rm"),
+			spawner.ExecOptions{
+				Cmd:            cmd,
+				AttachStderr:   true,
+				AttachStdout:   true,
+				OutputConsumer: sidecar.getLogger("rm"),
+			},
 		)
 		if err != nil {
 			log.Errorf(
@@ -345,13 +302,13 @@ func (sidecar *CloudSidecar) ReadFile(ctx context.Context, cwd, path string) (st
 	err := sidecar.spawner.Exec(
 		ctx,
 		sidecar.Container(),
-		spawner.ExecConfig{
-			AttachStdout: true,
-			AttachStderr: true,
-			Cmd:          []string{"cat", path},
-			WorkingDir:   cwd,
+		spawner.ExecOptions{
+			AttachStdout:   true,
+			AttachStderr:   true,
+			Cmd:            []string{"cat", path},
+			WorkingDir:     cwd,
+			OutputConsumer: callback,
 		},
-		callback,
 	)
 	if err != nil {
 		return "", err

@@ -12,9 +12,9 @@ import (
 	"github.com/reconquest/snake-runner/internal/requests"
 )
 
-func (runner *Runner) mustRegister() string {
+func (snake *Snake) mustRegister() string {
 	for {
-		token, err := runner.register()
+		token, err := snake.register()
 		if err != nil {
 			remote := false
 			for _, reason := range karma.GetReasons(err) {
@@ -43,15 +43,15 @@ func (runner *Runner) mustRegister() string {
 	}
 }
 
-func (runner *Runner) register() (string, error) {
+func (snake *Snake) register() (string, error) {
 	log.Infof(nil, "sending registration request")
 
 	request := requests.NewRunnerRegister(
-		runner.config.Name,
-		runner.config.RegistrationToken,
+		snake.config.Name,
+		snake.config.RegistrationToken,
 	)
 
-	response, err := runner.client.Register(*request)
+	response, err := snake.client.Register(*request)
 	if err != nil {
 		return "", err
 	}
@@ -59,8 +59,9 @@ func (runner *Runner) register() (string, error) {
 	return response.AccessToken, nil
 }
 
-func (runner *Runner) writeAccessToken(token string) error {
-	dir := filepath.Dir(runner.config.AccessTokenPath)
+func (snake *Snake) writeAccessToken(token string) error {
+	dir := filepath.Dir(snake.config.AccessTokenPath)
+
 	err := os.MkdirAll(dir, 0o664)
 	if err != nil {
 		return karma.Format(
@@ -69,7 +70,7 @@ func (runner *Runner) writeAccessToken(token string) error {
 		)
 	}
 
-	path := runner.config.AccessTokenPath
+	path := snake.config.AccessTokenPath
 	err = ioutil.WriteFile(path, []byte(token), 0o600)
 	if err != nil {
 		return karma.Format(
