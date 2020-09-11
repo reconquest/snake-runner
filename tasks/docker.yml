@@ -7,6 +7,8 @@ tasks:
       - task go:build_docker
       - docker build -t reconquest/snake-runner
           -f docker/snake-runner/alpine/Dockerfile .
+      - docker build -t reconquest/snake-runner:git
+          -f docker/snake-runner/git/Dockerfile .
 
   snake-runner@push:
     desc: push snake-runner docker image
