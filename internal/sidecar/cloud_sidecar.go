@@ -119,8 +119,7 @@ func (sidecar *CloudSidecar) create(ctx context.Context) error {
 
 func (sidecar *CloudSidecar) Serve(
 	ctx context.Context,
-	cloneURL string,
-	commitish string,
+	opts
 ) error {
 	// creating container
 	err := sidecar.create(ctx)

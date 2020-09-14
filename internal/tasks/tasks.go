@@ -23,6 +23,7 @@ type PipelineRun struct {
 	Repository  responses.Repository   `json:"repository"`
 	Project     responses.Project      `json:"project"`
 	PullRequest *responses.PullRequest `json:"pull_request"`
+	KnownHosts  []responses.KnownHost
 	CloneURL    struct {
 		SSH string `json:"ssh"`
 	} `json:"clone_url"`

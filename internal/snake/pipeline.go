@@ -1,5 +1,6 @@
 package snake
 
+// TODO: either move this to responses or move all responses into this package.
 type Pipeline struct {
 	ID           int    `json:"id"`
 	ProjectID    int    `json:"project_id"`

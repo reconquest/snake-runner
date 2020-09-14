@@ -14,6 +14,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/env"
 	"github.com/reconquest/snake-runner/internal/job"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/runner"
@@ -327,8 +328,12 @@ func (process *Process) readConfig(job *job.Process) error {
 
 	err := process.sidecar.Serve(
 		process.ctx,
-		process.task.CloneURL.SSH,
-		process.task.Pipeline.Commit,
+		sidecar.ServeOptions{
+			Env:        env.NewEnv(process.task.Env),
+			KnownHosts: process.task.KnownHosts,
+			CloneURL:   process.task.CloneURL.SSH,
+			Commit:     process.task.Pipeline.Commit,
+		},
 	)
 	if err != nil {
 		return karma.Format(

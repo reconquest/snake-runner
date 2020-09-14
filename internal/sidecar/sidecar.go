@@ -3,6 +3,8 @@ package sidecar
 import (
 	"context"
 
+	"github.com/reconquest/snake-runner/internal/env"
+	"github.com/reconquest/snake-runner/internal/responses"
 	"github.com/reconquest/snake-runner/internal/spawner"
 )
 
@@ -19,7 +21,7 @@ const (
 )
 
 type Sidecar interface {
-	Serve(context context.Context, cloneURL, commit string) error
+	Serve(context context.Context, options ServeOptions) error
 	Destroy()
 
 	GitDir() string
@@ -27,4 +29,11 @@ type Sidecar interface {
 	ContainerVolumes() []spawner.Volume
 
 	ReadFile(context context.Context, cwd, path string) (string, error)
+}
+
+type ServeOptions struct {
+	Env        *env.Env
+	KnownHosts []responses.KnownHost
+	CloneURL   string
+	Commit     string
 }
