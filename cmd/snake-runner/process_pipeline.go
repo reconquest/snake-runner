@@ -328,7 +328,7 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 
 		err := process.sidecar.Serve(
 			process.ctx,
-			process.task.CloneURL.SSH,
+			process.task.CloneURL.GetPreferredURL(),
 			process.task.Pipeline.Commit,
 		)
 		if err != nil {

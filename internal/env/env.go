@@ -109,6 +109,7 @@ func (builder *Builder) build() map[string]string {
 	vars["CI_REPO_ID"] = fmt.Sprint(builder.task.Repository.ID)
 
 	vars["CI_REPO_CLONE_URL_SSH"] = builder.task.CloneURL.SSH
+	vars["CI_REPO_CLONE_URL_HTTP"] = builder.task.CloneURL.HTTP
 
 	vars["CI_RUNNER_ID"] = fmt.Sprint(builder.pipeline.RunnerID)
 	vars["CI_RUNNER_NAME"] = fmt.Sprint(builder.runnerConfig.Name)

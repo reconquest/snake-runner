@@ -43,7 +43,8 @@ func TestEnvBuilder(t *testing.T) {
 			ID:   111,
 		},
 	}
-	task.CloneURL.SSH = "cloneurl"
+	task.CloneURL.SSH = "ssh://cloneurl"
+	task.CloneURL.HTTP = "http://cloneurl"
 
 	configPipeline := config.Pipeline{}
 	configJob := config.Job{}
@@ -81,7 +82,8 @@ func TestEnvBuilder(t *testing.T) {
 		"CI_REPO_SLUG":              "repo1",
 		"CI_REPO_NAME":              "the repo1",
 		"CI_REPO_ID":                "111",
-		"CI_REPO_CLONE_URL_SSH":     "cloneurl",
+		"CI_REPO_CLONE_URL_SSH":     "ssh://cloneurl",
+		"CI_REPO_CLONE_URL_HTTP":    "http://cloneurl",
 		"CI_RUNNER_ID":              "80",
 		"CI_RUNNER_NAME":            "gotest",
 		"CI_RUNNER_VERSION":         builtin.Version,
