@@ -57,6 +57,9 @@ func (url CloneURL) GetPreferredURL() string {
 	case CloneMethodSSH:
 		return url.SSH
 	case CloneMethodHTTP:
+		if url.HTTP == "" {
+			return url.SSH
+		}
 		return url.HTTP
 	default:
 		panic("unexpected clone method: " + string(url.Method))

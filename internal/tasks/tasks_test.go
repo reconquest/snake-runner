@@ -42,6 +42,18 @@ func TestCloneURL_GetPreferredURL_ReturnsHTTP(t *testing.T) {
 	test.Equal("http://url", url.GetPreferredURL())
 }
 
+func TestCloneURL_GetPreferredURL_ReturnsSSHIfHTTPIsEmpty(t *testing.T) {
+	test := assert.New(t)
+
+	url := CloneURL{
+		Method: CloneMethodHTTP,
+		SSH:    "ssh://url",
+		HTTP:   "",
+	}
+
+	test.Equal("ssh://url", url.GetPreferredURL())
+}
+
 func TestCloneURL_UnmarshalJSON_AcceptsSupportedMethod(t *testing.T) {
 	test := assert.New(t)
 
