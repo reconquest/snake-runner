@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,47 +53,14 @@ func TestCloneURL_GetPreferredURL_ReturnsSSHIfHTTPIsEmpty(t *testing.T) {
 	test.Equal("ssh://url", url.GetPreferredURL())
 }
 
-func TestCloneURL_UnmarshalJSON_AcceptsSupportedMethod(t *testing.T) {
+func TestCloneURL_GetPreferredURL_ReturnsSSHIfMethodIsUnknown(t *testing.T) {
 	test := assert.New(t)
 
-	for _, method := range []CloneMethod{
-		CloneMethodDefault,
-		CloneMethodSSH,
-		CloneMethodHTTP,
-	} {
-		input := CloneURL{
-			Method: method,
-			SSH:    "ssh://url",
-			HTTP:   "http://url",
-		}
-
-		body, err := json.Marshal(input)
-		test.NoError(err)
-
-		var output CloneURL
-
-		err = json.Unmarshal(body, &output)
-		test.NoError(err)
-
-		test.EqualValues(input, output)
-	}
-}
-
-func TestCloneURL_UnmarshalJSON_RejectsUnsupportedMethod(t *testing.T) {
-	test := assert.New(t)
-
-	input := CloneURL{
+	url := CloneURL{
 		Method: "git",
 		SSH:    "ssh://url",
 		HTTP:   "http://url",
 	}
 
-	body, err := json.Marshal(input)
-	test.NoError(err)
-
-	var output CloneURL
-
-	err = json.Unmarshal(body, &output)
-	test.Error(err)
-	test.Contains(err.Error(), "unsupported clone method")
+	test.Equal("ssh://url", url.GetPreferredURL())
 }

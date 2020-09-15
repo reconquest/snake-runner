@@ -23,27 +23,6 @@ const (
 	CloneMethodHTTP                = "http"
 )
 
-func (method *CloneMethod) UnmarshalJSON(data []byte) error {
-	var value string
-
-	err := json.Unmarshal(data, &value)
-	if err != nil {
-		return err
-	}
-
-	switch CloneMethod(value) {
-	case CloneMethodDefault:
-	case CloneMethodSSH:
-	case CloneMethodHTTP:
-	default:
-		return fmt.Errorf("unsupported clone method: %s", value)
-	}
-
-	*method = CloneMethod(value)
-
-	return nil
-}
-
 type CloneURL struct {
 	Method CloneMethod `json:"method"`
 	SSH    string      `json:"ssh"`
@@ -62,7 +41,7 @@ func (url CloneURL) GetPreferredURL() string {
 		}
 		return url.HTTP
 	default:
-		panic("unexpected clone method: " + string(url.Method))
+		return url.SSH
 	}
 }
 
