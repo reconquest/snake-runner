@@ -59,6 +59,8 @@ type Sidecar struct {
 	// directory with ssh-agent socket
 	sshDir string `gonstructor:"-"`
 
+	volumes []string
+
 	sshAgent sync.WaitGroup
 }
 
@@ -115,6 +117,8 @@ func (sidecar *Sidecar) create(ctx context.Context) error {
 		// subdir during container destroying
 		sidecar.pipelinesDir + ":/host:rw",
 	}
+
+	volumes = append(volumes, sidecar.volumes...)
 
 	sidecar.container, err = sidecar.cloud.CreateContainer(
 		ctx,

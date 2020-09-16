@@ -324,6 +324,7 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 			PromptConsumer(job.directSendPrompt).
 			OutputConsumer(job.directRemoteLog).
 			SshKey(process.sshKey).
+			Volumes(process.runnerConfig.Sidecar.Docker.Volumes).
 			Build()
 
 		err := process.sidecar.Serve(

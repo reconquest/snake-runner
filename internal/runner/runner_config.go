@@ -44,6 +44,12 @@ type Config struct {
 
 		authConfig cloud.DockerConfig
 	} `yaml:"docker"`
+
+	Sidecar struct {
+		Docker struct {
+			Volumes []string `yaml:"volumes"     env:"SNAKE_SIDECAR_DOCKER_VOLUMES"`
+		} `yaml:"docker"`
+	} `yaml:"sidecar"`
 }
 
 func (config *Config) GetDockerAuthConfig() cloud.DockerConfig {
