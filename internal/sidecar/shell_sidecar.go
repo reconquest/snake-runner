@@ -13,6 +13,7 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
@@ -31,9 +32,10 @@ type ShellSidecar struct {
 	tempDir string `gonstructor:"-"`
 	gitDir  string `gonstructor:"-"`
 
-	sshKey    sshkey.Key
-	sshSocket string          `gonstructor:"-"`
-	sshAgent  *sync.WaitGroup `gonstructor:"-"`
+	sshKey        sshkey.Key
+	sshSocket     string          `gonstructor:"-"`
+	sshAgent      *sync.WaitGroup `gonstructor:"-"`
+	sshKnownHosts string          `gonstructor:"-"`
 
 	container spawner.Container `gonstructor:"-"`
 }
@@ -44,12 +46,12 @@ func (sidecar *ShellSidecar) getTempDir() (string, error) {
 
 func (sidecar *ShellSidecar) Serve(
 	ctx context.Context,
-	cloneURL, commit string,
+	opts ServeOptions,
 ) error {
 	baseDir := filepath.Join(sidecar.pipelinesDir, sidecar.name)
 
 	sidecar.baseDir = baseDir
-	sidecar.gitDir = filepath.Join(baseDir, SUBDIR_GIT, sidecar.slug)
+	sidecar.gitDir = filepath.Join(baseDir, consts.SUBDIR_GIT, sidecar.slug)
 
 	var err error
 	sidecar.tempDir, err = sidecar.getTempDir()
@@ -92,8 +94,23 @@ func (sidecar *ShellSidecar) Serve(
 		)
 	}
 
+	sidecar.sshKnownHosts = filepath.Join(sidecar.tempDir, "known_hosts")
+
+	err = ioutil.WriteFile(
+		sidecar.sshKnownHosts,
+		[]byte(joinKnownHosts(opts.KnownHosts)),
+		0o644,
+	)
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to save known hosts file",
+		)
+	}
+
 	env := append(os.Environ(), []string{
-		SSH_SOCKET_VAR + "=" + sidecar.sshSocket,
+		consts.SSH_AUTH_SOCK_VAR + "=" + sidecar.sshSocket,
+		consts.GIT_SSH_COMMAND_VAR + "=" + "ssh -o" + consts.SSH_OPTION_GLOBAL_HOSTS_FILE + "=" + sidecar.sshKnownHosts,
 
 		// NOTE: the private key is not passed anymore but it's already
 		// in ssh-agent's memory
@@ -111,15 +128,15 @@ func (sidecar *ShellSidecar) Serve(
 		},
 		{
 			prompt: true,
-			cmd:    []string{"git", "clone", "--recursive", cloneURL, sidecar.gitDir},
+			cmd:    []string{"git", "clone", "--recursive", opts.CloneURL, sidecar.gitDir},
 		},
 		{
 			prompt: false,
-			cmd:    []string{"git", "config", "advice.detachedHead", "false"},
+			cmd:    []string{"git", "-C", sidecar.gitDir, "config", "advice.detachedHead", "false"},
 		},
 		{
 			prompt: true,
-			cmd:    []string{"git", "-C", sidecar.gitDir, "checkout", commit},
+			cmd:    []string{"git", "-C", sidecar.gitDir, "checkout", opts.Commit},
 		},
 	}
 
@@ -179,6 +196,10 @@ func (sidecar *ShellSidecar) GitDir() string {
 
 func (sidecar *ShellSidecar) SshSocketPath() string {
 	return sidecar.sshSocket
+}
+
+func (sidecar *ShellSidecar) SshKnownHostsPath() string {
+	return sidecar.sshKnownHosts
 }
 
 func (sidecar *ShellSidecar) ReadFile(

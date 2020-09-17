@@ -10,7 +10,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/masker"
 )
 
-const opensshPrivateKey = `
+const OPENSSH_PRIVATE_KEY = `
 -----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAYEAlcr/jEutQk5Z2KlmYMQ641O8YBRKjQj0P9Kx0m2XzdRKrCjmnFHS
@@ -64,7 +64,7 @@ func TestMasker_Mask_ReplacesMultiLineStrings(t *testing.T) {
 	vars := map[string]string{
 		"Y":   "yyyyy",
 		"X":   "xxxxx",
-		"KEY": opensshPrivateKey,
+		"KEY": OPENSSH_PRIVATE_KEY,
 	}
 	buffer := bytes.NewBuffer(nil)
 	masker := masker.NewWriter(env.NewEnv(vars), []string{"X", "KEY"}, writerCloser{buffer})

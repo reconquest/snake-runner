@@ -166,6 +166,7 @@ func (process *Process) Run() error {
 		process.runnerConfig,
 		process.sidecar.GitDir(),
 		process.sidecar.SshSocketPath(),
+		process.sidecar.SshKnownHostsPath(),
 	).Build()
 
 	process.setupMaskWriter(process.env)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/snake-runner/internal/audit"
+	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/spawner"
 )
 
@@ -24,12 +25,12 @@ func startSshAgent(
 	callback := func(text string) {
 		logger(text)
 
-		if strings.Contains(text, SSH_SOCKET_VAR+"=") {
+		if strings.Contains(text, consts.SSH_AUTH_SOCK_VAR+"=") {
 			started <- struct{}{}
 		}
 	}
 
-	sshSocket := filepath.Join(sshDir, SSH_SOCKET_FILENAME)
+	sshSocket := filepath.Join(sshDir, consts.SSH_SOCKET_FILENAME)
 
 	sshAgent := &sync.WaitGroup{}
 	sshAgent.Add(1)

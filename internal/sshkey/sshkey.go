@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	DefaultBlockSize = 3072
+	DEFAULT_BLOCK_SIZE = 3072
 )
 
 type Key struct {

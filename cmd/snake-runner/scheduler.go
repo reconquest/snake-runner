@@ -85,7 +85,7 @@ func (snake *Snake) startScheduler() error {
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
 			int(snake.config.MaxParallelPipelines),
-			sshkey.DefaultBlockSize,
+			sshkey.DEFAULT_BLOCK_SIZE,
 		),
 		pipelinesMap: safemap.NewIntToAny(),
 		cancels:      safemap.NewIntToContextCancelFunc(),

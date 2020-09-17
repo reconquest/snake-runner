@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	MasterPrefixAPI   = "/rest/snake-ci/1.0"
-	AccessTokenHeader = "X-Snake-Runner-Access-Token"
-	NameHeader        = "X-Snake-Runner-Name"
+	MASTER_PREFIX_API          = "/rest/snake-ci/1.0"
+	RUNNER_ACCESS_TOKEN_HEADER = "X-Snake-Runner-Access-Token"
+	RUNNER_NAME_HEADER         = "X-Snake-Runner-Name"
+	ATLASSIAN_TOKEN_HEADER     = "X-Atlassian-Token"
+	ATLASSIAN_TOKEN_NO_CHECK   = "no-check"
 )
 
 type Client struct {
@@ -32,7 +34,7 @@ func NewClient(config *runner.Config) *Client {
 	client.config = config
 
 	master := strings.TrimSuffix(client.config.MasterAddress, "/")
-	client.baseURL = master + MasterPrefixAPI
+	client.baseURL = master + MASTER_PREFIX_API
 	client.useragent = "snake-runner/" + builtin.Version
 
 	return client
@@ -43,11 +45,11 @@ func (client *Client) request() *Request {
 		BaseURL(client.baseURL).
 		UserAgent(client.useragent).
 		// required by bitbucket itself
-		Header(NameHeader, client.config.Name).
-		Header("X-Atlassian-Token", "no-check")
+		Header(RUNNER_NAME_HEADER, client.config.Name).
+		Header(ATLASSIAN_TOKEN_HEADER, ATLASSIAN_TOKEN_NO_CHECK)
 
 	if client.config.AccessToken != "" {
-		request.Header(AccessTokenHeader, client.config.AccessToken)
+		request.Header(RUNNER_ACCESS_TOKEN_HEADER, client.config.AccessToken)
 	}
 
 	return request

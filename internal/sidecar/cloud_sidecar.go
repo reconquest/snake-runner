@@ -8,6 +8,7 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
@@ -43,16 +44,17 @@ type CloudSidecar struct {
 	gitDir string `gonstructor:"-"`
 
 	// directory with ssh-agent socket
-	sshDir    string `gonstructor:"-"`
-	sshSocket string `gonstructor:"-"`
+	sshDir        string `gonstructor:"-"`
+	sshSocket     string `gonstructor:"-"`
+	sshKnownHosts string `gonstructor:"-"`
 
 	sshAgent *sync.WaitGroup `gonstructor:"-"`
 }
 
 func (sidecar *CloudSidecar) ContainerVolumes() []spawner.Volume {
 	return []spawner.Volume{
-		spawner.Volume(sidecar.hostSubDir + "/" + SUBDIR_GIT + ":" + sidecar.gitDir),
-		spawner.Volume(sidecar.hostSubDir + "/" + SUBDIR_SSH + ":" + sidecar.sshDir),
+		spawner.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_GIT + ":" + sidecar.gitDir),
+		spawner.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_SSH + ":" + sidecar.sshDir),
 	}
 }
 
@@ -62,6 +64,10 @@ func (sidecar *CloudSidecar) GitDir() string {
 
 func (sidecar *CloudSidecar) SshSocketPath() string {
 	return sidecar.sshSocket
+}
+
+func (sidecar *CloudSidecar) SshKnownHostsPath() string {
+	return sidecar.sshKnownHosts
 }
 
 func (sidecar *CloudSidecar) Container() spawner.Container {
@@ -88,8 +94,8 @@ func (sidecar *CloudSidecar) create(ctx context.Context) error {
 	sidecar.hostSubDir = filepath.Join(sidecar.pipelinesDir, sidecar.name)
 	sidecar.containerDir = filepath.Join("/pipeline")
 
-	sidecar.gitDir = filepath.Join(sidecar.containerDir, SUBDIR_GIT, sidecar.slug)
-	sidecar.sshDir = filepath.Join(sidecar.containerDir, SUBDIR_SSH)
+	sidecar.gitDir = filepath.Join(sidecar.containerDir, consts.SUBDIR_GIT, sidecar.slug)
+	sidecar.sshDir = filepath.Join(sidecar.containerDir, consts.SUBDIR_SSH)
 
 	volumes := []spawner.Volume{
 		spawner.Volume(sidecar.hostSubDir + ":" + sidecar.containerDir + ":rw"),
@@ -119,7 +125,7 @@ func (sidecar *CloudSidecar) create(ctx context.Context) error {
 
 func (sidecar *CloudSidecar) Serve(
 	ctx context.Context,
-	opts
+	opts ServeOptions,
 ) error {
 	// creating container
 	err := sidecar.create(ctx)
@@ -152,23 +158,29 @@ func (sidecar *CloudSidecar) Serve(
 		sidecar.sshDir,
 	)
 	if err != nil {
-		return karma.Format(
-			err,
-			"unable to start ssh-agent",
-		)
+		return karma.Format(err, "unable to start ssh-agent")
 	}
 
+	sidecar.sshKnownHosts = filepath.Join(sidecar.sshDir, "known_hosts")
+	knownHostsContent := joinKnownHosts(opts.KnownHosts)
+
 	env := []string{
-		SSH_SOCKET_VAR + "=" + sidecar.sshSocket,
+		consts.SSH_AUTH_SOCK_VAR + "=" + sidecar.sshSocket,
 		"__SNAKE_PRIVATE_KEY=" + string(sidecar.sshKey.Private),
-		"__SNAKE_SSH_CONFIG=" + SSH_CONFIG_NO_STRICT_HOST_KEY_CHECKING,
+		"__SNAKE_SSH_KNOWN_HOSTS=" + knownHostsContent,
 	}
+
+	log.Tracef(
+		karma.Describe("data", knownHostsContent),
+		"[sidecar] known_hosts",
+	)
 
 	// adding ssh key to the ssh-agent and tuning up git a bit
 	basic := []string{
-		`mkdir ~/.ssh`,
+		`mkdir -vp ~/.ssh`,
 		`ssh-add -v - <<< "$__SNAKE_PRIVATE_KEY"`,
-		`cat > ~/.ssh/config <<< "$__SNAKE_SSH_CONFIG"`,
+		`cat > ` + sidecar.sshKnownHosts + ` <<< "$__SNAKE_SSH_KNOWN_HOSTS"`,
+		`cp -v ` + sidecar.sshKnownHosts + ` ~/.ssh/known_hosts`,
 		`git config --global advice.detachedHead false`,
 	}
 
@@ -190,8 +202,8 @@ func (sidecar *CloudSidecar) Serve(
 
 	// cloning git repository and switching commit
 	commands := [][]string{
-		{`git`, `clone`, "--recursive", cloneURL, sidecar.gitDir},
-		{`git`, `-C`, sidecar.gitDir, `checkout`, commitish},
+		{`git`, `clone`, "--recursive", opts.CloneURL, sidecar.gitDir},
+		{`git`, `-C`, sidecar.gitDir, `checkout`, opts.Commit},
 	}
 
 	for _, cmd := range commands {
@@ -199,7 +211,7 @@ func (sidecar *CloudSidecar) Serve(
 
 		err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
 			Env: []string{
-				SSH_SOCKET_VAR + "=" + sidecar.sshSocket,
+				consts.SSH_AUTH_SOCK_VAR + "=" + sidecar.sshSocket,
 				// NOTE: the private key is not passed anymore but it's already
 				// in ssh-agent's memory
 			},
@@ -277,7 +289,7 @@ func (sidecar *CloudSidecar) Destroy() {
 	if err != nil {
 		log.Errorf(
 			err,
-			"unable to destroy sidecar container: %s %s",
+			"unable to destroy sidecar container %s",
 			sidecar.container.String(),
 		)
 

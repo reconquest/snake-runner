@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	FailAllJobs = -1
+	FAIL_ALL_JOBS = -1
 )
 
 //go:generate gonstructor -type Process
@@ -73,7 +73,7 @@ func (process *Process) Run() error {
 		nil,
 	)
 	if err != nil {
-		process.fail(FailAllJobs)
+		process.fail(FAIL_ALL_JOBS)
 
 		return karma.Format(
 			err,
@@ -84,7 +84,7 @@ func (process *Process) Run() error {
 	err = process.parseVariables()
 	if err != nil {
 		process.status = status.FAILED
-		process.fail(FailAllJobs)
+		process.fail(FAIL_ALL_JOBS)
 		return err
 	}
 
@@ -100,7 +100,7 @@ func (process *Process) Run() error {
 		ptr.TimePtr(utils.Now()),
 	)
 	if err != nil {
-		process.fail(FailAllJobs)
+		process.fail(FAIL_ALL_JOBS)
 
 		return karma.Format(
 			err,
@@ -415,7 +415,7 @@ func (process *Process) fail(failedID int) {
 			var finished *time.Time
 
 			switch {
-			case failedID == FailAllJobs:
+			case failedID == FAIL_ALL_JOBS:
 				result = status.FAILED
 				finished = now
 

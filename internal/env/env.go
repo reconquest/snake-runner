@@ -5,6 +5,7 @@ import (
 
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -12,14 +13,15 @@ import (
 
 //go:generate gonstructor -type Builder
 type Builder struct {
-	task          tasks.PipelineRun
-	pipeline      snake.Pipeline
-	job           snake.PipelineJob
-	config        config.Pipeline
-	configJob     config.Job
-	runnerConfig  *runner.Config
-	gitDir        string
-	sshSocketPath string
+	task              tasks.PipelineRun
+	pipeline          snake.Pipeline
+	job               snake.PipelineJob
+	config            config.Pipeline
+	configJob         config.Job
+	runnerConfig      *runner.Config
+	gitDir            string
+	sshSocketPath     string
+	sshKnownHostsPath string
 }
 
 //go:generate gonstructor --type=Env --init init
@@ -127,7 +129,12 @@ func (builder *Builder) build() map[string]string {
 
 	// special case: providing SSH_AUTH_SOCK — socket to ssh-agent that is
 	// running in sidecar
-	vars["SSH_AUTH_SOCK"] = builder.sshSocketPath
+	vars[consts.SSH_AUTH_SOCK_VAR] = builder.sshSocketPath
+
+	// special case: providing GIT_SSH_COMMAND with a global known hosts file
+	// specified
+	vars[consts.GIT_SSH_COMMAND_VAR] = "ssh -o" + consts.SSH_OPTION_GLOBAL_HOSTS_FILE +
+		"=" + builder.sshKnownHostsPath
 
 	return vars
 }

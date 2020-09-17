@@ -1,7 +1,7 @@
 version: '3'
 
 tasks:
-  snake-runner@build:
+  'snake-runner:build':
     desc: build docker image based on alpine
     cmds:
       - task go:build_docker
@@ -10,7 +10,7 @@ tasks:
       - docker build -t reconquest/snake-runner:git
           -f docker/snake-runner/git/Dockerfile .
 
-  snake-runner@push:
+  'snake-runner:push':
     desc: push snake-runner docker image
     cmds:
       - docker tag reconquest/snake-runner reconquest/snake-runner:{{.major_minor}}
@@ -20,18 +20,18 @@ tasks:
       - docker push reconquest/snake-runner:{{.version}}
       - docker push reconquest/snake-runner:{{.major_minor}}
 
-  snake-runner-sidecar@build:
+  'snake-runner-sidecar:build':
     desc: build latest image for of sidecar (alpine actually)
     cmds:
       - docker build -t reconquest/snake-runner-sidecar:latest
           -f docker/snake-runner-sidecar/alpine/Dockerfile .
 
-  snake-runner-sidecar@push:
+  'snake-runner-sidecar:push':
     desc: push snake-runner-sidecar docker image
     cmds:
       - docker push reconquest/snake-runner-sidecar:latest
 
-  alpine-bash@build-push:
+  'alpine-bash:build-push':
     desc: build docker image for sidecar image based on alpine
     cmds:
       - docker build -t reconquest/alpine-bash

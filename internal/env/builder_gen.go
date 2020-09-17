@@ -18,15 +18,17 @@ func NewBuilder(
 	runnerConfig *runner.Config,
 	gitDir string,
 	sshSocketPath string,
+	sshKnownHostsPath string,
 ) *Builder {
 	return &Builder{
-		task:          task,
-		pipeline:      pipeline,
-		job:           job,
-		config:        config,
-		configJob:     configJob,
-		runnerConfig:  runnerConfig,
-		gitDir:        gitDir,
-		sshSocketPath: sshSocketPath,
+		task:              task,
+		pipeline:          pipeline,
+		job:               job,
+		config:            config,
+		configJob:         configJob,
+		runnerConfig:      runnerConfig,
+		gitDir:            gitDir,
+		sshSocketPath:     sshSocketPath,
+		sshKnownHostsPath: sshKnownHostsPath,
 	}
 }

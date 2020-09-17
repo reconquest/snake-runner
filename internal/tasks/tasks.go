@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	KindPipelineRun     = "pipeline_run"
-	KindPipelineCancel  = "pipeline_cancel"
-	KindRunnerTerminate = "runner_terminate"
+	KIND_PIPELINE_RUN     = "pipeline_run"
+	KIND_PIPELINE_CANCEL  = "pipeline_cancel"
+	KIND_RUNNER_TERMINATE = "runner_terminate"
 )
 
 type PipelineRun struct {
@@ -23,7 +23,7 @@ type PipelineRun struct {
 	Repository  responses.Repository   `json:"repository"`
 	Project     responses.Project      `json:"project"`
 	PullRequest *responses.PullRequest `json:"pull_request"`
-	KnownHosts  []responses.KnownHost
+	KnownHosts  []responses.KnownHost  `json:"known_hosts"`
 	CloneURL    struct {
 		SSH string `json:"ssh"`
 	} `json:"clone_url"`
@@ -45,9 +45,9 @@ func Unmarshal(task responses.Task) (interface{}, error) {
 	log.Debugf(nil, "task kind: %s", task.Kind)
 
 	kinds := map[string]interface{}{
-		KindPipelineRun:     &PipelineRun{},
-		KindPipelineCancel:  &PipelineCancel{},
-		KindRunnerTerminate: &RunnerTerminate{},
+		KIND_PIPELINE_RUN:     &PipelineRun{},
+		KIND_PIPELINE_CANCEL:  &PipelineCancel{},
+		KIND_RUNNER_TERMINATE: &RunnerTerminate{},
 	}
 
 	if result, ok := kinds[task.Kind]; ok {

@@ -47,7 +47,7 @@ type KnownHost struct {
 	Key      string `json:"key"`
 }
 
-func (host *KnownHost) HostPort() string {
+func (host KnownHost) HostPort() string {
 	if host.Port != 22 && host.Port != 0 {
 		return "[" + host.Hostname + "]:" + fmt.Sprint(host.Port)
 	}
