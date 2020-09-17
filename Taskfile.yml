@@ -10,10 +10,9 @@ vars:
     sh: cat /proc/sys/kernel/random/uuid
   token: ""
   major_minor:
-    sh: "git describe --tags --abbrev=0"
-  patch:
-    sh: "git rev-list $(git describe --tags --abbrev=0)..HEAD --count"
-  version: "{{.major_minor}}.{{.patch}}"
+    sh: "taskutils/version major-minor"
+  version:
+    sh: "taskutils/version"
   commit:
     sh: "git rev-parse --short HEAD"
 
@@ -42,6 +41,7 @@ tasks:
         SNAKE_REGISTRATION_TOKEN={{.token}}
         SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa
         SNAKE_PIPELINES_DIR=.runners/{{.random_uuid}}/pipelines
+        SNAKE_SIDECAR_DOCKER_VOLUMES=['/etc/ssl:/etc/ssl:ro','/etc/ca-certificates:/etc/ca-certificates:ro']
         SNAKE_LOG_TRACE=true
         ./snake-runner -c ./conf/dev.conf
   dock:

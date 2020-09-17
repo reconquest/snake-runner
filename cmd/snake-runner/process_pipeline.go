@@ -14,6 +14,7 @@ import (
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/cloud"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/env"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
@@ -304,6 +305,8 @@ func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status str
 
 func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 	return process.initSidecar.Do(func() error {
+		job.setupMaskWriter(env.NewEnv(process.task.Env))
+
 		process.sidecar = sidecar.NewSidecarBuilder().
 			Cloud(process.cloud).
 			Name(
@@ -321,14 +324,15 @@ func (process *ProcessPipeline) readConfig(job *ProcessJob) error {
 				),
 			).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
-			PromptConsumer(job.directSendPrompt).
-			OutputConsumer(job.directRemoteLog).
+			PromptConsumer(job.maskSendPrompt).
+			OutputConsumer(job.maskRemoteLog).
 			SshKey(process.sshKey).
+			Volumes(process.runnerConfig.Sidecar.Docker.Volumes).
 			Build()
 
 		err := process.sidecar.Serve(
 			process.ctx,
-			process.task.CloneURL.SSH,
+			process.task.CloneURL.GetPreferredURL(),
 			process.task.Pipeline.Commit,
 		)
 		if err != nil {

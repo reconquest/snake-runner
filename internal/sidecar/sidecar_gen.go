@@ -18,6 +18,7 @@ type SidecarBuilder struct {
 	outputConsumer    cloud.OutputConsumer
 	sshKey            sshkey.Key
 	dockerAuthConfigs []cloud.DockerConfig
+	volumes           []string
 	sshAgent          sync.WaitGroup
 }
 
@@ -65,6 +66,11 @@ func (b *SidecarBuilder) DockerAuthConfigs(dockerAuthConfigs []cloud.DockerConfi
 	return b
 }
 
+func (b *SidecarBuilder) Volumes(volumes []string) *SidecarBuilder {
+	b.volumes = volumes
+	return b
+}
+
 func (b *SidecarBuilder) SshAgent(sshAgent sync.WaitGroup) *SidecarBuilder {
 	b.sshAgent = sshAgent
 	return b
@@ -80,6 +86,7 @@ func (b *SidecarBuilder) Build() *Sidecar {
 		outputConsumer:    b.outputConsumer,
 		sshKey:            b.sshKey,
 		dockerAuthConfigs: b.dockerAuthConfigs,
+		volumes:           b.volumes,
 		sshAgent:          b.sshAgent,
 	}
 }
