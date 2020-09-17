@@ -9,10 +9,9 @@ vars:
     sh: cat /proc/sys/kernel/random/uuid
   token: ""
   major_minor:
-    sh: "git describe --tags --abbrev=0"
-  patch:
-    sh: "git rev-list $(git describe --tags --abbrev=0)..HEAD --count"
-  version: "{{.major_minor}}.{{.patch}}"
+    sh: "taskutils/version major-minor"
+  version:
+    sh: "taskutils/version"
   commit:
     sh: "git rev-parse --short HEAD"
 
