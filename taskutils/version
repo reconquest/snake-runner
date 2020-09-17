@@ -1,0 +1,27 @@
+#!/bin/bash
+
+opt="$1"
+
+tag=$(git describe --tags --abbrev=0)
+dots=$(grep -o '\.' <<< "$tag" | wc -l)
+
+major-minor() {
+    if [[ $dots == 2 ]]; then
+        cut -d. -f1,2 <<< "$tag"
+    else
+        echo "$tag"
+    fi
+}
+
+if [[ "$opt" == "major-minor" ]]; then
+    major-minor
+    exit
+fi
+
+
+if [[ $dots == 2 ]]; then
+    echo $tag
+    exit
+fi
+
+echo "$(major-minor).$(git rev-list $tag..HEAD --count)"
