@@ -331,7 +331,7 @@ func (process *Process) readConfig(job *job.Process) error {
 		sidecar.ServeOptions{
 			Env:        env.NewEnv(process.task.Env),
 			KnownHosts: process.task.KnownHosts,
-			CloneURL:   process.task.CloneURL.SSH,
+			CloneURL:   process.task.CloneURL.GetPreferredURL(),
 			Commit:     process.task.Pipeline.Commit,
 		},
 	)

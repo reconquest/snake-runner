@@ -15,6 +15,36 @@ const (
 	KIND_RUNNER_TERMINATE = "runner_terminate"
 )
 
+type CloneMethod string
+
+const (
+	CloneMethodDefault CloneMethod = ""
+	CloneMethodSSH                 = "ssh"
+	CloneMethodHTTP                = "http"
+)
+
+type CloneURL struct {
+	Method CloneMethod `json:"method"`
+	SSH    string      `json:"ssh"`
+	HTTP   string      `json:"http"`
+}
+
+func (url CloneURL) GetPreferredURL() string {
+	switch url.Method {
+	case CloneMethodDefault:
+		fallthrough
+	case CloneMethodSSH:
+		return url.SSH
+	case CloneMethodHTTP:
+		if url.HTTP == "" {
+			return url.SSH
+		}
+		return url.HTTP
+	default:
+		return url.SSH
+	}
+}
+
 type PipelineRun struct {
 	Pipeline    snake.Pipeline         `json:"pipeline"`
 	Jobs        []snake.PipelineJob    `json:"jobs"`
@@ -24,9 +54,7 @@ type PipelineRun struct {
 	Project     responses.Project      `json:"project"`
 	PullRequest *responses.PullRequest `json:"pull_request"`
 	KnownHosts  []responses.KnownHost  `json:"known_hosts"`
-	CloneURL    struct {
-		SSH string `json:"ssh"`
-	} `json:"clone_url"`
+	CloneURL    CloneURL               `json:"clone_url"`
 }
 
 type PipelineCancel struct {
