@@ -376,6 +376,8 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 		"%s/%s", process.task.Project.Key, process.task.Repository.Slug,
 	)
 
+	job.SetupMaskWriter(env.NewEnv(process.task.Env))
+
 	switch process.runnerConfig.Mode {
 	case runner.RUNNER_MODE_DOCKER:
 		var volumes []spawner.Volume
@@ -389,8 +391,8 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 			Name(name).
 			Slug(slug).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
-			PromptConsumer(job.SendPromptDirect).
-			OutputConsumer(job.LogDirect).
+			PromptConsumer(job.MaskSendPrompt).
+			OutputConsumer(job.LogMask).
 			SshKey(process.sshKey).
 			Volumes(volumes).
 			Build()
@@ -400,8 +402,8 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 			Name(name).
 			Slug(slug).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
-			PromptConsumer(job.SendPromptDirect).
-			OutputConsumer(job.LogDirect).
+			PromptConsumer(job.MaskSendPrompt).
+			OutputConsumer(job.LogMask).
 			SshKey(process.sshKey).
 			Build()
 

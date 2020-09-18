@@ -121,7 +121,7 @@ func (process *Process) setupDirectWriter() {
 	go process.logs.directWriter.Run()
 }
 
-func (process *Process) setupMaskWriter(env *env.Env) {
+func (process *Process) SetupMaskWriter(env *env.Env) {
 	masker := masker.NewWriter(env, process.task.EnvMask, process.logs.directWriter)
 
 	process.logs.masker = masker
@@ -169,7 +169,7 @@ func (process *Process) Run() error {
 		process.sidecar.SshKnownHostsPath(),
 	).Build()
 
-	process.setupMaskWriter(process.env)
+	process.SetupMaskWriter(process.env)
 
 	imageExpr, image := process.getImage()
 
@@ -207,8 +207,8 @@ func (process *Process) Run() error {
 		process.ctx,
 		spawner.PrepareOptions{
 			Image:          image,
-			OutputConsumer: process.logMask,
-			InfoConsumer:   process.logMask,
+			OutputConsumer: process.LogMask,
+			InfoConsumer:   process.LogMask,
 			Auths:          process.contextPullAuth.List(),
 		},
 	)
@@ -317,7 +317,7 @@ func (process *Process) expandEnv(target string) string {
 	})
 }
 
-func (process *Process) logMask(text string) {
+func (process *Process) LogMask(text string) {
 	process.log.Debugf(nil, "%s", strings.TrimSpace(process.logs.masker.Mask(text)))
 
 	process.logs.maskWriter.Write([]byte(text))
@@ -355,7 +355,7 @@ func (process *Process) ErrorfDirect(
 }
 
 func (process *Process) execShell(cmd string) error {
-	process.maskSendPrompt([]string{cmd})
+	process.MaskSendPrompt([]string{cmd})
 
 	err := make(chan error, 1)
 	go func() {
@@ -370,7 +370,7 @@ func (process *Process) execShell(cmd string) error {
 				Cmd:            []string{process.shell, "-c", cmd},
 				AttachStdout:   true,
 				AttachStderr:   true,
-				OutputConsumer: process.logMask,
+				OutputConsumer: process.LogMask,
 			},
 		)
 	}()
@@ -383,8 +383,8 @@ func (process *Process) execShell(cmd string) error {
 	}
 }
 
-func (process *Process) maskSendPrompt(cmd []string) {
-	process.logMask("\n$ " + strings.Join(cmd, " ") + "\n")
+func (process *Process) MaskSendPrompt(cmd []string) {
+	process.LogMask("\n$ " + strings.Join(cmd, " ") + "\n")
 }
 
 func (process *Process) SendPromptDirect(cmd []string) {
