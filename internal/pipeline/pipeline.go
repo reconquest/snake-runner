@@ -378,6 +378,12 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 
 	switch process.runnerConfig.Mode {
 	case runner.RUNNER_MODE_DOCKER:
+		var volumes []spawner.Volume
+
+		for _, volume := range process.runnerConfig.Sidecar.Docker.Volumes {
+			volumes = append(volumes, spawner.Volume(volume))
+		}
+
 		return sidecar.NewCloudSidecarBuilder().
 			Spawner(process.spawner).
 			Name(name).
@@ -386,6 +392,7 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 			PromptConsumer(job.SendPromptDirect).
 			OutputConsumer(job.LogDirect).
 			SshKey(process.sshKey).
+			Volumes(volumes).
 			Build()
 	case runner.RUNNER_MODE_SHELL:
 		return sidecar.NewShellSidecarBuilder().

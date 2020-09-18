@@ -48,6 +48,7 @@ tasks:
         SNAKE_REGISTRATION_TOKEN={{.token}}
         SNAKE_SSH_KEY_PATH=.runners/{{.random_uuid}}/id_rsa
         SNAKE_PIPELINES_DIR=.runners/{{.random_uuid}}/pipelines
+        SNAKE_SIDECAR_DOCKER_VOLUMES=['/etc/ssl:/etc/ssl:ro','/etc/ca-certificates:/etc/ca-certificates:ro']
         SNAKE_LOG_TRACE=true
         ./snake-runner -c ./conf/dev.conf
 

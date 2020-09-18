@@ -15,6 +15,7 @@ type CloudSidecarBuilder struct {
 	promptConsumer spawner.PromptConsumer
 	outputConsumer spawner.OutputConsumer
 	sshKey         sshkey.Key
+	volumes        []spawner.Volume
 }
 
 func NewCloudSidecarBuilder() *CloudSidecarBuilder {
@@ -56,6 +57,11 @@ func (b *CloudSidecarBuilder) SshKey(sshKey sshkey.Key) *CloudSidecarBuilder {
 	return b
 }
 
+func (b *CloudSidecarBuilder) Volumes(volumes []spawner.Volume) *CloudSidecarBuilder {
+	b.volumes = volumes
+	return b
+}
+
 func (b *CloudSidecarBuilder) Build() *CloudSidecar {
 	return &CloudSidecar{
 		spawner:        b.spawner,
@@ -65,5 +71,6 @@ func (b *CloudSidecarBuilder) Build() *CloudSidecar {
 		promptConsumer: b.promptConsumer,
 		outputConsumer: b.outputConsumer,
 		sshKey:         b.sshKey,
+		volumes:        b.volumes,
 	}
 }

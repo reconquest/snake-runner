@@ -52,6 +52,12 @@ type Config struct {
 
 		auths spawner.DockerAuths
 	} `yaml:"docker"`
+
+	Sidecar struct {
+		Docker struct {
+			Volumes []string `yaml:"volumes" env:"SNAKE_SIDECAR_DOCKER_VOLUMES"`
+		} `yaml:"docker"`
+	} `yaml:"sidecar"`
 }
 
 func (config *Config) GetDockerAuthConfig() spawner.Auths {

@@ -48,6 +48,8 @@ type CloudSidecar struct {
 	sshSocket     string `gonstructor:"-"`
 	sshKnownHosts string `gonstructor:"-"`
 
+	volumes []spawner.Volume
+
 	sshAgent *sync.WaitGroup `gonstructor:"-"`
 }
 
@@ -104,6 +106,8 @@ func (sidecar *CloudSidecar) create(ctx context.Context) error {
 		// subdir during container destroying
 		spawner.Volume(sidecar.pipelinesDir + ":/host:rw"),
 	}
+
+	volumes = append(volumes, sidecar.volumes...)
 
 	sidecar.container, err = sidecar.spawner.Create(
 		ctx,
