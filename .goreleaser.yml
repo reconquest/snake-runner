@@ -10,7 +10,7 @@ builds:
     gcflags:
       - all=-trimpath={{.Env.GOPATH}}
     ldflags:
-     - -X=github.com/reconquest/snake-runner/internal/builtin.Version={{.Version}}
+     - "-X=github.com/reconquest/snake-runner/internal/builtin.Version={{.Env.VERSION}}"
     goos:
       - linux
       - windows
@@ -30,6 +30,7 @@ archives:
     - README.md
     - LICENSE
     - LICENSES_THIRD_PARTY
+  name_template: "{{ .ProjectName }}_{{ .Env.VERSION }}_{{ .Os }}_{{ .Arch }}"
 - id: binary
   replacements:
     darwin: Darwin
@@ -40,6 +41,7 @@ archives:
   format: binary
   files:
     - none*
+  name_template: "{{ .binary }}_{{ .Env.VERSION }}_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: 'checksums.txt'
 snapshot:
