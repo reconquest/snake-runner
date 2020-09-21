@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/colour v0.1.0 // indirect
 	github.com/alecthomas/repr v0.0.0-20200325044227-4184120f674c // indirect
 	github.com/cheekybits/genny v1.0.0
-	github.com/containerd/containerd v1.3.2 // indirect
+	github.com/containerd/containerd v1.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/cli v0.0.0-20200116142428-c6d10b6da090
 	github.com/docker/distribution v2.7.1+incompatible
@@ -18,39 +18,34 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
-	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/google/go-cmp v0.4.0 // indirect
-	github.com/gorilla/mux v1.7.3 // indirect
-	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
-	github.com/kovetskiy/ko v0.0.0-20200107130756-5aeb3d88d1de
-	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
-	github.com/kovetskiy/toml v0.2.0 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/iancoleman/strcase v0.1.1 // indirect
+	github.com/kovetskiy/ko v0.0.0-20200620085804-ec6b220882b0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/miekg/pkcs11 v1.0.3 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/prometheus/common v0.13.0 // indirect
+	github.com/reconquest/cog v0.0.0-20200921103326-58b3758471dd
+	github.com/reconquest/colorgful v0.0.0-20200729095644-21be6c602814 // indirect
 	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
-	github.com/reconquest/lineflushwriter-go v0.0.0-20200617113125-f7349730c72d
-	github.com/reconquest/pkg v0.0.0-20191230125351-0f8339e114d4
-	github.com/reconquest/sign-go v0.0.0-20181113092801-8d4f8c5854ae
-	github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24
+	github.com/reconquest/lineflushwriter-go v0.0.0-20200921103343-b9b8d10a6851
+	github.com/reconquest/pkg v0.0.0-20200921103402-ae5124ffc1a9
+	github.com/reconquest/sign-go v0.0.0-20200921103415-55df7f54ef71
+	github.com/seletskiy/tplutil v0.0.0-20200921103632-f880f6245597
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.5.1
 	github.com/theupdateframework/notary v0.6.2-0.20200804143915-84287fd8df4f // indirect
-	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
-	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
-	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect
-	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
-	google.golang.org/grpc v1.26.0 // indirect
-	gopkg.in/yaml.v2 v2.2.8
-	gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
+	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
+	google.golang.org/genproto v0.0.0-20200918140846-d0d605568037 // indirect
+	google.golang.org/grpc v1.32.0 // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	gotest.tools v2.2.0+incompatible // indirect
 )
