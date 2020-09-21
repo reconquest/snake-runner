@@ -11,3 +11,4 @@
 *.out
 /log
 /cmd/snake-runner/snake-runner
+/dist

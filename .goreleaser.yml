@@ -1,0 +1,52 @@
+before:
+  hooks:
+    - go mod download
+    - task go:generate -f
+builds:
+  - env:
+    - CGO_ENABLED=0
+    binary: snake-runner
+    main: ./cmd/snake-runner/
+    gcflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    ldflags:
+     - -X=github.com/reconquest/snake-runner/internal/builtin.Version={{.Version}}
+    goos:
+      - linux
+      - windows
+    goarch:
+      - 386
+      - amd64
+archives:
+- id: zip
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
+  format: zip
+  files:
+    - README.md
+    - LICENSE
+    - LICENSES_THIRD_PARTY
+- id: binary
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
+  format: binary
+  files:
+    - none*
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-SNAPSHOT"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
