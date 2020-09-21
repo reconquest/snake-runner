@@ -61,4 +61,4 @@ tasks:
           reconquest/snake-runner:latest
 
   licenses:
-    glice -gh "{{.GITHUB_TOKEN}}" | taskutils/licenses > LICENSES_THIRD_PARTY.md
+    glice -gh "{{.GITHUB_TOKEN}}" | taskutils/licenses > LICENSES_THIRD_PARTY
