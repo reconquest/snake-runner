@@ -18,9 +18,8 @@ Here is also [a YouTube video about Snake CI](https://www.youtube.com/watch?v=OR
 
 ## Changelog
 
-If you are looking for a changelog, it's also available in official
-documentation — [Snake Runner Changelog and Release
-Notes](https://snake-ci.com/docs/changelog/runner/).
+If you are looking for a changelog, it's available in the official documentation — [Snake Runner
+Changelog and Release Notes](https://snake-ci.com/docs/changelog/runner/).
 
 ## Installation
 
@@ -36,3 +35,7 @@ While you can file an issue here on GitHub, you can also contact us directly
 via:
 * e-mail: [we@reconquest.io](mailto:we@reconquest.io)
 * slack: [slack.reconquest.io](https://slack.reconquest.io/)
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md).
