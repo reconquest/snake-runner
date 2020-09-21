@@ -39,3 +39,9 @@ via:
 ## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## Licenses
+
+[Snake Runner's License](LICENSE)
+
+[Third-party licenses](LICENSES_THIRD_PARTY.md)

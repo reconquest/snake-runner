@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sed -r 's@(\| gopkg.in/yaml.v3.*)\|\s+\|$$@\1| MIT, Apache-2.0 |@' \
+    | sed -r 's@(\| gopkg.in/yaml.v2.*)\|\s+\|$$@\1| Apache-2.0 |@' \
+    | sed -r 's@(\| golang.org/x/crypto/.*)\|\s+\|$$@\1| BSD-3-Clause |@'
