@@ -1,6 +1,5 @@
 version: '3'
 
-output: prefixed
 silent: true
 
 vars:
