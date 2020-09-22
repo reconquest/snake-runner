@@ -104,7 +104,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	if config.Mode == "shell" {
 		log.Warning(
-			"Shell mode specified, all commands will be " +
+			"shell mode specified, all commands will be " +
 				"executed on the local host with current process permissions",
 		)
 	}

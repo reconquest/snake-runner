@@ -15,8 +15,10 @@ import (
 	"github.com/reconquest/snake-runner/internal/executor/docker"
 	"github.com/reconquest/snake-runner/internal/executor/shell"
 	"github.com/reconquest/snake-runner/internal/pipeline"
+	"github.com/reconquest/snake-runner/internal/platform"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
+	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/signal"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -45,6 +47,8 @@ type Scheduler struct {
 }
 
 func (snake *Snake) startScheduler() error {
+	ctx := context.Background()
+
 	var execer executor.Executor
 	var err error
 	switch snake.config.Mode {
@@ -70,13 +74,44 @@ func (snake *Snake) startScheduler() error {
 			)
 		}
 
+		err = sidecar.NewShellSidecarBuilder().
+			Executor(execer).
+			Build().
+			CheckPrerequisites(ctx)
+		if err != nil {
+			return karma.Format(
+				err,
+				"prerequisites check failed while running snake-runner with SNAKE_EXEC_MODE=shell;"+
+					" make sure that specified binaries are installed",
+			)
+		}
+
+		if shell.PLATFORM == platform.WINDOWS {
+			detected, err := execer.DetectShell(ctx, nil)
+			if err != nil {
+				return karma.Format(
+					err,
+					"unable to detect shell",
+				)
+			}
+
+			if detected != shell.PREFERRED_SHELL {
+				log.Warningf(
+					nil,
+					"no %s detected on system; use of %s is recommended on Windows platform",
+					shell.PREFERRED_SHELL,
+					shell.PREFERRED_SHELL,
+				)
+			}
+		}
+
 	default:
 		return fmt.Errorf(
 			"unexpected runner mode: %s", snake.config.Mode,
 		)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	scheduler := &Scheduler{
 		client:       snake.client,

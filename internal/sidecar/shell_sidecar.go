@@ -218,6 +218,27 @@ func (sidecar *ShellSidecar) ContainerVolumes() []executor.Volume {
 	return nil
 }
 
+func (sidecar *ShellSidecar) CheckPrerequisites(ctx context.Context) error {
+	for _, dep := range []string{
+		"ssh-add",
+		"ssh-agent",
+		"git",
+	} {
+		_, err := sidecar.executor.LookPath(ctx, dep)
+		if err != nil {
+			return karma.
+				Describe("$PATH", os.Getenv("PATH")).
+				Format(
+					err,
+					"required prerequisite is missing: %s",
+					dep,
+				)
+		}
+	}
+
+	return nil
+}
+
 func (sidecar *ShellSidecar) getLogger(tag string) func(string) {
 	return func(text string) {
 		log.Debugf(

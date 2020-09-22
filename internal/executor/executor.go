@@ -19,6 +19,7 @@ type Executor interface {
 	Prepare(context.Context, PrepareOptions) error
 	Exec(context.Context, Container, ExecOptions) error
 	DetectShell(context.Context, Container) (string, error)
+	LookPath(context.Context, string) (string, error)
 	Cleanup() error
 }
 
