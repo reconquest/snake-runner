@@ -41,7 +41,7 @@ archives:
   format: binary
   files:
     - none*
-  name_template: "{{ .binary }}_{{ .Env.VERSION }}_{{ .Os }}_{{ .Arch }}"
+  name_template: "{{ .Binary }}_{{ .Env.VERSION }}_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: 'checksums.txt'
 snapshot:
