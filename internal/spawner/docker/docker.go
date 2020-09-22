@@ -342,9 +342,9 @@ func (docker *Docker) Cleanup() error {
 	return nil
 }
 
-func (docker *Docker) GetImageWithTag(
+func (docker *Docker) getImageByTag(
 	ctx context.Context,
-	tag string,
+	query string,
 ) (*Image, error) {
 	images, err := docker.ListImages(ctx)
 	if err != nil {
@@ -356,8 +356,8 @@ func (docker *Docker) GetImageWithTag(
 
 	for _, image := range images {
 		for _, repoTag := range image.RepoTags {
-			if repoTag == tag ||
-				(!strings.Contains(tag, ":") && strings.HasPrefix(repoTag, tag+":")) {
+			if repoTag == query ||
+				(!strings.Contains(query, ":") && strings.HasPrefix(repoTag, query+":")) {
 				return &Image{
 					Tags: image.RepoTags,
 					ID:   image.ID,
@@ -418,7 +418,7 @@ func (docker *Docker) Prepare(
 		tag = tag + ":latest"
 	}
 
-	image, err := docker.GetImageWithTag(ctx, tag)
+	image, err := docker.getImageByTag(ctx, tag)
 	if err != nil {
 		return err
 	}
@@ -435,7 +435,7 @@ func (docker *Docker) Prepare(
 			return err
 		}
 
-		image, err = docker.GetImageWithTag(ctx, tag)
+		image, err = docker.getImageByTag(ctx, tag)
 		if err != nil {
 			return karma.Format(err, "unable to get image after pulling")
 		}
