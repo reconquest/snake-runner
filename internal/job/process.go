@@ -28,19 +28,6 @@ import (
 
 const (
 	DEFAULT_CONTAINER_JOB_IMAGE = "alpine:latest"
-
-	LINUX_DEFAULT_SHELL_COMMAND = `IFS=:;
-if [ -z "$PATH" ]; then
-	set -- $(getconf PATH)
-else 
-	set -- $PATH;
-fi;
-for dir; do
-	if [ -x $dir/bash ]; then
-		echo $dir/bash;
-		exit 0;
-	fi;
-done;`
 )
 
 type ContextSpawnerAuth struct {
@@ -412,52 +399,15 @@ func (process *Process) detectShell() error {
 		return nil
 	}
 
-	output := ""
-	callback := func(line string) {
-		process.log.Tracef(nil, "shelldetect: %q", line)
-
-		line = strings.TrimSpace(line)
-		if line == "" {
-			return
-		}
-
-		if output == "" {
-			output = line
-		} else {
-			output += "\n" + line
-		}
-	}
-
-	cmd := []string{"sh", "-c", LINUX_DEFAULT_SHELL_COMMAND}
-
-	err := process.spawner.Exec(
+	var err error
+	process.shell, err = process.spawner.DetectShell(
 		process.ctx,
 		process.container,
-		spawner.ExecOptions{
-			Cmd:            cmd,
-			AttachStdout:   true,
-			AttachStderr:   true,
-			OutputConsumer: callback,
-		},
 	)
 	if err != nil {
 		return karma.Format(
 			err,
-			"execution of shell detection script failed",
-		)
-	}
-
-	if output == "" {
-		process.shell = "sh"
-
-		process.log.Debugf(nil, "using default shell: %q", process.shell)
-	} else {
-		process.shell = output
-
-		process.log.Debugf(
-			nil,
-			"using shell detected in container: %q",
-			process.shell,
+			"unable to detect shell",
 		)
 	}
 

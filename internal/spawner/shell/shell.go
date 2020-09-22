@@ -162,6 +162,18 @@ func (shell *Shell) Prepare(
 	return nil
 }
 
+func (shell *Shell) DetectShell(
+	ctx context.Context,
+	container spawner.Container,
+) (string, error) {
+	_, err := exec.LookPath(PREFERRED_SHELL)
+	if err != nil {
+		return DEFAULT_SHELL, nil
+	}
+
+	return PREFERRED_SHELL, nil
+}
+
 type callbackWriter struct {
 	ctx      context.Context
 	callback spawner.OutputConsumer

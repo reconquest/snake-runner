@@ -18,6 +18,7 @@ type Spawner interface {
 	Destroy(context.Context, Container) error
 	Prepare(context.Context, PrepareOptions) error
 	Exec(context.Context, Container, ExecOptions) error
+	DetectShell(context.Context, Container) (string, error)
 	Cleanup() error
 }
 

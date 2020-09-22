@@ -94,7 +94,7 @@ func (docker *Docker) PullImage(
 	imgRefAndAuth, err := trust.GetImageReferencesAndAuth(
 		ctx,
 		nil,
-		func(ctx context.Context, index *docker_registrytypes.IndexInfo) docker_types.AuthConfig {
+		func(_ context.Context, index *docker_registrytypes.IndexInfo) docker_types.AuthConfig {
 			configKey := index.Name
 			if index.Official {
 				configKey = registry.IndexServer
@@ -153,11 +153,7 @@ func (docker *Docker) PullImage(
 	termFd, isTerm := term.GetFdInfo(logwriter)
 
 	err = jsonmessage.DisplayJSONMessagesStream(
-		reader,
-		logwriter,
-		termFd,
-		isTerm,
-		nil,
+		reader, logwriter, termFd, isTerm, nil,
 	)
 	if err != nil {
 		return karma.Format(
@@ -329,8 +325,10 @@ func (docker *Docker) Cleanup() error {
 			err := docker.Destroy(context.Background(), Container{id: container.ID})
 			if err != nil {
 				log.Errorf(
-					karma.Describe("id", container.ID).
-						Describe("name", container.Names).Reason(err),
+					karma.
+						Describe("id", container.ID).
+						Describe("name", container.Names).
+						Reason(err),
 					"unable to destroy container",
 				)
 			}
@@ -477,4 +475,60 @@ func (callbackWriter callbackWriter) Write(data []byte) (int, error) {
 	callbackWriter.callback(string(data))
 
 	return len(data), nil
+}
+
+func (docker *Docker) DetectShell(
+	ctx context.Context,
+	container spawner.Container,
+) (string, error) {
+	output := ""
+	callback := func(line string) {
+		log.Tracef(nil, "shelldetect: %q", line)
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			return
+		}
+
+		if output == "" {
+			output = line
+		} else {
+			output += "\n" + line
+		}
+	}
+
+	cmd := []string{
+		DEFAULT_SHELL,
+		DEFAULT_SHELL_FLAG_COMMAND,
+		DEFAULT_DETECT_SHELL_COMMAND,
+	}
+
+	err := docker.Exec(
+		ctx,
+		container,
+		spawner.ExecOptions{
+			Cmd:            cmd,
+			AttachStdout:   true,
+			AttachStderr:   true,
+			OutputConsumer: callback,
+		},
+	)
+	if err != nil {
+		return "", karma.Format(
+			err,
+			"execution of shell detection script failed",
+		)
+	}
+
+	program := strings.TrimSpace(output)
+
+	if program == "" {
+		log.Tracef(nil, "shelldetect: using default shell: %q", DEFAULT_SHELL)
+
+		return DEFAULT_SHELL, nil
+	}
+
+	log.Tracef(nil, "shelldetect: detected shell: %q", program)
+
+	return program, nil
 }
