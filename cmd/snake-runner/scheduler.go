@@ -99,7 +99,7 @@ func (snake *Snake) startScheduler() error {
 			if detected != shell.PREFERRED_SHELL {
 				log.Warningf(
 					nil,
-					"no %s detected on system; use of %s is recommended on Windows platform",
+					"no %s detected on system; use of %s is recommended on Windows",
 					shell.PREFERRED_SHELL,
 					shell.PREFERRED_SHELL,
 				)
