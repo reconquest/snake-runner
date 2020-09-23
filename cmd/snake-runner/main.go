@@ -8,7 +8,6 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/sign-go"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/runner"
@@ -18,6 +17,11 @@ var usage = "snake-runner " + builtin.Version + `
 
 Usage:
   snake-runner [options]
+  snake-runner [options] service install
+  snake-runner [options] service start
+  snake-runner [options] service status
+  snake-runner [options] service stop
+  snake-runner [options] service uninstall
   snake-runner -h | --help
   snake-runner --version
 
@@ -25,11 +29,17 @@ Options:
   -h --help           Show this screen.
   --version           Show version.
   -c --config <path>  Use specified config.
-                       [default: /etc/snake-runner/snake-runner.conf]
+                       [default: ` + runner.DEFAULT_PIPELINES_DIR + `]
 `
 
-type commandLineOptions struct {
-	ConfigPathValue string `docopt:"--config"`
+type RunOptions struct {
+	Config    string
+	Service   bool
+	Start     bool
+	Install   bool
+	Status    bool
+	Stop      bool
+	Uninstall bool
 }
 
 func main() {
@@ -38,7 +48,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var options commandLineOptions
+	var options RunOptions
 	err = args.Bind(&options)
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +59,16 @@ func main() {
 		"starting snake-runner",
 	)
 
-	config, err := runner.LoadConfig(options.ConfigPathValue)
+	if options.Service {
+		err := controlService(options)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return
+	}
+
+	config, err := runner.LoadConfig(options.Config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,34 +83,12 @@ func main() {
 
 	log.Infof(nil, "runner name: %s", config.Name)
 
+	if os.Getenv("SNAKE_AUDIT_GOROUTINES") == "1" {
+		audit.Start()
+	}
+
 	snake := NewSnake(config)
 	snake.Start()
-
-	// uncomment if you want to trace goroutines
-	//
-	// go func() {
-	//    defer audit.Go("audit", "watcher")()
-
-	//    for {
-	//        num := audit.NumGoroutines()
-	//        log.Tracef(nil, "{audit} goroutines audit: %d runtime: %d", num, runtime.NumGoroutine())
-
-	//        time.Sleep(time.Millisecond * 3000)
-	//    }
-	//}()
-
-	go sign.Notify(func(_ os.Signal) bool {
-		defer audit.Go("audit", "sighup")()
-
-		routines := audit.Goroutines()
-
-		log.Warningf(nil, "{audit} goroutines: %d", len(routines))
-		for _, routine := range routines {
-			log.Warningf(nil, "{audit} "+routine)
-		}
-
-		return true
-	}, syscall.SIGHUP)
 
 	interrupts := make(chan os.Signal)
 	signal.Notify(interrupts, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

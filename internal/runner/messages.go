@@ -2,9 +2,7 @@ package runner
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 	"text/template"
 
 	"github.com/reconquest/pkg/log"
@@ -41,7 +39,7 @@ command:
     snake-runner
 
 Alternatively, you can specify those params in the config file, which by
-default is /etc/snake-runner/snake-runner.conf:
+default is ` + DEFAULT_PIPELINES_DIR + `:
 
  master_address: {{ with .MasterAddress }}{{ . }}{{ else }}https://mybitbucket.company/{{ end }}
  registration_token: {{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }}
@@ -52,45 +50,17 @@ func ShowMessageNotConfigured(config Config) {
 	message, err := tplutil.ExecuteToString(templateNotConfigured, map[string]interface{}{
 		"MasterAddress":     config.MasterAddress,
 		"RegistrationToken": config.RegistrationToken,
-		"IsDocker":          isDocker(),
+		"IsDocker":          IsDocker(),
 	})
 	if err != nil {
 		log.Errorf(err, "unable to show templated message")
 
-		fmt.Fprintf(os.Stderr, "SNAKE_MASTER_ADDRESS or SNAKE_REGISTRATION_TOKEN is not specified\n")
+		fmt.Fprintf(
+			os.Stderr,
+			"SNAKE_MASTER_ADDRESS or SNAKE_REGISTRATION_TOKEN is not specified\n",
+		)
 		return
 	}
 
 	fmt.Fprintln(os.Stderr, message)
-}
-
-func isDocker() bool {
-	contents, err := ioutil.ReadFile("/proc/1/cgroup")
-	if err != nil {
-		log.Errorf(err, "unable to read /proc/1/cgroup to determine "+
-			"is it docker container or not")
-	}
-
-	/**
-	* A docker container has /docker/ in its /cgroup file
-	*
-	* / # cat /proc/1/cgroup | grep docker
-	* 11:pids:/docker/14f3db3a669169c0b801a3ac99...
-	* 10:freezer:/docker/14f3db3a669169c0b801a3ac9...
-	* 9:cpu,cpuacct:/docker/14f3db3a669169c0b801a3ac...
-	* 8:hugetlb:/docker/14f3db3a669169c0b801a3ac99f89e...
-	* 7:perf_event:/docker/14f3db3a669169c0b801a3...
-	* 6:devices:/docker/14f3db3a669169c0b801a3ac99f...
-	* 5:memory:/docker/14f3db3a669169c0b801a3ac99f89e...
-	* 4:blkio:/docker/14f3db3a669169c0b801a3ac99f89e914...
-	* 3:cpuset:/docker/14f3db3a669169c0b801a3ac99f89e914a...
-	* 2:net_cls,net_prio:/docker/14f3db3a669169c0b801a3ac...
-	* 1:name=systemd:/docker/14f3db3a669169c0b801a3ac99f89e...
-	* 0::/system.slice/docker.service
-	***/
-	if strings.Contains(string(contents), "/docker/") {
-		return true
-	}
-
-	return false
 }
