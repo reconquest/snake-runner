@@ -145,7 +145,7 @@ func (snake *Snake) startScheduler() error {
 }
 
 func (scheduler *Scheduler) start() {
-	scheduler.routines.Add(3)
+	scheduler.routines.Add(2)
 	go func() {
 		defer audit.Go("scheduler", "ssh key factory")()
 		defer scheduler.routines.Done()
