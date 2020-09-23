@@ -1,19 +1,19 @@
-package spawner
+package executor
 
 import (
 	"context"
 	"io"
 )
 
-type SpawnerType string
+type ExecutorType string
 
 const (
-	SPAWNER_DOCKER SpawnerType = "SPAWNER_DOCKER"
-	SPAWNER_SHELL  SpawnerType = "SPAWNER_SHELL"
+	EXECUTOR_DOCKER ExecutorType = "EXECUTOR_DOCKER"
+	EXECUTOR_SHELL  ExecutorType = "EXECUTOR_SHELL"
 )
 
-type Spawner interface {
-	Type() SpawnerType
+type Executor interface {
+	Type() ExecutorType
 	Create(context.Context, CreateOptions) (Container, error)
 	Destroy(context.Context, Container) error
 	Prepare(context.Context, PrepareOptions) error

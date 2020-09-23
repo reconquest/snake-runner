@@ -21,7 +21,7 @@ func init() {
 // func TestSidecar(t *testing.T) {
 //    test := assert.New(t)
 
-//    docker, err := spawner.NewDocker("host")
+//    docker, err := executor.NewDocker("host")
 //    test.NoError(err)
 
 //    outputConsumer := func(text string) error {

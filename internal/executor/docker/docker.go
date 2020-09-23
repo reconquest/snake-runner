@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
 
@@ -72,15 +72,15 @@ func NewDocker(network string, volumes []string) (*Docker, error) {
 	return docker, err
 }
 
-func (docker *Docker) Type() spawner.SpawnerType {
-	return spawner.SPAWNER_DOCKER
+func (docker *Docker) Type() executor.ExecutorType {
+	return executor.EXECUTOR_DOCKER
 }
 
 func (docker *Docker) PullImage(
 	ctx context.Context,
 	reference string,
-	callback spawner.OutputConsumer,
-	auths []spawner.Auths,
+	callback executor.OutputConsumer,
+	auths []executor.Auths,
 ) error {
 	distributionRef, err := docker_reference.ParseNormalizedNamed(reference)
 	if err != nil {
@@ -100,7 +100,7 @@ func (docker *Docker) PullImage(
 				configKey = registry.IndexServer
 			}
 
-			var found spawner.AuthConfig
+			var found executor.AuthConfig
 			for _, auth := range auths {
 				if len(auth) > 0 {
 					auth, ok := auth[configKey]
@@ -178,8 +178,8 @@ func (docker *Docker) ListImages(
 
 func (docker *Docker) Create(
 	ctx context.Context,
-	opts spawner.CreateOptions,
-) (spawner.Container, error) {
+	opts executor.CreateOptions,
+) (executor.Container, error) {
 	config := &docker_container.Config{
 		Image: opts.Image,
 		Labels: map[string]string{
@@ -227,7 +227,7 @@ func (docker *Docker) Create(
 
 func (docker *Docker) Destroy(
 	ctx context.Context,
-	container spawner.Container,
+	container executor.Container,
 ) error {
 	if container == nil {
 		return nil
@@ -248,8 +248,8 @@ func (docker *Docker) Destroy(
 
 func (docker *Docker) Exec(
 	ctx context.Context,
-	container spawner.Container,
-	opts spawner.ExecOptions,
+	container executor.Container,
+	opts executor.ExecOptions,
 ) error {
 	exec, err := docker.client.ContainerExecCreate(
 		ctx,
@@ -411,7 +411,7 @@ func (docker *Docker) encodeAuth(serverAddress string, auth docker_types.AuthCon
 
 func (docker *Docker) Prepare(
 	ctx context.Context,
-	opts spawner.PrepareOptions,
+	opts executor.PrepareOptions,
 ) error {
 	tag := opts.Image
 	if !strings.Contains(tag, ":") {
@@ -460,7 +460,7 @@ func (docker *Docker) Prepare(
 
 type callbackWriter struct {
 	ctx      context.Context
-	callback spawner.OutputConsumer
+	callback executor.OutputConsumer
 }
 
 func (callbackWriter callbackWriter) Write(data []byte) (int, error) {
@@ -479,7 +479,7 @@ func (callbackWriter callbackWriter) Write(data []byte) (int, error) {
 
 func (docker *Docker) DetectShell(
 	ctx context.Context,
-	container spawner.Container,
+	container executor.Container,
 ) (string, error) {
 	output := ""
 	callback := func(line string) {
@@ -506,7 +506,7 @@ func (docker *Docker) DetectShell(
 	err := docker.Exec(
 		ctx,
 		container,
-		spawner.ExecOptions{
+		executor.ExecOptions{
 			Cmd:            cmd,
 			AttachStdout:   true,
 			AttachStderr:   true,

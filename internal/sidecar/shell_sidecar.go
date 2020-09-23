@@ -14,18 +14,18 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/consts"
-	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
 
 //go:generate gonstructor -type ShellSidecar -constructorTypes builder
 
 type ShellSidecar struct {
-	spawner        spawner.Spawner
+	executor       executor.Executor
 	name           string
 	slug           string
-	promptConsumer spawner.PromptConsumer
-	outputConsumer spawner.OutputConsumer
+	promptConsumer executor.PromptConsumer
+	outputConsumer executor.OutputConsumer
 	pipelinesDir   string
 
 	baseDir string `gonstructor:"-"`
@@ -37,7 +37,7 @@ type ShellSidecar struct {
 	sshAgent      *sync.WaitGroup `gonstructor:"-"`
 	sshKnownHosts string          `gonstructor:"-"`
 
-	container spawner.Container `gonstructor:"-"`
+	container executor.Container `gonstructor:"-"`
 }
 
 func (sidecar *ShellSidecar) getTempDir() (string, error) {
@@ -67,9 +67,9 @@ func (sidecar *ShellSidecar) Serve(
 		)
 	}
 
-	container, err := sidecar.spawner.Create(
+	container, err := sidecar.executor.Create(
 		ctx,
-		spawner.CreateOptions{
+		executor.CreateOptions{
 			Name: "snake-runner-sidecar-" + sidecar.name,
 		},
 	)
@@ -82,7 +82,7 @@ func (sidecar *ShellSidecar) Serve(
 	// starting ssh-agent
 	sidecar.sshAgent, sidecar.sshSocket, err = startSshAgent(
 		ctx,
-		sidecar.spawner,
+		sidecar.executor,
 		sidecar.container,
 		sidecar.getLogger("ssh-agent"),
 		sidecar.tempDir,
@@ -147,7 +147,7 @@ func (sidecar *ShellSidecar) Serve(
 			sidecar.promptConsumer(step.cmd)
 		}
 
-		err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
+		err = sidecar.executor.Exec(ctx, sidecar.container, executor.ExecOptions{
 			Env:            env,
 			Cmd:            step.cmd,
 			Stdin:          step.stdin,
@@ -170,7 +170,7 @@ func (sidecar *ShellSidecar) Serve(
 
 func (sidecar *ShellSidecar) Destroy() {
 	if sidecar.container != nil {
-		err := sidecar.spawner.Destroy(context.Background(), sidecar.container)
+		err := sidecar.executor.Destroy(context.Background(), sidecar.container)
 		if err != nil {
 			log.Errorf(err, "unable to destroy resources")
 		}
@@ -214,7 +214,7 @@ func (sidecar *ShellSidecar) ReadFile(
 	return string(contents), nil
 }
 
-func (sidecar *ShellSidecar) ContainerVolumes() []spawner.Volume {
+func (sidecar *ShellSidecar) ContainerVolumes() []executor.Volume {
 	return nil
 }
 

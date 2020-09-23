@@ -11,13 +11,13 @@ import (
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
+	"github.com/reconquest/snake-runner/internal/executor"
+	"github.com/reconquest/snake-runner/internal/executor/docker"
+	"github.com/reconquest/snake-runner/internal/executor/shell"
 	"github.com/reconquest/snake-runner/internal/pipeline"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
 	"github.com/reconquest/snake-runner/internal/signal"
-	"github.com/reconquest/snake-runner/internal/spawner"
-	"github.com/reconquest/snake-runner/internal/spawner/docker"
-	"github.com/reconquest/snake-runner/internal/spawner/shell"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
@@ -25,7 +25,7 @@ import (
 
 type Scheduler struct {
 	client         *api.Client
-	spawner        spawner.Spawner
+	executor       executor.Executor
 	pipelinesMap   safemap.IntToAny
 	pipelines      int64
 	pipelinesGroup sync.WaitGroup
@@ -45,13 +45,13 @@ type Scheduler struct {
 }
 
 func (snake *Snake) startScheduler() error {
-	var spawn spawner.Spawner
+	var execer executor.Executor
 	var err error
 	switch snake.config.Mode {
 	case runner.RUNNER_MODE_DOCKER:
 		log.Infof(nil, "initializing docker provider")
 
-		spawn, err = docker.NewDocker(
+		execer, err = docker.NewDocker(
 			snake.config.Docker.Network,
 			snake.config.Docker.Volumes,
 		)
@@ -62,7 +62,7 @@ func (snake *Snake) startScheduler() error {
 	case runner.RUNNER_MODE_SHELL:
 		log.Infof(nil, "initializing shell provider")
 
-		spawn, err = shell.NewShell()
+		execer, err = shell.NewShell()
 		if err != nil {
 			return karma.Format(
 				err,
@@ -80,7 +80,7 @@ func (snake *Snake) startScheduler() error {
 
 	scheduler := &Scheduler{
 		client:       snake.client,
-		spawner:      spawn,
+		executor:     execer,
 		runnerConfig: snake.config,
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
@@ -94,7 +94,7 @@ func (snake *Snake) startScheduler() error {
 		terminator:   snake,
 	}
 
-	err = spawn.Cleanup()
+	err = execer.Cleanup()
 	if err != nil {
 		return karma.Format(err, "unable to cleanup old resources")
 	}
@@ -263,7 +263,7 @@ func (scheduler *Scheduler) startPipeline(
 		scheduler.client,
 		scheduler.runnerConfig,
 		task,
-		scheduler.spawner,
+		scheduler.executor,
 		log.NewChildWithPrefix(fmt.Sprintf("[pipeline:%d]", task.Pipeline.ID)),
 		sshKey,
 		signal.NewCondition(),

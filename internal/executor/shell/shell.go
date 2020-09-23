@@ -10,12 +10,12 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/set"
-	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
 
-var _ spawner.Spawner = (*Shell)(nil)
+var _ executor.Executor = (*Shell)(nil)
 
 type Shell struct {
 }
@@ -37,14 +37,14 @@ func NewShell() (*Shell, error) {
 	return &Shell{}, nil
 }
 
-func (shell *Shell) Type() spawner.SpawnerType {
-	return spawner.SPAWNER_SHELL
+func (shell *Shell) Type() executor.ExecutorType {
+	return executor.EXECUTOR_SHELL
 }
 
 func (shell *Shell) Create(
 	ctx context.Context,
-	opts spawner.CreateOptions,
-) (spawner.Container, error) {
+	opts executor.CreateOptions,
+) (executor.Container, error) {
 	return &Box{
 		id:        opts.Name,
 		processes: set.NewExecCmdSet(),
@@ -53,7 +53,7 @@ func (shell *Shell) Create(
 
 func (shell *Shell) Destroy(
 	ctx context.Context,
-	container spawner.Container,
+	container executor.Container,
 ) error {
 	box := box(container)
 	cmds := box.processes.List()
@@ -71,8 +71,8 @@ func (shell *Shell) Destroy(
 
 func (shell *Shell) Exec(
 	ctx context.Context,
-	container spawner.Container,
-	opts spawner.ExecOptions,
+	container executor.Container,
+	opts executor.ExecOptions,
 ) error {
 	box := box(container)
 
@@ -157,14 +157,14 @@ func (shell *Shell) Cleanup() error {
 
 func (shell *Shell) Prepare(
 	ctx context.Context,
-	opts spawner.PrepareOptions,
+	opts executor.PrepareOptions,
 ) error {
 	return nil
 }
 
 func (shell *Shell) DetectShell(
 	ctx context.Context,
-	container spawner.Container,
+	container executor.Container,
 ) (string, error) {
 	_, err := exec.LookPath(PREFERRED_SHELL)
 	if err != nil {
@@ -176,7 +176,7 @@ func (shell *Shell) DetectShell(
 
 type callbackWriter struct {
 	ctx      context.Context
-	callback spawner.OutputConsumer
+	callback executor.OutputConsumer
 }
 
 func (callbackWriter callbackWriter) Write(data []byte) (int, error) {
@@ -193,7 +193,7 @@ func (callbackWriter callbackWriter) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func box(container spawner.Container) *Box {
+func box(container executor.Container) *Box {
 	box, ok := container.(*Box)
 	if !ok {
 		panic("BUG: unexpected type given: " + fmt.Sprintf("%T", container))

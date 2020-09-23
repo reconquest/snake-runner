@@ -3,16 +3,16 @@
 package sidecar
 
 import (
-	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
 
 type ShellSidecarBuilder struct {
-	spawner        spawner.Spawner
+	executor       executor.Executor
 	name           string
 	slug           string
-	promptConsumer spawner.PromptConsumer
-	outputConsumer spawner.OutputConsumer
+	promptConsumer executor.PromptConsumer
+	outputConsumer executor.OutputConsumer
 	pipelinesDir   string
 	sshKey         sshkey.Key
 }
@@ -21,8 +21,8 @@ func NewShellSidecarBuilder() *ShellSidecarBuilder {
 	return &ShellSidecarBuilder{}
 }
 
-func (b *ShellSidecarBuilder) Spawner(spawner spawner.Spawner) *ShellSidecarBuilder {
-	b.spawner = spawner
+func (b *ShellSidecarBuilder) Executor(executor executor.Executor) *ShellSidecarBuilder {
+	b.executor = executor
 	return b
 }
 
@@ -36,12 +36,12 @@ func (b *ShellSidecarBuilder) Slug(slug string) *ShellSidecarBuilder {
 	return b
 }
 
-func (b *ShellSidecarBuilder) PromptConsumer(promptConsumer spawner.PromptConsumer) *ShellSidecarBuilder {
+func (b *ShellSidecarBuilder) PromptConsumer(promptConsumer executor.PromptConsumer) *ShellSidecarBuilder {
 	b.promptConsumer = promptConsumer
 	return b
 }
 
-func (b *ShellSidecarBuilder) OutputConsumer(outputConsumer spawner.OutputConsumer) *ShellSidecarBuilder {
+func (b *ShellSidecarBuilder) OutputConsumer(outputConsumer executor.OutputConsumer) *ShellSidecarBuilder {
 	b.outputConsumer = outputConsumer
 	return b
 }
@@ -58,7 +58,7 @@ func (b *ShellSidecarBuilder) SshKey(sshKey sshkey.Key) *ShellSidecarBuilder {
 
 func (b *ShellSidecarBuilder) Build() *ShellSidecar {
 	return &ShellSidecar{
-		spawner:        b.spawner,
+		executor:       b.executor,
 		name:           b.name,
 		slug:           b.slug,
 		promptConsumer: b.promptConsumer,

@@ -7,9 +7,9 @@ import (
 
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/api"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/signal"
-	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
@@ -20,7 +20,7 @@ func NewProcess(
 	client *api.Client,
 	runnerConfig *runner.Config,
 	task tasks.PipelineRun,
-	spawner spawner.Spawner,
+	executor executor.Executor,
 	log *cog.Logger,
 	sshKey sshkey.Key,
 	configCond signal.Condition,
@@ -31,7 +31,7 @@ func NewProcess(
 		client:       client,
 		runnerConfig: runnerConfig,
 		task:         task,
-		spawner:      spawner,
+		executor:     executor,
 		log:          log,
 		sshKey:       sshKey,
 		configCond:   configCond,

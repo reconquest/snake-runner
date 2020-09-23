@@ -15,13 +15,13 @@ import (
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/env"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/job"
 	"github.com/reconquest/snake-runner/internal/ptr"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/signal"
 	"github.com/reconquest/snake-runner/internal/snake"
-	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/status"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -39,7 +39,7 @@ type Process struct {
 	client       *api.Client
 	runnerConfig *runner.Config
 	task         tasks.PipelineRun
-	spawner      spawner.Spawner
+	executor     executor.Executor
 	log          *cog.Logger
 
 	sshKey sshkey.Key
@@ -49,8 +49,8 @@ type Process struct {
 	config  config.Pipeline `gonstructor:"-"`
 
 	auth struct {
-		variable    spawner.Auths `gonstructor:"-"`
-		environment spawner.Auths `gonstructor:"-"`
+		variable    executor.Auths `gonstructor:"-"`
+		environment executor.Auths `gonstructor:"-"`
 	} `gonstructor:"-"`
 
 	onceFail   sync.Once `gonstructor:"-"`
@@ -264,7 +264,7 @@ func (process *Process) processJob(
 
 	task = job.NewProcess(
 		process.ctx,
-		process.spawner,
+		process.executor,
 		process.client,
 		process.runnerConfig,
 		process.task,
@@ -277,7 +277,7 @@ func (process *Process) processJob(
 				target.ID,
 			),
 		),
-		job.ContextSpawnerAuth{
+		job.ContextExecutorAuth{
 			Runner:   process.runnerConfig.GetDockerAuthConfig(),
 			Pipeline: process.auth.variable,
 			Env:      process.auth.environment,
@@ -380,14 +380,14 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 
 	switch process.runnerConfig.Mode {
 	case runner.RUNNER_MODE_DOCKER:
-		var volumes []spawner.Volume
+		var volumes []executor.Volume
 
 		for _, volume := range process.runnerConfig.Sidecar.Docker.Volumes {
-			volumes = append(volumes, spawner.Volume(volume))
+			volumes = append(volumes, executor.Volume(volume))
 		}
 
 		return sidecar.NewCloudSidecarBuilder().
-			Spawner(process.spawner).
+			Executor(process.executor).
 			Name(name).
 			Slug(slug).
 			PipelinesDir(process.runnerConfig.PipelinesDir).
@@ -398,7 +398,7 @@ func (process *Process) buildSidecar(job *job.Process) sidecar.Sidecar {
 			Build()
 	case runner.RUNNER_MODE_SHELL:
 		return sidecar.NewShellSidecarBuilder().
-			Spawner(process.spawner).
+			Executor(process.executor).
 			Name(name).
 			Slug(slug).
 			PipelinesDir(process.runnerConfig.PipelinesDir).

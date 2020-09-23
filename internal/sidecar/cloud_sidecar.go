@@ -9,7 +9,7 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/consts"
-	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
 
@@ -25,17 +25,17 @@ var _ Sidecar = (*CloudSidecar)(nil)
 // * volume with git repository cloned from the bitbucket instance
 // * volume with shared ssh-agent socket
 type CloudSidecar struct {
-	spawner spawner.Spawner
-	name    string
+	executor executor.Executor
+	name     string
 	// pipelinesDir is the directory on the host file system where all pipelines
 	// and temporary stuff such as git repos and ssh sockets are stored
 	pipelinesDir   string
 	slug           string
-	promptConsumer spawner.PromptConsumer
-	outputConsumer spawner.OutputConsumer
+	promptConsumer executor.PromptConsumer
+	outputConsumer executor.OutputConsumer
 	sshKey         sshkey.Key
 
-	container spawner.Container `gonstructor:"-"`
+	container executor.Container `gonstructor:"-"`
 
 	hostSubDir   string `gonstructor:"-"`
 	containerDir string `gonstructor:"-"`
@@ -48,15 +48,15 @@ type CloudSidecar struct {
 	sshSocket     string `gonstructor:"-"`
 	sshKnownHosts string `gonstructor:"-"`
 
-	volumes []spawner.Volume
+	volumes []executor.Volume
 
 	sshAgent *sync.WaitGroup `gonstructor:"-"`
 }
 
-func (sidecar *CloudSidecar) ContainerVolumes() []spawner.Volume {
-	return []spawner.Volume{
-		spawner.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_GIT + ":" + sidecar.gitDir),
-		spawner.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_SSH + ":" + sidecar.sshDir),
+func (sidecar *CloudSidecar) ContainerVolumes() []executor.Volume {
+	return []executor.Volume{
+		executor.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_GIT + ":" + sidecar.gitDir),
+		executor.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_SSH + ":" + sidecar.sshDir),
 	}
 }
 
@@ -72,17 +72,17 @@ func (sidecar *CloudSidecar) SshKnownHostsPath() string {
 	return sidecar.sshKnownHosts
 }
 
-func (sidecar *CloudSidecar) Container() spawner.Container {
+func (sidecar *CloudSidecar) Container() executor.Container {
 	return sidecar.container
 }
 
 func (sidecar *CloudSidecar) create(ctx context.Context) error {
-	err := sidecar.spawner.Prepare(
+	err := sidecar.executor.Prepare(
 		ctx,
-		spawner.PrepareOptions{
+		executor.PrepareOptions{
 			Image:          CLOUD_SIDECAR_IMAGE,
 			OutputConsumer: sidecar.outputConsumer,
-			InfoConsumer:   spawner.DiscardConsumer,
+			InfoConsumer:   executor.DiscardConsumer,
 			Auths:          nil,
 		},
 	)
@@ -99,19 +99,19 @@ func (sidecar *CloudSidecar) create(ctx context.Context) error {
 	sidecar.gitDir = filepath.Join(sidecar.containerDir, consts.SUBDIR_GIT, sidecar.slug)
 	sidecar.sshDir = filepath.Join(sidecar.containerDir, consts.SUBDIR_SSH)
 
-	volumes := []spawner.Volume{
-		spawner.Volume(sidecar.hostSubDir + ":" + sidecar.containerDir + ":rw"),
+	volumes := []executor.Volume{
+		executor.Volume(sidecar.hostSubDir + ":" + sidecar.containerDir + ":rw"),
 
 		// host dir is bound because we are going to get rid of entire sidecar
 		// subdir during container destroying
-		spawner.Volume(sidecar.pipelinesDir + ":/host:rw"),
+		executor.Volume(sidecar.pipelinesDir + ":/host:rw"),
 	}
 
 	volumes = append(volumes, sidecar.volumes...)
 
-	sidecar.container, err = sidecar.spawner.Create(
+	sidecar.container, err = sidecar.executor.Create(
 		ctx,
-		spawner.CreateOptions{
+		executor.CreateOptions{
 			Name:    "snake-runner-sidecar-" + sidecar.name,
 			Image:   CLOUD_SIDECAR_IMAGE,
 			Volumes: volumes,
@@ -138,7 +138,7 @@ func (sidecar *CloudSidecar) Serve(
 	}
 
 	// preparing _directories_ such as 'git' and 'ssh'
-	err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
+	err = sidecar.executor.Exec(ctx, sidecar.container, executor.ExecOptions{
 		Cmd:            []string{"mkdir", "-p", sidecar.gitDir, sidecar.sshDir},
 		AttachStdout:   true,
 		AttachStderr:   true,
@@ -156,7 +156,7 @@ func (sidecar *CloudSidecar) Serve(
 	// starting ssh-agent
 	sidecar.sshAgent, sidecar.sshSocket, err = startSshAgent(
 		ctx,
-		sidecar.spawner,
+		sidecar.executor,
 		sidecar.container,
 		sidecar.getLogger("ssh-agent"),
 		sidecar.sshDir,
@@ -190,7 +190,7 @@ func (sidecar *CloudSidecar) Serve(
 
 	cmd := []string{"bash", "-c", strings.Join(basic, " && ")}
 
-	err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
+	err = sidecar.executor.Exec(ctx, sidecar.container, executor.ExecOptions{
 		Cmd:            cmd,
 		Env:            env,
 		AttachStdout:   true,
@@ -213,7 +213,7 @@ func (sidecar *CloudSidecar) Serve(
 	for _, cmd := range commands {
 		sidecar.promptConsumer(cmd)
 
-		err = sidecar.spawner.Exec(ctx, sidecar.container, spawner.ExecOptions{
+		err = sidecar.executor.Exec(ctx, sidecar.container, executor.ExecOptions{
 			Env: []string{
 				consts.SSH_AUTH_SOCK_VAR + "=" + sidecar.sshSocket,
 				// NOTE: the private key is not passed anymore but it's already
@@ -260,10 +260,10 @@ func (sidecar *CloudSidecar) Destroy() {
 			sidecar.container.String(), cmd,
 		)
 
-		err := sidecar.spawner.Exec(
+		err := sidecar.executor.Exec(
 			context.Background(),
 			sidecar.container,
-			spawner.ExecOptions{
+			executor.ExecOptions{
 				Cmd:            cmd,
 				AttachStderr:   true,
 				AttachStdout:   true,
@@ -286,7 +286,7 @@ func (sidecar *CloudSidecar) Destroy() {
 		sidecar.container.String(),
 	)
 
-	err := sidecar.spawner.Destroy(
+	err := sidecar.executor.Destroy(
 		context.Background(),
 		sidecar.container,
 	)
@@ -314,10 +314,10 @@ func (sidecar *CloudSidecar) ReadFile(ctx context.Context, cwd, path string) (st
 		}
 	}
 
-	err := sidecar.spawner.Exec(
+	err := sidecar.executor.Exec(
 		ctx,
 		sidecar.Container(),
-		spawner.ExecOptions{
+		executor.ExecOptions{
 			AttachStdout:   true,
 			AttachStderr:   true,
 			Cmd:            []string{"cat", path},

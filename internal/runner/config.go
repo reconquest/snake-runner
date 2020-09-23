@@ -14,8 +14,8 @@ import (
 	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/set"
-	"github.com/reconquest/snake-runner/internal/spawner"
 )
 
 const (
@@ -50,7 +50,7 @@ type Config struct {
 		// unmarshalling JSON as map
 		AuthConfigJSON string `yaml:"auth_config"`
 
-		auths spawner.DockerAuths
+		auths executor.DockerAuths
 	} `yaml:"docker"`
 
 	Sidecar struct {
@@ -60,7 +60,7 @@ type Config struct {
 	} `yaml:"sidecar"`
 }
 
-func (config *Config) GetDockerAuthConfig() spawner.Auths {
+func (config *Config) GetDockerAuthConfig() executor.Auths {
 	return config.Docker.auths.Auths
 }
 

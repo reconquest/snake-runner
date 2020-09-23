@@ -17,11 +17,11 @@ import (
 	"github.com/reconquest/snake-runner/internal/bufferer"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/env"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/masker"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/snake"
-	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/tasks"
 	"github.com/reconquest/snake-runner/internal/utils"
 )
@@ -30,15 +30,15 @@ const (
 	DEFAULT_CONTAINER_JOB_IMAGE = "alpine:latest"
 )
 
-type ContextSpawnerAuth struct {
-	Runner   spawner.Auths
-	Env      spawner.Auths
-	Pipeline spawner.Auths
-	Job      spawner.Auths
+type ContextExecutorAuth struct {
+	Runner   executor.Auths
+	Env      executor.Auths
+	Pipeline executor.Auths
+	Job      executor.Auths
 }
 
-func (config *ContextSpawnerAuth) List() []spawner.Auths {
-	return []spawner.Auths{
+func (config *ContextExecutorAuth) List() []executor.Auths {
+	return []executor.Auths{
 		config.Runner,
 		config.Env,
 		config.Pipeline,
@@ -49,7 +49,7 @@ func (config *ContextSpawnerAuth) List() []spawner.Auths {
 //go:generate gonstructor -type Process -init init
 type Process struct {
 	ctx          context.Context
-	spawner      spawner.Spawner
+	executor     executor.Executor
 	client       *api.Client
 	runnerConfig *runner.Config
 
@@ -58,15 +58,15 @@ type Process struct {
 	configPipeline  config.Pipeline
 	job             snake.PipelineJob
 	log             *cog.Logger
-	contextPullAuth ContextSpawnerAuth
+	contextPullAuth ContextExecutorAuth
 
 	configJob config.Job `gonstructor:"-"`
 
-	mutex     sync.Mutex        `gonstructor:"-"`
-	container spawner.Container `gonstructor:"-"`
-	sidecar   sidecar.Sidecar   `gonstructor:"-"`
-	shell     string            `gonstructor:"-"`
-	env       *env.Env          `gonstructor:"-"`
+	mutex     sync.Mutex         `gonstructor:"-"`
+	container executor.Container `gonstructor:"-"`
+	sidecar   sidecar.Sidecar    `gonstructor:"-"`
+	shell     string             `gonstructor:"-"`
+	env       *env.Env           `gonstructor:"-"`
 	logs      struct {
 		masker       masker.Masker
 		maskWriter   *lineflushwriter.Writer
@@ -190,9 +190,9 @@ func (process *Process) Run() error {
 		"docker auth configs",
 	)
 
-	err = process.spawner.Prepare(
+	err = process.executor.Prepare(
 		process.ctx,
-		spawner.PrepareOptions{
+		executor.PrepareOptions{
 			Image:          image,
 			OutputConsumer: process.LogMask,
 			InfoConsumer:   process.LogMask,
@@ -203,9 +203,9 @@ func (process *Process) Run() error {
 		return process.errorfRemote(err, "unable to pull image %q", image)
 	}
 
-	process.container, err = process.spawner.Create(
+	process.container, err = process.executor.Create(
 		process.ctx,
-		spawner.CreateOptions{
+		executor.CreateOptions{
 			Name: fmt.Sprintf(
 				"pipeline-%d-job-%d-uniq-%v",
 				process.task.Pipeline.ID,
@@ -221,7 +221,7 @@ func (process *Process) Run() error {
 	}
 
 	defer func() {
-		err := process.spawner.Destroy(context.Background(), process.container)
+		err := process.executor.Destroy(context.Background(), process.container)
 		if err != nil {
 			log.Errorf(
 				karma.
@@ -276,11 +276,11 @@ func (process *Process) getImage() (string, string) {
 	return image, expanded
 }
 
-func (process *Process) getDockerAuthConfig() (spawner.Auths, error) {
+func (process *Process) getDockerAuthConfig() (executor.Auths, error) {
 	if process.configJob.Variables != nil {
 		raw, ok := process.configJob.Variables["DOCKER_AUTH_CONFIG"]
 		if ok {
-			var cfg spawner.Auths
+			var cfg executor.Auths
 			err := json.Unmarshal([]byte(raw), &cfg)
 			if err != nil {
 				return cfg, karma.Format(
@@ -294,7 +294,7 @@ func (process *Process) getDockerAuthConfig() (spawner.Auths, error) {
 		}
 	}
 
-	return spawner.Auths{}, nil
+	return executor.Auths{}, nil
 }
 
 func (process *Process) expandEnv(target string) string {
@@ -348,10 +348,10 @@ func (process *Process) execShell(cmd string) error {
 	go func() {
 		defer audit.Go("exec", cmd)()
 
-		err <- process.spawner.Exec(
+		err <- process.executor.Exec(
 			process.ctx,
 			process.container,
-			spawner.ExecOptions{
+			executor.ExecOptions{
 				Env:            process.env.GetAll(),
 				WorkingDir:     process.sidecar.GitDir(),
 				Cmd:            []string{process.shell, "-c", cmd},
@@ -400,7 +400,7 @@ func (process *Process) detectShell() error {
 	}
 
 	var err error
-	process.shell, err = process.spawner.DetectShell(
+	process.shell, err = process.executor.DetectShell(
 		process.ctx,
 		process.container,
 	)

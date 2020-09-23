@@ -9,13 +9,13 @@ import (
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/consts"
-	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/executor"
 )
 
 func startSshAgent(
 	ctx context.Context,
-	spawn spawner.Spawner,
-	container spawner.Container,
+	execer executor.Executor,
+	container executor.Container,
 	logger func(string),
 	sshDir string,
 ) (*sync.WaitGroup, string, error) {
@@ -39,7 +39,7 @@ func startSshAgent(
 
 		defer sshAgent.Done()
 
-		err := spawn.Exec(ctx, container, spawner.ExecOptions{
+		err := execer.Exec(ctx, container, executor.ExecOptions{
 			Cmd: []string{
 				"ssh-agent",
 				"-d", "-a", sshSocket,

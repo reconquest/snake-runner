@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/reconquest/snake-runner/internal/env"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/responses"
-	"github.com/reconquest/snake-runner/internal/spawner"
 )
 
 type Sidecar interface {
@@ -16,7 +16,7 @@ type Sidecar interface {
 	SshSocketPath() string
 	SshKnownHostsPath() string
 
-	ContainerVolumes() []spawner.Volume
+	ContainerVolumes() []executor.Volume
 
 	ReadFile(context context.Context, cwd, path string) (string, error)
 }

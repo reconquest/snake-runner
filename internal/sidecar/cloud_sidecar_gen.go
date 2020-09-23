@@ -3,27 +3,27 @@
 package sidecar
 
 import (
-	"github.com/reconquest/snake-runner/internal/spawner"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
 
 type CloudSidecarBuilder struct {
-	spawner        spawner.Spawner
+	executor       executor.Executor
 	name           string
 	pipelinesDir   string
 	slug           string
-	promptConsumer spawner.PromptConsumer
-	outputConsumer spawner.OutputConsumer
+	promptConsumer executor.PromptConsumer
+	outputConsumer executor.OutputConsumer
 	sshKey         sshkey.Key
-	volumes        []spawner.Volume
+	volumes        []executor.Volume
 }
 
 func NewCloudSidecarBuilder() *CloudSidecarBuilder {
 	return &CloudSidecarBuilder{}
 }
 
-func (b *CloudSidecarBuilder) Spawner(spawner spawner.Spawner) *CloudSidecarBuilder {
-	b.spawner = spawner
+func (b *CloudSidecarBuilder) Executor(executor executor.Executor) *CloudSidecarBuilder {
+	b.executor = executor
 	return b
 }
 
@@ -42,12 +42,12 @@ func (b *CloudSidecarBuilder) Slug(slug string) *CloudSidecarBuilder {
 	return b
 }
 
-func (b *CloudSidecarBuilder) PromptConsumer(promptConsumer spawner.PromptConsumer) *CloudSidecarBuilder {
+func (b *CloudSidecarBuilder) PromptConsumer(promptConsumer executor.PromptConsumer) *CloudSidecarBuilder {
 	b.promptConsumer = promptConsumer
 	return b
 }
 
-func (b *CloudSidecarBuilder) OutputConsumer(outputConsumer spawner.OutputConsumer) *CloudSidecarBuilder {
+func (b *CloudSidecarBuilder) OutputConsumer(outputConsumer executor.OutputConsumer) *CloudSidecarBuilder {
 	b.outputConsumer = outputConsumer
 	return b
 }
@@ -57,14 +57,14 @@ func (b *CloudSidecarBuilder) SshKey(sshKey sshkey.Key) *CloudSidecarBuilder {
 	return b
 }
 
-func (b *CloudSidecarBuilder) Volumes(volumes []spawner.Volume) *CloudSidecarBuilder {
+func (b *CloudSidecarBuilder) Volumes(volumes []executor.Volume) *CloudSidecarBuilder {
 	b.volumes = volumes
 	return b
 }
 
 func (b *CloudSidecarBuilder) Build() *CloudSidecar {
 	return &CloudSidecar{
-		spawner:        b.spawner,
+		executor:       b.executor,
 		name:           b.name,
 		pipelinesDir:   b.pipelinesDir,
 		slug:           b.slug,

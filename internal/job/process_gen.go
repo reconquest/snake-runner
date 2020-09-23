@@ -8,26 +8,26 @@ import (
 	"github.com/reconquest/cog"
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
-	"github.com/reconquest/snake-runner/internal/spawner"
 	"github.com/reconquest/snake-runner/internal/tasks"
 )
 
 func NewProcess(
 	ctx context.Context,
-	spawner spawner.Spawner,
+	executor executor.Executor,
 	client *api.Client,
 	runnerConfig *runner.Config,
 	task tasks.PipelineRun,
 	configPipeline config.Pipeline,
 	job snake.PipelineJob,
 	log *cog.Logger,
-	contextPullAuth ContextSpawnerAuth,
+	contextPullAuth ContextExecutorAuth,
 ) *Process {
 	r := &Process{
 		ctx:             ctx,
-		spawner:         spawner,
+		executor:        executor,
 		client:          client,
 		runnerConfig:    runnerConfig,
 		task:            task,
