@@ -81,6 +81,7 @@ func (snake *Snake) startScheduler() error {
 		if err != nil {
 			return karma.Format(
 				err,
+				// TODO: Add the documentation link.
 				"prerequisites check failed while running snake-runner with SNAKE_EXEC_MODE=shell;"+
 					" make sure that specified binaries are installed",
 			)
