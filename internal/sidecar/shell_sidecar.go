@@ -3,6 +3,7 @@ package sidecar
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -219,6 +220,8 @@ func (sidecar *ShellSidecar) ContainerVolumes() []executor.Volume {
 }
 
 func (sidecar *ShellSidecar) CheckPrerequisites(ctx context.Context) error {
+	var errs karma.Reason
+
 	for _, dep := range []string{
 		"ssh-add",
 		"ssh-agent",
@@ -226,14 +229,18 @@ func (sidecar *ShellSidecar) CheckPrerequisites(ctx context.Context) error {
 	} {
 		_, err := sidecar.executor.LookPath(ctx, dep)
 		if err != nil {
-			return karma.
-				Describe("$PATH", os.Getenv("PATH")).
-				Format(
-					err,
-					"required prerequisite is missing: %s",
-					dep,
-				)
+			if errs == nil {
+				errs = errors.New("unable to locate required dependencies")
+			}
+
+			errs = karma.Push(errs, err)
 		}
+	}
+
+	if errs != nil {
+		return karma.
+			Describe("$PATH", os.Getenv("PATH")).
+			Reason(errs)
 	}
 
 	return nil
