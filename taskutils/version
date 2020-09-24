@@ -22,7 +22,7 @@ fi
 if [[ $dots == 2 ]]; then
     patch=$(cut -d. -f3 <<< "$tag")
     if [[ "$patch" =~ beta$ ]]; then
-        echo "$tag$(git rev-list $tag..HEAD --count)"
+        echo "$tag$(git rev-list $tag..HEAD --count)-$(git rev-parse --short HEAD)"
     else
         echo $tag
     fi
