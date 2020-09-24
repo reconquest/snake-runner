@@ -2,26 +2,43 @@ version: '3'
 
 vars:
   address: https://bitbucket.local
-  token: 'not specified'
+  token: ''
 
 tasks:
   copy:
     desc: copy to windows vm
     cmds:
       - task go:build:windows
-      - sshpass -p XXXxxx1 ssh administrator@172.17.0.128 New-Item -Path C:\\snake-runner\\ -ItemType Directory -Force \| Out-Null
+      - sshpass -p XXXxxx1 ssh administrator@172.17.0.128
+          New-Item -Path C:\\snake-runner\\ -ItemType Directory -Force \| Out-Null
       - echo "% Uploading executable"
-      - sshpass -p XXXxxx1 scp snake-runner.exe administrator@172.17.0.128:"C:\\snake-runner\\snake-runner.exe"
+      - sshpass -p XXXxxx1 scp snake-runner.exe
+          administrator@172.17.0.128:"C:\\snake-runner\\snake-runner.exe"
 
   run:
     desc: run runner on windows vm
+    deps: [copy]
     cmds:
-      - sshpass -p XXXxxx1 ssh administrator@172.17.0.128
+      # don't like the "clear" effect? it's because of -t option.
+      # it's needed to pass CTRL-C to interrupt program gracefully
+      # Stop-Process and taskkill don't help with this.
+      - sshpass -p XXXxxx1 ssh -t administrator@172.17.0.128
           "\$env:SNAKE_MASTER_ADDRESS='{{.address}}';
           \$env:SNAKE_REGISTRATION_TOKEN='{{.token}}';
+          \$env:SNAKE_LOG_TRACE='true';
+          \$env:SNAKE_EXEC_MODE='shell';
+          \$env:SNAKE_AUDIT_GOROUTINES='1';
           C:\\snake-runner\\snake-runner.exe"
 
   kill:
     desc: run runner on windows vm
     cmds:
-      - sshpass -p XXXxxx1 ssh administrator@172.17.0.128 taskkill /f /im snake-runner.exe
+      - sshpass -p XXXxxx1 ssh administrator@172.17.0.128
+          taskkill /f /im snake-runner.exe
+
+  ssl:
+    desc: copy mkcert's root CA
+    cmds:
+      - sshpass -p XXXxxx1 scp $(mkcert -CAROOT)/rootCA.pem administrator@172.17.0.128:rootCA.pem
+      - sshpass -p XXXxxx1 ssh administrator@172.17.0.128
+          Import-Certificate -FilePath rootCA.pem -CertStoreLocation 'Cert:\LocalMachine\Root'

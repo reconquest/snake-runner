@@ -14,6 +14,7 @@ import (
 
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/sign-go"
+	"github.com/reconquest/snake-runner/internal/platform"
 )
 
 var (
@@ -26,6 +27,8 @@ var (
 )
 
 func Start() {
+	enabled = true
+
 	go func() {
 		defer Go("audit", "watcher")()
 
@@ -37,6 +40,12 @@ func Start() {
 				num,
 				runtime.NumGoroutine(),
 			)
+
+			if platform.CURRENT == platform.WINDOWS {
+				for _, routine := range Goroutines() {
+					log.Warningf(nil, "{audit} "+routine)
+				}
+			}
 
 			time.Sleep(time.Millisecond * 3000)
 		}
