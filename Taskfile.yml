@@ -53,7 +53,7 @@ tasks:
 
   dock:
     cmds:
-      - task: docker:snake-runner@build
+      - task: docker:snake-runner:build
       - docker run -it
           -e SNAKE_NAME={{.name}}
           -e SNAKE_MASTER_ADDRESS=http://{{.container}}:7990/

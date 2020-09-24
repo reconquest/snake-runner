@@ -3,6 +3,7 @@ package sidecar
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -215,6 +216,33 @@ func (sidecar *ShellSidecar) ReadFile(
 }
 
 func (sidecar *ShellSidecar) ContainerVolumes() []executor.Volume {
+	return nil
+}
+
+func (sidecar *ShellSidecar) CheckPrerequisites(ctx context.Context) error {
+	var errs karma.Reason
+
+	for _, dep := range []string{
+		"ssh-add",
+		"ssh-agent",
+		"git",
+	} {
+		_, err := sidecar.executor.LookPath(ctx, dep)
+		if err != nil {
+			if errs == nil {
+				errs = errors.New("unable to locate required dependencies")
+			}
+
+			errs = karma.Push(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return karma.
+			Describe("$PATH", os.Getenv("PATH")).
+			Reason(errs)
+	}
+
 	return nil
 }
 

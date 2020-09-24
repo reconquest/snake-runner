@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -531,4 +532,9 @@ func (docker *Docker) DetectShell(
 	log.Tracef(nil, "shelldetect: detected shell: %q", program)
 
 	return program, nil
+}
+
+func (docker *Docker) LookPath(ctx context.Context, path string) (string, error) {
+	// NOTE: not used, not implemented; only for interface compatibility.
+	return "", errors.New("docker spawner look path feature is not implemented")
 }

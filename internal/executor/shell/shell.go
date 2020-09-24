@@ -166,12 +166,16 @@ func (shell *Shell) DetectShell(
 	ctx context.Context,
 	container executor.Container,
 ) (string, error) {
-	_, err := exec.LookPath(PREFERRED_SHELL)
+	_, err := shell.LookPath(ctx, PREFERRED_SHELL)
 	if err != nil {
 		return DEFAULT_SHELL, nil
 	}
 
 	return PREFERRED_SHELL, nil
+}
+
+func (shell *Shell) LookPath(ctx context.Context, path string) (string, error) {
+	return exec.LookPath(path)
 }
 
 type callbackWriter struct {
