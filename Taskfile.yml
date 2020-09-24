@@ -25,6 +25,7 @@ includes:
   go: tasks/go.yml
   docker: tasks/docker.yml
   release: tasks/release.yml
+  windows: tasks/windows.yml
 
 tasks:
   version:

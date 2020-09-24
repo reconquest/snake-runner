@@ -28,7 +28,6 @@ tasks:
 
   'build:windows':
     desc: build go code with GOOS=windows
-    deps: [generate]
     cmds:
       - GOOS=windows task go:build
 
