@@ -83,6 +83,8 @@ func (shell *Shell) Exec(
 	name := opts.Cmd[0]
 	args := opts.Cmd[1:]
 
+	log.Tracef(nil, "shell exec: %s %s", name, args)
+
 	workers := &sync.WaitGroup{}
 
 	cmd := exec.CommandContext(ctx, name, args...)

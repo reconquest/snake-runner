@@ -16,6 +16,8 @@ import (
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/consts"
 	"github.com/reconquest/snake-runner/internal/executor"
+	"github.com/reconquest/snake-runner/internal/executor/shell"
+	"github.com/reconquest/snake-runner/internal/platform"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 )
 
@@ -117,6 +119,16 @@ func (sidecar *ShellSidecar) Serve(
 		// in ssh-agent's memory
 	}...)
 
+	var gitCloneArgs []string
+
+	switch shell.PLATFORM {
+	case platform.WINDOWS:
+		// Beginning with Git for Windows 2.14, you can now configure Git to
+		// use SChannel, the built-in Windows networking layer as the crypto
+		// backend
+		gitCloneArgs = append(gitCloneArgs, "-c", "http.sslbackend=schannel")
+	}
+
 	steps := []struct {
 		prompt bool
 		cmd    []string
@@ -129,7 +141,10 @@ func (sidecar *ShellSidecar) Serve(
 		},
 		{
 			prompt: true,
-			cmd:    []string{"git", "clone", "--recursive", opts.CloneURL, sidecar.gitDir},
+			cmd: append(
+				[]string{"git", "clone", "--recursive", opts.CloneURL, sidecar.gitDir},
+				gitCloneArgs...,
+			),
 		},
 		{
 			prompt: false,
