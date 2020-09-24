@@ -24,6 +24,7 @@ require (
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iancoleman/strcase v0.1.2 // indirect
+	github.com/kardianos/service v1.1.0
 	github.com/kovetskiy/ko v0.0.0-20200620085804-ec6b220882b0
 	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
 	github.com/kovetskiy/toml v0.2.0 // indirect

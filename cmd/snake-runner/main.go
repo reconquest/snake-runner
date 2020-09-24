@@ -29,7 +29,7 @@ Options:
   -h --help           Show this screen.
   --version           Show version.
   -c --config <path>  Use specified config.
-                       [default: ` + runner.DEFAULT_PIPELINES_DIR + `]
+                       [default: ` + runner.DEFAULT_CONFIG_PATH + `]
 `
 
 type RunOptions struct {

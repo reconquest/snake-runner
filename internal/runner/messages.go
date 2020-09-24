@@ -39,7 +39,7 @@ command:
     snake-runner
 
 Alternatively, you can specify those params in the config file, which by
-default is ` + DEFAULT_PIPELINES_DIR + `:
+default is ` + DEFAULT_CONFIG_PATH + `:
 
  master_address: {{ with .MasterAddress }}{{ . }}{{ else }}https://mybitbucket.company/{{ end }}
  registration_token: {{ with .RegistrationToken }}{{ . }}{{ else }}<registration-token-here>{{ end }}
