@@ -26,7 +26,13 @@ tasks:
           -ldflags="-X=github.com/reconquest/snake-runner/internal/builtin.Version={{.version}}-{{.commit}}"
           ./cmd/snake-runner
 
-  build_docker:
+  'build:windows':
+    desc: build go code with GOOS=windows
+    deps: [generate]
+    cmds:
+      - GOOS=windows task go:build
+
+  'build:docker':
     desc: build go code for docker
     deps: [generate]
     cmds:

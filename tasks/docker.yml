@@ -4,7 +4,7 @@ tasks:
   'snake-runner:build':
     desc: build docker image based on alpine
     cmds:
-      - task go:build_docker
+      - task go:build:docker
       - docker build -t reconquest/snake-runner
           -f docker/snake-runner/alpine/Dockerfile .
       - docker build -t reconquest/snake-runner:git
