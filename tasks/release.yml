@@ -1,0 +1,13 @@
+version: '3'
+
+vars:
+  version:
+    sh: taskutils/version
+
+tasks:
+  beta:
+    desc: release beta
+    cmds:
+      - git tag "{{.version}}"
+      - git push origin "{{.version}}"
+      - VERSION="{{.version}}" goreleaser release --rm-dist
