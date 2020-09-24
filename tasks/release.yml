@@ -4,6 +4,7 @@ tasks:
   beta:
     desc: release beta
     cmds:
+      - if [[ ! "$GITHUB_TOKEN" ]]; then echo "No env GITHUB_TOKEN specified"; exit 1; fi
       - git tag "{{.version}}-{{.commit}}"
       - git push origin "{{.version}}-{{.commit}}"
       - VERSION="{{.version}}-{{.commit}}" goreleaser release --rm-dist
