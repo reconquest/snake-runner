@@ -20,14 +20,10 @@ require (
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
-	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iancoleman/strcase v0.1.2 // indirect
-	github.com/kardianos/service v1.1.0
 	github.com/kovetskiy/ko v0.0.0-20200620085804-ec6b220882b0
-	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634 // indirect
-	github.com/kovetskiy/toml v0.2.0 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/lib/pq v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
@@ -37,8 +33,6 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.13.0 // indirect
 	github.com/reconquest/cog v0.0.0-20200921103326-58b3758471dd
 	github.com/reconquest/colorgful v0.0.0-20200729095644-21be6c602814 // indirect
@@ -55,7 +49,6 @@ require (
 	github.com/spf13/viper v1.6.2 // indirect
 	github.com/stretchr/testify v1.5.1
 	github.com/theupdateframework/notary v0.6.2-0.20200804143915-84287fd8df4f // indirect
-	github.com/zazab/zhash v0.0.0-20170403032415-ad45b89afe7a // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
 	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect

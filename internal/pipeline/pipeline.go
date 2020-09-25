@@ -290,6 +290,8 @@ func (process *Process) processJob(
 	if index == 1 {
 		err = process.readConfig(task)
 		if err != nil {
+			process.configCond.Unsatisfy()
+
 			return status.FAILED, task.ErrorfDirect(
 				err,
 				"unable to read config file",
@@ -338,7 +340,7 @@ func (process *Process) readConfig(job *job.Process) error {
 	if err != nil {
 		return karma.Format(
 			err,
-			"unable ot start sidecar container with repository",
+			"unable ot setup repository",
 		)
 	}
 

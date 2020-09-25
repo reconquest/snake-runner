@@ -198,8 +198,8 @@ func (sidecar *ShellSidecar) Destroy() {
 	}
 
 	log.Errorf(nil, "removing directory: "+sidecar.baseDir)
-	//err := os.RemoveAll(sidecar.baseDir)
-	//if err != nil {
+	// err := os.RemoveAll(sidecar.baseDir)
+	// if err != nil {
 	//    log.Errorf(err, "unable to remove git/ssh directories")
 	//}
 

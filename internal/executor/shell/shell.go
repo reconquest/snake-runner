@@ -10,6 +10,7 @@ import (
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/set"
 	"github.com/reconquest/snake-runner/internal/utils"
@@ -101,7 +102,10 @@ func (shell *Shell) Exec(
 
 		workers.Add(1)
 		go func() {
+			defer audit.Go(opts.Cmd, "stdout")()
+
 			defer workers.Done()
+
 			writer := callbackWriter{ctx: ctx, callback: opts.OutputConsumer}
 			_, err := io.Copy(writer, stdout)
 			if err != nil {
@@ -123,6 +127,8 @@ func (shell *Shell) Exec(
 
 		workers.Add(1)
 		go func() {
+			defer audit.Go(opts.Cmd, "stderr")()
+
 			defer workers.Done()
 			writer := callbackWriter{ctx: ctx, callback: opts.OutputConsumer}
 			_, err := io.Copy(writer, stderr)
@@ -150,7 +156,14 @@ func (shell *Shell) Exec(
 
 	box.processes.Put(cmd)
 
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	workers.Wait()
+
+	return nil
 }
 
 func (shell *Shell) Cleanup() error {

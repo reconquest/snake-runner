@@ -28,7 +28,7 @@ func (writer *Bufferer) init() {
 }
 
 func (writer *Bufferer) Run() {
-	defer audit.Go("Bufferer")()
+	defer audit.Go("bufferer")()
 
 	writer.thread.Add(1)
 	defer writer.thread.Done()
