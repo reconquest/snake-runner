@@ -1,8 +1,16 @@
 (config.Pipeline) {
- Variables: (map[string]string) (len=2) {
-  (string) (len=2) "g1": (string) (len=3) "gv1",
-  (string) (len=2) "n1": (string) (len=3) "gn1"
- },
+ Variables: (*mapslice.MapSlice)(0x)({
+  pairs: ([]*mapslice.Pair) (len=2 cap=2) {
+   (*mapslice.Pair)(0x)({
+    Key: (string) (len=2) "g1",
+    Value: (string) (len=3) "gv1"
+   }),
+   (*mapslice.Pair)(0x)({
+    Key: (string) (len=2) "n1",
+    Value: (string) (len=3) "gn1"
+   })
+  }
+ }),
  Shell: (string) "",
  Image: (string) "",
  Stages: ([]string) (len=1 cap=1) {

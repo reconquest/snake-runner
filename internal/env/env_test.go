@@ -5,6 +5,7 @@ import (
 
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/mapslice"
 	"github.com/reconquest/snake-runner/internal/responses"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
@@ -167,7 +168,9 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		configPipeline.Variables = map[string]string{"foo": "global"}
+		configPipeline.Variables = mapslice.FromMap(
+			map[string]string{"foo": "global"},
+		)
 
 		expected := clone(expected)
 		expected["foo"] = "global"
@@ -185,7 +188,9 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		configPipeline.Variables = map[string]string{"foo": "globalfoo", "bar": "globalbar"}
+		configPipeline.Variables = mapslice.FromMap(
+			map[string]string{"foo": "globalfoo", "bar": "globalbar"},
+		)
 		configJob.Variables = map[string]string{"foo": "foojob", "qux": "quxjob"}
 
 		expected := clone(expected)

@@ -1,5 +1,5 @@
 (config.Pipeline) {
- Variables: (map[string]string) <nil>,
+ Variables: (*mapslice.MapSlice)(<nil>),
  Shell: (string) "",
  Image: (string) (len=8) "globglob",
  Stages: ([]string) (len=1 cap=1) {

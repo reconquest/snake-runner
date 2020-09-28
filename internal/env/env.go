@@ -119,8 +119,10 @@ func (builder *Builder) build() map[string]string {
 		vars[key] = value
 	}
 
-	for key, value := range builder.config.Variables {
-		vars[key] = value
+	if builder.config.Variables != nil {
+		for _, pair := range builder.config.Variables.Pairs() {
+			vars[pair.Key] = pair.Value
+		}
 	}
 
 	for key, value := range builder.configJob.Variables {

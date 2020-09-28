@@ -12,13 +12,28 @@ type MapSlice struct {
 	pairs []*Pair
 }
 
+func FromMap(table map[string]string) *MapSlice {
+	result := &MapSlice{}
+	for key, value := range table {
+		result.pairs = append(result.pairs, &Pair{Key: key, Value: value})
+	}
+	return result
+}
+
 // Pairs returns slice of pairs. It doesn't return a copy. Be careful with
 // re-use of the slice.
 func (slice *MapSlice) Pairs() []*Pair {
+	if slice == nil {
+		return []*Pair{}
+	}
+
 	return slice.pairs
 }
 
 func (slice *MapSlice) Map() map[string]string {
+	if slice == nil {
+		return map[string]string{}
+	}
 	result := map[string]string{}
 	for _, pair := range slice.pairs {
 		result[pair.Key] = pair.Value
@@ -43,7 +58,7 @@ type Pair struct {
 
 func New(root yaml.Node) (*MapSlice, error) {
 	if len(root.Content) == 0 {
-		return &MapSlice{}, nil
+		return &MapSlice{pairs: []*Pair{}}, nil
 	}
 
 	if root.Kind != yaml.MappingNode && root.Kind != yaml.DocumentNode {

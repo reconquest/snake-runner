@@ -446,9 +446,9 @@ func (process *ProcessPipeline) updateJob(
 
 func (process *ProcessPipeline) parseVariables() error {
 	if process.config.Variables != nil {
-		raw, ok := process.config.Variables["DOCKER_AUTH_CONFIG"]
-		if ok {
-			err := json.Unmarshal([]byte(raw), &process.variableDockerConfig)
+		pair := process.config.Variables.Find("DOCKER_AUTH_CONFIG")
+		if pair != nil {
+			err := json.Unmarshal([]byte(pair.Value), &process.variableDockerConfig)
 			if err != nil {
 				return karma.Format(
 					err,
