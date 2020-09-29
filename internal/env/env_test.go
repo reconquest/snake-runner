@@ -182,7 +182,7 @@ func TestEnvBuilder(t *testing.T) {
 		configJob.Variables = mapslice.FromPairs(
 			"expand", "globalfoo:$foo",
 			"jobvar", "test$user_a",
-			"expand_2", "repo:$CI_PROJECT_KEY/$CI_REPO_SLUG,jobvar:$jobvar",
+			"expand_2", "repo:${CI_PROJECT_KEY}/$CI_REPO_SLUG,jobvar:$jobvar",
 		)
 
 		expected := clone(expected)

@@ -120,28 +120,27 @@ func (builder *Builder) build() map[string]string {
 	// running in sidecar
 	vars["SSH_AUTH_SOCK"] = filepath.Join(builder.sshDir, "ssh-agent.sock")
 
+	expand := func(key string) string {
+		result, ok := vars[key]
+		if !ok {
+			return os.Getenv(key)
+		}
+
+		return result
+	}
 	for key, value := range builder.task.Env {
-		vars[key] = os.Expand(value, func(key string) string {
-			result, _ := vars[key]
-			return result
-		})
+		vars[key] = os.Expand(value, expand)
 	}
 
 	if builder.config.Variables != nil {
 		for _, pair := range builder.config.Variables.Pairs() {
-			vars[pair.Key] = os.Expand(pair.Value, func(key string) string {
-				result, _ := vars[key]
-				return result
-			})
+			vars[pair.Key] = os.Expand(pair.Value, expand)
 		}
 	}
 
 	if builder.configJob.Variables != nil {
 		for _, pair := range builder.configJob.Variables.Pairs() {
-			vars[pair.Key] = os.Expand(pair.Value, func(key string) string {
-				result, _ := vars[key]
-				return result
-			})
+			vars[pair.Key] = os.Expand(pair.Value, expand)
 		}
 	}
 
