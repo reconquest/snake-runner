@@ -179,7 +179,7 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		configJob.Variables = map[string]string{"foo": "job"}
+		configJob.Variables = mapslice.FromMap(map[string]string{"foo": "job"})
 
 		expected := clone(expected)
 		expected["foo"] = "job"
@@ -191,7 +191,7 @@ func TestEnvBuilder(t *testing.T) {
 		configPipeline.Variables = mapslice.FromMap(
 			map[string]string{"foo": "globalfoo", "bar": "globalbar"},
 		)
-		configJob.Variables = map[string]string{"foo": "foojob", "qux": "quxjob"}
+		configJob.Variables = mapslice.FromMap(map[string]string{"foo": "foojob", "qux": "quxjob"})
 
 		expected := clone(expected)
 		expected["foo"] = "foojob"

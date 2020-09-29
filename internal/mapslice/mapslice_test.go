@@ -102,3 +102,23 @@ w:
 	test.Contains(err.Error(), "scalar node")
 	test.Contains(err.Error(), "sequence node")
 }
+
+func TestMapslice_UnmarshalYAML(t *testing.T) {
+	test := assert.New(t)
+
+	contents := `
+v:
+  x: 1
+`
+	var config struct {
+		V *MapSlice
+	}
+
+	err := yaml.Unmarshal([]byte(contents), &config)
+	if err != nil {
+		panic(err)
+	}
+
+	test.NotNil(config.V)
+	test.Len(config.V.Pairs(), 1)
+}

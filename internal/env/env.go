@@ -125,8 +125,10 @@ func (builder *Builder) build() map[string]string {
 		}
 	}
 
-	for key, value := range builder.configJob.Variables {
-		vars[key] = value
+	if builder.configJob.Variables != nil {
+		for _, pair := range builder.configJob.Variables.Pairs() {
+			vars[pair.Key] = pair.Value
+		}
 	}
 
 	// special case: providing SSH_AUTH_SOCK — socket to ssh-agent that is

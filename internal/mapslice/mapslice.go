@@ -12,6 +12,8 @@ type MapSlice struct {
 	pairs []*Pair
 }
 
+var _ yaml.Unmarshaler = (*MapSlice)(nil)
+
 func FromMap(table map[string]string) *MapSlice {
 	result := &MapSlice{}
 	for key, value := range table {
@@ -39,6 +41,12 @@ func (slice *MapSlice) Map() map[string]string {
 		result[pair.Key] = pair.Value
 	}
 	return result
+}
+
+func (slice *MapSlice) UnmarshalYAML(value *yaml.Node) error {
+	result, err := New(*value)
+	*slice = *result
+	return err
 }
 
 func (slice *MapSlice) Find(key string) *Pair {

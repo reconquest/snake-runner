@@ -7,7 +7,7 @@
  },
  Jobs: (map[string]config.Job) (len=1) {
   (string) (len=5) "work1": (config.Job) {
-   Variables: (map[string]string) <nil>,
+   Variables: (*mapslice.MapSlice)(<nil>),
    Stage: (string) (len=1) "x",
    Shell: (string) "",
    Image: (string) "",

@@ -17,11 +17,11 @@ type Pipeline struct {
 }
 
 type Job struct {
-	Variables map[string]string `json:"variables" yaml:"variables"`
-	Stage     string            `json:"stage"     yaml:"stage"`
-	Shell     string            `json:"shell"     yaml:"shell"`
-	Image     string            `json:"image"     yaml:"image"`
-	Commands  []string          `json:"commands"  yaml:"commands"`
+	Variables *mapslice.MapSlice `json:"variables" yaml:"variables"`
+	Stage     string             `json:"stage"     yaml:"stage"`
+	Shell     string             `json:"shell"     yaml:"shell"`
+	Image     string             `json:"image"     yaml:"image"`
+	Commands  []string           `json:"commands"  yaml:"commands"`
 }
 
 func Unmarshal(data []byte) (Pipeline, error) {

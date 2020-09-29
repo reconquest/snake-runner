@@ -18,17 +18,25 @@
  },
  Jobs: (map[string]config.Job) (len=2) {
   (string) (len=9) "variables": (config.Job) {
-   Variables: (map[string]string) <nil>,
+   Variables: (*mapslice.MapSlice)(<nil>),
    Stage: (string) "",
    Shell: (string) "",
    Image: (string) "",
    Commands: ([]string) <nil>
   },
   (string) (len=5) "work1": (config.Job) {
-   Variables: (map[string]string) (len=2) {
-    (string) (len=2) "w1": (string) (len=2) "v1",
-    (string) (len=2) "n1": (string) (len=2) "n2"
-   },
+   Variables: (*mapslice.MapSlice)(0x)({
+    pairs: ([]*mapslice.Pair) (len=2 cap=2) {
+     (*mapslice.Pair)(0x)({
+      Key: (string) (len=2) "w1",
+      Value: (string) (len=2) "v1"
+     }),
+     (*mapslice.Pair)(0x)({
+      Key: (string) (len=2) "n1",
+      Value: (string) (len=2) "n2"
+     })
+    }
+   }),
    Stage: (string) (len=1) "x",
    Shell: (string) "",
    Image: (string) "",
