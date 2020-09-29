@@ -169,11 +169,11 @@ func TestEnvBuilder(t *testing.T) {
 
 	{
 		configPipeline.Variables = mapslice.FromMap(
-			map[string]string{"foo": "global"},
+			map[string]string{"foo": "$CI_RUNNER_NAME"},
 		)
 
 		expected := clone(expected)
-		expected["foo"] = "global"
+		expected["foo"] = "gotest"
 
 		test.EqualValues(expected, builder(basicPipeline).build())
 	}
@@ -186,8 +186,8 @@ func TestEnvBuilder(t *testing.T) {
 		)
 
 		expected := clone(expected)
-		expected["foo"] = "global"
-		expected["expand"] = "globalfoo:global"
+		expected["foo"] = "gotest"
+		expected["expand"] = "globalfoo:gotest"
 		expected["jobvar"] = "testuser_a_value"
 		expected["expand_2"] = "repo:proj1/repo1,jobvar:testuser_a_value"
 
