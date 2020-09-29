@@ -179,10 +179,17 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		configJob.Variables = mapslice.FromMap(map[string]string{"foo": "job"})
+		configJob.Variables = mapslice.FromPairs(
+			"expand", "globalfoo:$foo",
+			"jobvar", "test$user_a",
+			"expand_2", "repo:$CI_PROJECT_KEY/$CI_REPO_SLUG,jobvar:$jobvar",
+		)
 
 		expected := clone(expected)
-		expected["foo"] = "job"
+		expected["foo"] = "global"
+		expected["expand"] = "globalfoo:global"
+		expected["jobvar"] = "testuser_a_value"
+		expected["expand_2"] = "repo:proj1/repo1,jobvar:testuser_a_value"
 
 		test.EqualValues(expected, builder(basicPipeline).build())
 	}
@@ -191,7 +198,9 @@ func TestEnvBuilder(t *testing.T) {
 		configPipeline.Variables = mapslice.FromMap(
 			map[string]string{"foo": "globalfoo", "bar": "globalbar"},
 		)
-		configJob.Variables = mapslice.FromMap(map[string]string{"foo": "foojob", "qux": "quxjob"})
+		configJob.Variables = mapslice.FromMap(
+			map[string]string{"foo": "foojob", "qux": "quxjob"},
+		)
 
 		expected := clone(expected)
 		expected["foo"] = "foojob"

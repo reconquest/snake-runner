@@ -22,6 +22,14 @@ func FromMap(table map[string]string) *MapSlice {
 	return result
 }
 
+func FromPairs(kv ...string) *MapSlice {
+	result := &MapSlice{}
+	for i := 0; i < len(kv); i += 2 {
+		result.pairs = append(result.pairs, &Pair{Key: kv[i], Value: kv[i+1]})
+	}
+	return result
+}
+
 // Pairs returns slice of pairs. It doesn't return a copy. Be careful with
 // re-use of the slice.
 func (slice *MapSlice) Pairs() []*Pair {

@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/reconquest/snake-runner/internal/builtin"
@@ -115,25 +116,34 @@ func (builder *Builder) build() map[string]string {
 	vars["CI_RUNNER_NAME"] = fmt.Sprint(builder.runnerConfig.Name)
 	vars["CI_RUNNER_VERSION"] = fmt.Sprint(builtin.Version)
 
+	// special case: providing SSH_AUTH_SOCK — socket to ssh-agent that is
+	// running in sidecar
+	vars["SSH_AUTH_SOCK"] = filepath.Join(builder.sshDir, "ssh-agent.sock")
+
 	for key, value := range builder.task.Env {
-		vars[key] = value
+		vars[key] = os.Expand(value, func(key string) string {
+			result, _ := vars[key]
+			return result
+		})
 	}
 
 	if builder.config.Variables != nil {
 		for _, pair := range builder.config.Variables.Pairs() {
-			vars[pair.Key] = pair.Value
+			vars[pair.Key] = os.Expand(pair.Value, func(key string) string {
+				result, _ := vars[key]
+				return result
+			})
 		}
 	}
 
 	if builder.configJob.Variables != nil {
 		for _, pair := range builder.configJob.Variables.Pairs() {
-			vars[pair.Key] = pair.Value
+			vars[pair.Key] = os.Expand(pair.Value, func(key string) string {
+				result, _ := vars[key]
+				return result
+			})
 		}
 	}
-
-	// special case: providing SSH_AUTH_SOCK — socket to ssh-agent that is
-	// running in sidecar
-	vars["SSH_AUTH_SOCK"] = filepath.Join(builder.sshDir, "ssh-agent.sock")
 
 	return vars
 }
