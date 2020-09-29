@@ -83,7 +83,7 @@ func (process *ProcessPipeline) run() error {
 		)
 	}
 
-	err = process.parseVariables()
+	err = process.prepareVariables()
 	if err != nil {
 		process.status = StatusFailed
 		process.fail(FailAllJobs)
@@ -183,7 +183,10 @@ func (process *ProcessPipeline) runJobs() (string, error) {
 	return StatusSuccess, nil
 }
 
-func (process *ProcessPipeline) runJob(total, index int, job snake.PipelineJob) (string, error) {
+func (process *ProcessPipeline) runJob(
+	total, index int,
+	job snake.PipelineJob,
+) (string, error) {
 	process.log.Infof(
 		nil,
 		"%d/%d starting job: id=%d",
@@ -234,7 +237,9 @@ func (process *ProcessPipeline) runJob(total, index int, job snake.PipelineJob) 
 	return status, nil
 }
 
-func (process *ProcessPipeline) processJob(target snake.PipelineJob) (status string, err error) {
+func (process *ProcessPipeline) processJob(
+	target snake.PipelineJob,
+) (status string, err error) {
 	defer func() {
 		tears := recover()
 		if tears != nil {
@@ -444,11 +449,11 @@ func (process *ProcessPipeline) updateJob(
 	)
 }
 
-func (process *ProcessPipeline) parseVariables() error {
+func (process *ProcessPipeline) prepareVariables() error {
 	if process.config.Variables != nil {
-		raw, ok := process.config.Variables["DOCKER_AUTH_CONFIG"]
-		if ok {
-			err := json.Unmarshal([]byte(raw), &process.variableDockerConfig)
+		pair := process.config.Variables.Find("DOCKER_AUTH_CONFIG")
+		if pair != nil {
+			err := json.Unmarshal([]byte(pair.Value), &process.variableDockerConfig)
 			if err != nil {
 				return karma.Format(
 					err,

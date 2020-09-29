@@ -4,23 +4,24 @@ import (
 	"errors"
 
 	"github.com/reconquest/karma-go"
+	"github.com/reconquest/snake-runner/internal/mapslice"
 	"gopkg.in/yaml.v3"
 )
 
 type Pipeline struct {
-	Variables map[string]string `json:"variables" yaml:"variables"`
-	Shell     string            `json:"shell"     yaml:"shell"`
-	Image     string            `json:"image"     yaml:"image"`
-	Stages    []string          `json:"stages"    yaml:"stages"`
-	Jobs      map[string]Job    `json:"jobs"      yaml:"jobs"`
+	Variables *mapslice.MapSlice `json:"variables" yaml:"variables"`
+	Shell     string             `json:"shell"     yaml:"shell"`
+	Image     string             `json:"image"     yaml:"image"`
+	Stages    []string           `json:"stages"    yaml:"stages"`
+	Jobs      map[string]Job     `json:"jobs"      yaml:"jobs"`
 }
 
 type Job struct {
-	Variables map[string]string `json:"variables" yaml:"variables"`
-	Stage     string            `json:"stage"     yaml:"stage"`
-	Shell     string            `json:"shell"     yaml:"shell"`
-	Image     string            `json:"image"     yaml:"image"`
-	Commands  []string          `json:"commands"  yaml:"commands"`
+	Variables *mapslice.MapSlice `json:"variables" yaml:"variables"`
+	Stage     string             `json:"stage"     yaml:"stage"`
+	Shell     string             `json:"shell"     yaml:"shell"`
+	Image     string             `json:"image"     yaml:"image"`
+	Commands  []string           `json:"commands"  yaml:"commands"`
 }
 
 func Unmarshal(data []byte) (Pipeline, error) {
@@ -73,7 +74,7 @@ func Unmarshal(data []byte) (Pipeline, error) {
 	}
 
 	if node, ok := raw["variables"]; ok {
-		err = node.Decode(&config.Variables)
+		config.Variables, err = mapslice.New(node)
 		if err != nil {
 			return config, karma.Format(
 				err,
