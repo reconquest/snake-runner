@@ -7,8 +7,10 @@ import (
 
 	"github.com/kardianos/service"
 	"github.com/kovetskiy/ko"
+	"github.com/kovetskiy/lorg"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
+	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/platform"
 	"github.com/reconquest/snake-runner/internal/runner"
 )
@@ -154,20 +156,50 @@ func (ctl *ServiceController) Status() error {
 	return nil
 }
 
-func (ctl *ServiceController) Run() error {
+func (ctl *ServiceController) Run() (chan struct{}, error) {
 	if err := ctl.lazyInit(); err != nil {
-		return err
+		return nil, err
 	}
 
-	err := ctl.svc.Run()
+	systemLogger, err := ctl.svc.SystemLogger(nil)
 	if err != nil {
-		return karma.Format(
-			err,
-			"unable to start the program as a system service",
-		)
+		log.Errorf(err, "unable to setup the system logger")
+	} else {
+		err = systemLogger.Infof("snake-runner %s starting", builtin.Version)
+
+		log.GetLogger().SetSender(func(level lorg.Level, event karma.Hierarchical) error {
+			text := level.String() + " " + event.String()
+			switch level {
+			case lorg.LevelError, lorg.LevelFatal:
+				err = systemLogger.Error(text)
+			case lorg.LevelWarning:
+				err = systemLogger.Warning(text)
+			default:
+				err = systemLogger.Info(text)
+			}
+
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "unable to send logs to system log:", err)
+			}
+
+			return nil
+		})
 	}
 
-	return nil
+	stopped := make(chan struct{})
+	go func() {
+		err = ctl.svc.Run()
+		if err != nil {
+			log.Errorf(
+				err,
+				"unable to start the program as a system service",
+			)
+		}
+
+		close(stopped)
+	}()
+
+	return stopped, nil
 }
 
 type Nop struct{}

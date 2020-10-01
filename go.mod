@@ -17,7 +17,6 @@ require (
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
@@ -25,8 +24,8 @@ require (
 	github.com/iancoleman/strcase v0.1.2 // indirect
 	github.com/kardianos/service v1.1.0
 	github.com/kovetskiy/ko v0.0.0-20200620085804-ec6b220882b0
+	github.com/kovetskiy/lorg v0.0.0-20200107130803-9a7136a95634
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/leaanthony/clir v1.0.4
 	github.com/lib/pq v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0 // indirect
@@ -40,7 +39,7 @@ require (
 	github.com/reconquest/colorgful v0.0.0-20200729095644-21be6c602814 // indirect
 	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
 	github.com/reconquest/lineflushwriter-go v0.0.0-20200921103343-b9b8d10a6851
-	github.com/reconquest/pkg v0.0.0-20200921103402-ae5124ffc1a9
+	github.com/reconquest/pkg v0.0.0-20201001072320-38394b54a9db
 	github.com/reconquest/sign-go v0.0.0-20200921103415-55df7f54ef71
 	github.com/seletskiy/tplutil v0.0.0-20200921103632-f880f6245597
 	github.com/sergi/go-diff v1.1.0 // indirect

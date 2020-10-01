@@ -62,18 +62,18 @@ func main() {
 	actions.register(
 		svc.Command("run", "Run as the system service").Hidden(),
 		func() error {
-			err := svcctl.Run()
+			shutdown, err := svcctl.Run()
 			if err != nil {
 				return err
 			}
 
-			return run()
+			return run(shutdown)
 		},
 	)
 	actions.register(
 		app.Command("run", "Run pipelines & jobs").Hidden().Default(),
 		func() error {
-			return run()
+			return run(make(chan struct{}))
 		},
 	)
 
@@ -83,7 +83,7 @@ func main() {
 	}
 }
 
-func run() error {
+func run(serviceShutdown chan struct{}) error {
 	config, err := runner.LoadConfig(*configPath, ko.RequireFile(false))
 	if err != nil {
 		if err == runner.ErrorNotConfigured {
@@ -117,6 +117,9 @@ func run() error {
 	select {
 	case <-snake.Terminated():
 		// exit
+
+	case <-serviceShutdown:
+		log.Warningf(nil, "system service stopped, shutting down runner")
 
 	case signal := <-interrupts:
 		log.Warningf(nil, "got signal: %s, shutting down runner", signal)
