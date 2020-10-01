@@ -1,3 +1,3 @@
 package builtin
 
-var Version = "[not specified during build]"
+var Version = "SNAPSHOT"

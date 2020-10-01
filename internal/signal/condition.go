@@ -6,7 +6,8 @@ import (
 
 type Condition interface {
 	Satisfy()
-	Wait()
+	Unsatisfy()
+	Wait() bool
 }
 
 func NewCondition() Condition {
@@ -18,20 +19,28 @@ func NewCondition() Condition {
 type condition struct {
 	sync  *sync.Cond
 	mutex *sync.RWMutex
-	ok    bool
+	ok    uint8
 }
 
 func (condition *condition) Satisfy() {
 	condition.sync.L.Lock()
-	condition.ok = true
+	condition.ok = 1
 	condition.sync.Broadcast()
 	condition.sync.L.Unlock()
 }
 
-func (condition *condition) Wait() {
+func (condition *condition) Unsatisfy() {
 	condition.sync.L.Lock()
-	for !condition.ok {
+	condition.ok = 2
+	condition.sync.Broadcast()
+	condition.sync.L.Unlock()
+}
+
+func (condition *condition) Wait() bool {
+	condition.sync.L.Lock()
+	for condition.ok == 0 {
 		condition.sync.Wait()
 	}
 	condition.sync.L.Unlock()
+	return condition.ok == 1
 }

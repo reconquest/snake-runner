@@ -24,6 +24,8 @@ vars:
 includes:
   go: tasks/go.yml
   docker: tasks/docker.yml
+  release: tasks/release.yml
+  win: tasks/win.yml
 
 tasks:
   version:

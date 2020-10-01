@@ -1,0 +1,63 @@
+version: '3'
+
+vars:
+  address: https://bitbucket.local
+  token:
+    sh: ./taskutils/token
+  host: administrator@172.17.0.128
+  envs: \$env:SNAKE_MASTER_ADDRESS='{{.address}}';
+        \$env:SNAKE_REGISTRATION_TOKEN='{{.token}}';
+        \$env:SNAKE_LOG_TRACE='true';
+        \$env:SNAKE_EXEC_MODE='shell';
+        \$env:SNAKE_AUDIT_GOROUTINES='1';
+  args: ''
+
+tasks:
+  cp:
+    desc: copy runner to windows vm
+    cmds:
+      - sshpass -p XXXxxx1 ssh {{.host}}
+          New-Item -Path C:\\snake-runner\\ -ItemType Directory -Force \| Out-Null
+      - echo "% Uploading executable"
+      - sshpass -p XXXxxx1 scp snake-runner.exe
+          {{.host}}:"C:\\snake-runner\\snake-runner.exe"
+
+  run:
+    desc: run runner on windows vm
+    deps: [cp, config]
+    cmds:
+      # don't like the "clear" effect? it's because of -t option.
+      # it's needed to pass CTRL-C to interrupt program gracefully
+      # Stop-Process and taskkill don't help with this.
+      - sshpass -p XXXxxx1 ssh -t {{.host}}
+          "{{ .envs }} C:\\snake-runner\\snake-runner.exe {{.args}}"
+
+  kill:
+    desc: run runner on windows vm
+    cmds:
+      - sshpass -p XXXxxx1 ssh {{.host}}
+          taskkill /f /im snake-runner.exe || true
+
+  ssl:
+    desc: copy mkcert's root CA
+    cmds:
+      - sshpass -p XXXxxx1 scp $(mkcert -CAROOT)/rootCA.pem {{.host}}:rootCA.pem
+      - sshpass -p XXXxxx1 ssh {{.host}}
+          Import-Certificate -FilePath rootCA.pem -CertStoreLocation 'Cert:\LocalMachine\Root'
+
+  debug:
+    desc: run debugger on windows
+    cmds:
+      - task go:build:windows
+      - task: run
+
+  config:
+    desc: put config in vm
+    cmds:
+      - mkdir -p .task
+      - SNAKE_MASTER_ADDRESS='{{.address}}'
+        SNAKE_REGISTRATION_TOKEN='{{.token}}'
+        envsubst < conf/envsubst.conf > .task/windows-snake-runner.conf
+      - sshpass -p XXXxxx1 ssh {{.host}}
+          New-Item -Path C:\\ProgramData\\snake-runner\\config\\ -ItemType Directory -Force \| Out-Null
+      - sshpass -p XXXxxx1 scp .task/windows-snake-runner.conf {{.host}}:C:\\ProgramData\\snake-runner\\config\\snake-runner.conf

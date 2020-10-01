@@ -3,6 +3,8 @@ version: '3'
 vars:
   nproc:
     sh: nproc
+  debug: false
+  gcflags: '-gcflags "all=-trimpath=$GOPATH"'
 
 tasks:
   generate:
@@ -21,12 +23,17 @@ tasks:
     desc: build go code
     deps: [generate]
     cmds:
-      - 'echo Building version: {{.version}}-{{.commit}} >&2'
-      - go build
+      - "echo 'Building version: {{.version}}-{{.commit}} {{.gcflags}}' >&2"
+      - go build {{.gcflags}}
           -ldflags="-X=github.com/reconquest/snake-runner/internal/builtin.Version={{.version}}-{{.commit}}"
           ./cmd/snake-runner
 
-  build_docker:
+  'build:windows':
+    desc: build go code with GOOS=windows
+    cmds:
+      - GOOS=windows task go:build debug={{.debug}}
+
+  'build:docker':
     desc: build go code for docker
     deps: [generate]
     cmds:

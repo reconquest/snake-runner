@@ -5,52 +5,92 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/docopt/docopt-go"
+	cli "gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/sign-go"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/runner"
 )
 
-var usage = "snake-runner " + builtin.Version + `
-
-Usage:
-  snake-runner [options]
-  snake-runner -h | --help
-  snake-runner --version
-
-Options:
-  -h --help           Show this screen.
-  --version           Show version.
-  -c --config <path>  Use specified config.
-                       [default: /etc/snake-runner/snake-runner.conf]
-`
-
-type commandLineOptions struct {
-	ConfigPathValue string `docopt:"--config"`
-}
+var configPath *string
 
 func main() {
-	args, err := docopt.ParseArgs(usage, nil, builtin.Version)
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Infof(karma.Describe("version", builtin.Version), "starting snake-runner")
 
-	var options commandLineOptions
-	err = args.Bind(&options)
-	if err != nil {
-		log.Fatal(err)
-	}
+	var svcctl ServiceController
 
-	log.Infof(
-		karma.Describe("version", builtin.Version),
-		"starting snake-runner",
+	app := cli.New(
+		"snake-runner",
+		"Snake Runner is a part of Snake CI. "+
+			"It handles the workload by running pipelines & jobs.",
+	).Version(builtin.Version)
+
+	configPath = app.Flag("config", "Use the given configuration file").
+		Short('c').
+		Default(runner.DEFAULT_CONFIG_PATH).
+		String()
+
+	var actions Actions
+	svc := app.Command(
+		"service",
+		"Control the system service",
 	)
 
-	config, err := runner.LoadConfig(options.ConfigPathValue)
+	actions.register(
+		svc.Command("install", "Install the system service"),
+		svcctl.Install,
+	)
+	actions.register(
+		svc.Command("start", "Start the system service"),
+		svcctl.Start,
+	)
+	actions.register(
+		svc.Command("stop", "Stop the system service"),
+		svcctl.Stop,
+	)
+	actions.register(
+		svc.Command("status", "Get a status of the system service"),
+		svcctl.Status,
+	)
+	actions.register(
+		svc.Command("uninstall", "Uninstall the system service"),
+		svcctl.Uninstall,
+	)
+	actions.register(
+		svc.Command("run", "Run as the system service").Hidden(),
+		func() error {
+			err := svcctl.Run()
+			if err != nil {
+				return err
+			}
+
+			return run()
+		},
+	)
+	actions.register(
+		app.Command("run", "Run pipelines & jobs").Hidden().Default(),
+		func() error {
+			return run()
+		},
+	)
+
+	err := actions.dispatch(app)
 	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	config, err := runner.LoadConfig(*configPath, ko.RequireFile(false))
+	if err != nil {
+		if err == runner.ErrorNotConfigured {
+			runner.ShowMessageInstalledButNotConfigured(config)
+			os.Exit(1)
+		}
+
 		log.Fatal(err)
 	}
 
@@ -64,34 +104,12 @@ func main() {
 
 	log.Infof(nil, "runner name: %s", config.Name)
 
+	if os.Getenv("SNAKE_AUDIT_GOROUTINES") == "1" {
+		audit.Start()
+	}
+
 	snake := NewSnake(config)
 	snake.Start()
-
-	// uncomment if you want to trace goroutines
-	//
-	// go func() {
-	//    defer audit.Go("audit", "watcher")()
-
-	//    for {
-	//        num := audit.NumGoroutines()
-	//        log.Tracef(nil, "{audit} goroutines audit: %d runtime: %d", num, runtime.NumGoroutine())
-
-	//        time.Sleep(time.Millisecond * 3000)
-	//    }
-	//}()
-
-	go sign.Notify(func(_ os.Signal) bool {
-		defer audit.Go("audit", "sighup")()
-
-		routines := audit.Goroutines()
-
-		log.Warningf(nil, "{audit} goroutines: %d", len(routines))
-		for _, routine := range routines {
-			log.Warningf(nil, "{audit} "+routine)
-		}
-
-		return true
-	}, syscall.SIGHUP)
 
 	interrupts := make(chan os.Signal)
 	signal.Notify(interrupts, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -106,4 +124,6 @@ func main() {
 
 	snake.Shutdown()
 	log.Warningf(nil, "shutdown: runner gracefully terminated")
+
+	return nil
 }
