@@ -5,7 +5,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/docopt/docopt-go"
+	cli "gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/kovetskiy/ko"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
 	"github.com/reconquest/snake-runner/internal/audit"
@@ -13,63 +15,82 @@ import (
 	"github.com/reconquest/snake-runner/internal/runner"
 )
 
-var usage = "snake-runner " + builtin.Version + `
-
-Usage:
-  snake-runner [options]
-  snake-runner [options] service install
-  snake-runner [options] service start
-  snake-runner [options] service status
-  snake-runner [options] service stop
-  snake-runner [options] service uninstall
-  snake-runner -h | --help
-  snake-runner --version
-
-Options:
-  -h --help           Show this screen.
-  --version           Show version.
-  -c --config <path>  Use specified config.
-                       [default: ` + runner.DEFAULT_CONFIG_PATH + `]
-`
-
-type RunOptions struct {
-	Config    string
-	Service   bool
-	Start     bool
-	Install   bool
-	Status    bool
-	Stop      bool
-	Uninstall bool
-}
+var configPath *string
 
 func main() {
-	args, err := docopt.ParseArgs(usage, nil, builtin.Version)
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Infof(karma.Describe("version", builtin.Version), "starting snake-runner")
 
-	var options RunOptions
-	err = args.Bind(&options)
-	if err != nil {
-		log.Fatal(err)
-	}
+	var svcctl ServiceController
 
-	log.Infof(
-		karma.Describe("version", builtin.Version),
-		"starting snake-runner",
+	app := cli.New(
+		"snake-runner",
+		"Snake Runner is a part of Snake CI. "+
+			"It handles the workload by running pipelines & jobs.",
+	).Version(builtin.Version)
+
+	configPath = app.Flag("config", "Use the given configuration file").
+		Short('c').
+		Default(runner.DEFAULT_CONFIG_PATH).
+		String()
+
+	var actions Actions
+	svc := app.Command(
+		"service",
+		"Control the system service",
 	)
 
-	if options.Service {
-		err := controlService(options)
-		if err != nil {
-			log.Fatal(err)
+	actions.register(
+		svc.Command("install", "Install the system service"),
+		svcctl.Install,
+	)
+	actions.register(
+		svc.Command("start", "Start the system service"),
+		svcctl.Start,
+	)
+	actions.register(
+		svc.Command("stop", "Stop the system service"),
+		svcctl.Stop,
+	)
+	actions.register(
+		svc.Command("status", "Get a status of the system service"),
+		svcctl.Status,
+	)
+	actions.register(
+		svc.Command("uninstall", "Uninstall the system service"),
+		svcctl.Uninstall,
+	)
+	actions.register(
+		svc.Command("run", "Run as the system service").Hidden(),
+		func() error {
+			err := svcctl.Run()
+			if err != nil {
+				return err
+			}
+
+			return run()
+		},
+	)
+	actions.register(
+		app.Command("run", "Run pipelines & jobs").Hidden().Default(),
+		func() error {
+			return run()
+		},
+	)
+
+	err := actions.dispatch(app)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	config, err := runner.LoadConfig(*configPath, ko.RequireFile(false))
+	if err != nil {
+		if err == runner.ErrorNotConfigured {
+			runner.ShowMessageInstalledButNotConfigured(config)
+			os.Exit(1)
 		}
 
-		return
-	}
-
-	config, err := runner.LoadConfig(options.Config)
-	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -103,4 +124,6 @@ func main() {
 
 	snake.Shutdown()
 	log.Warningf(nil, "shutdown: runner gracefully terminated")
+
+	return nil
 }

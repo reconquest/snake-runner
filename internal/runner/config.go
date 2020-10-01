@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -22,6 +23,8 @@ const (
 	RUNNER_MODE_DOCKER = `docker`
 	RUNNER_MODE_SHELL  = `shell`
 )
+
+var ErrorNotConfigured = errors.New("not configured")
 
 var modes = set.NewStringSet(RUNNER_MODE_DOCKER, RUNNER_MODE_SHELL)
 
@@ -64,18 +67,21 @@ func (config *Config) GetDockerAuthConfig() executor.Auths {
 	return config.Docker.auths.Auths
 }
 
-func LoadConfig(path string) (*Config, error) {
+func LoadConfig(path string, fileRequired ko.RequireFile) (*Config, error) {
 	log.Infof(karma.Describe("path", path), "loading configuration")
 
 	var config Config
-	err := ko.Load(path, &config, yaml.Unmarshal, ko.RequireFile(false))
+	err := ko.Load(path, &config, yaml.Unmarshal, fileRequired)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return &config, ErrorNotConfigured
+		}
+
 		return nil, err
 	}
 
 	if config.MasterAddress == "" || config.RegistrationToken == "" {
-		ShowMessageNotConfigured(config)
-		os.Exit(1)
+		return &config, ErrorNotConfigured
 	}
 
 	if config.AccessTokenPath == "" {
