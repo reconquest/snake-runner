@@ -219,6 +219,8 @@ func (cloud *Cloud) CreateContainer(
 		AttachStderr: true,
 		AttachStdin:  true,
 		Tty:          true,
+		Cmd:          []string{"sh"},
+		Entrypoint:   []string{""},
 	}
 
 	hostConfig := &container.HostConfig{
