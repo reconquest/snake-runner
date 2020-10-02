@@ -16,22 +16,28 @@ var (
 
 //go:generate gonstructor -type Bufferer -init init
 type Bufferer struct {
-	thread   sync.WaitGroup `gonstructor:"-"`
 	size     int
 	duration time.Duration
 	flush    func([]byte)
-	pipe     chan []byte `gonstructor:"-"`
+	pipe     chan []byte   `gonstructor:"-"`
+	done     chan struct{} `gonstructor:"-"`
+
+	workers      sync.WaitGroup `gonstructor:"-"`
+	workersMutex sync.Mutex     `gonstructor:"-"`
 }
 
 func (writer *Bufferer) init() {
 	writer.pipe = make(chan []byte, 128 /* ?? */)
+	writer.done = make(chan struct{})
 }
 
 func (writer *Bufferer) Run() {
 	defer audit.Go("bufferer")()
 
-	writer.thread.Add(1)
-	defer writer.thread.Done()
+	writer.workersMutex.Lock()
+	writer.workers.Add(1)
+	writer.workersMutex.Unlock()
+	defer writer.workers.Done()
 
 	ticker := utils.NewTicker(writer.duration)
 	buffer := bytes.NewBuffer(nil)
@@ -59,20 +65,46 @@ func (writer *Bufferer) Run() {
 			}
 
 			ticker.Reset()
+
+		case <-writer.done:
+			writer.flush(buffer.Bytes())
+			return
 		}
 	}
 }
 
 func (writer *Bufferer) Write(data []byte) (int, error) {
-	writer.pipe <- data
+	writer.workersMutex.Lock()
+	writer.workers.Add(1)
+	writer.workersMutex.Unlock()
+	defer writer.workers.Done()
+
+	select {
+	case <-writer.done:
+		return len(data), nil
+	default:
+	}
+
+	select {
+	case <-writer.done:
+	case writer.pipe <- data:
+	}
+
 	return len(data), nil
 }
 
 func (writer *Bufferer) Close() error {
-	close(writer.pipe)
-	return nil
-}
+	close(writer.done)
 
-func (writer *Bufferer) Wait() {
-	writer.thread.Wait()
+	go func() {
+		for range writer.pipe {
+			// drain it
+		}
+	}()
+
+	writer.workersMutex.Lock()
+	writer.workers.Wait()
+	writer.workersMutex.Unlock()
+
+	return nil
 }

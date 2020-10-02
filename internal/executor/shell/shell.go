@@ -18,8 +18,7 @@ import (
 
 var _ executor.Executor = (*Shell)(nil)
 
-type Shell struct {
-}
+type Shell struct{}
 
 type Box struct {
 	id        string
@@ -189,7 +188,10 @@ func (shell *Shell) DetectShell(
 	return PREFERRED_SHELL, nil
 }
 
-func (shell *Shell) LookPath(ctx context.Context, path string) (string, error) {
+func (shell *Shell) LookPath(
+	ctx context.Context,
+	path string,
+) (string, error) {
 	return exec.LookPath(path)
 }
 

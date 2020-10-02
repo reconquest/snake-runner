@@ -123,12 +123,10 @@ func (process *Process) SetupMaskWriter(env *env.Env) {
 func (process *Process) Destroy() {
 	if process.logs.maskWriter != nil {
 		process.logs.maskWriter.Close()
-	} else if process.logs.directWriter != nil {
-		process.logs.directWriter.Close()
 	}
 
 	if process.logs.directWriter != nil {
-		process.logs.directWriter.Wait()
+		process.logs.directWriter.Close()
 	}
 }
 
