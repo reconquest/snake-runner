@@ -70,10 +70,7 @@ func startSshAgent(
 		}
 
 		chError <- karma.Describe("cmd", cmd).Format(
-			"The ssh-agent process has chStarted and did not output the path to socket.\n"+
-				"You are probably using OpenSSH's ssh-agent which is not supported.\n"+
-				"Consider installing Git-BASH and adding Git-BASH's bin as a part of the system $PATH.\n"+
-				"Read more: https://snake-ci.com/docs/throubleshoot/windows-ssh-agent/",
+			"the ssh-agent process has started and did not output the path to socket",
 			"unable to start ssh-agent",
 		)
 	}()
