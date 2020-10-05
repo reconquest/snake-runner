@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -74,6 +76,8 @@ func (snake *Snake) startScheduler() error {
 			)
 		}
 
+		log.Debugf(nil, "checking shell executor prerequisites")
+
 		err = sidecar.NewShellSidecarBuilder().
 			Executor(execer).
 			Build().
@@ -102,6 +106,43 @@ func (snake *Snake) startScheduler() error {
 					"no %s detected on system; use of %s is recommended on Windows",
 					shell.PREFERRED_SHELL,
 					shell.PREFERRED_SHELL,
+				)
+			}
+
+			container, err := execer.Create(ctx, executor.CreateOptions{})
+			if err != nil {
+				return karma.Format(
+					err,
+					"unable to create session for ssh-agent validation",
+				)
+			}
+
+			log.Debugf(nil, "validating ssh-agent version")
+
+			// Using the ability of ssh-agent to run a specified command.
+			// Correct version of ssh-agent will run command: in this case
+			// "cmd.exe /c exit 100", so if no exit error is reported, then
+			// the incorrect version of ssh-agent is used.
+			err = execer.Exec(ctx, container, executor.ExecOptions{
+				Cmd: []string{"ssh-agent", "cmd", "/c exit 100"},
+			})
+			if err != nil {
+				if err, ok := err.(*exec.ExitError); ok {
+					if status, ok := err.Sys().(syscall.WaitStatus); ok {
+						if status.ExitStatus() != 100 {
+							return karma.Format(
+								err,
+								"ssh-agent version validation failed",
+							)
+						}
+					}
+				}
+			} else {
+				return karma.Format(
+					"You are probably using OpenSSH's ssh-agent which is not supported.\n"+
+						"Consider installing Git-BASH and adding Git-BASH's bin as a part of the system $PATH.\n"+
+						"Read more: https://snake-ci.com/docs/throubleshoot/windows-ssh-agent/",
+					"available ssh-agent version is not supported",
 				)
 			}
 		}
