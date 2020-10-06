@@ -24,6 +24,9 @@ type Bufferer struct {
 
 	workers      sync.WaitGroup `gonstructor:"-"`
 	workersMutex sync.Mutex     `gonstructor:"-"`
+
+	closed     bool       `gonstructor:"-"`
+	closeMutex sync.Mutex `gonstructor:"-"`
 }
 
 func (writer *Bufferer) init() {
@@ -94,6 +97,15 @@ func (writer *Bufferer) Write(data []byte) (int, error) {
 }
 
 func (writer *Bufferer) Close() error {
+	writer.closeMutex.Lock()
+	defer writer.closeMutex.Unlock()
+
+	if writer.closed {
+		return nil
+	}
+
+	writer.closed = true
+
 	close(writer.done)
 
 	go func() {
