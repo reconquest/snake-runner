@@ -5,6 +5,7 @@ import (
 
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
+	"github.com/reconquest/snake-runner/internal/mapslice"
 	"github.com/reconquest/snake-runner/internal/responses"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/snake"
@@ -167,26 +168,39 @@ func TestEnvBuilder(t *testing.T) {
 	}
 
 	{
-		configPipeline.Variables = map[string]string{"foo": "global"}
+		configPipeline.Variables = mapslice.FromMap(
+			map[string]string{"foo": "$CI_RUNNER_NAME"},
+		)
 
 		expected := clone(expected)
-		expected["foo"] = "global"
+		expected["foo"] = "gotest"
 
 		test.EqualValues(expected, builder(basicPipeline).build())
 	}
 
 	{
-		configJob.Variables = map[string]string{"foo": "job"}
+		configJob.Variables = mapslice.FromPairs(
+			"expand", "globalfoo:$foo",
+			"jobvar", "test$user_a",
+			"expand_2", "repo:${CI_PROJECT_KEY}/$CI_REPO_SLUG,jobvar:$jobvar",
+		)
 
 		expected := clone(expected)
-		expected["foo"] = "job"
+		expected["foo"] = "gotest"
+		expected["expand"] = "globalfoo:gotest"
+		expected["jobvar"] = "testuser_a_value"
+		expected["expand_2"] = "repo:proj1/repo1,jobvar:testuser_a_value"
 
 		test.EqualValues(expected, builder(basicPipeline).build())
 	}
 
 	{
-		configPipeline.Variables = map[string]string{"foo": "globalfoo", "bar": "globalbar"}
-		configJob.Variables = map[string]string{"foo": "foojob", "qux": "quxjob"}
+		configPipeline.Variables = mapslice.FromMap(
+			map[string]string{"foo": "globalfoo", "bar": "globalbar"},
+		)
+		configJob.Variables = mapslice.FromMap(
+			map[string]string{"foo": "foojob", "qux": "quxjob"},
+		)
 
 		expected := clone(expected)
 		expected["foo"] = "foojob"
