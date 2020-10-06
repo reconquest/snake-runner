@@ -88,8 +88,9 @@ func (job *Process) SetConfigPipeline(config config.Pipeline) {
 
 func (process *Process) setupDirectWriter() {
 	process.logs.directWriter = bufferer.NewBufferer(
-		bufferer.DefaultLogsBufferSize,
-		bufferer.DefaultLogsBufferTimeout,
+		bufferer.DefaultChanSize,
+		bufferer.DefaultFlushSize,
+		bufferer.DefaultFlushInterval,
 		func(buffer []byte) {
 			err := process.client.PushLogs(
 				process.task.Pipeline.ID,

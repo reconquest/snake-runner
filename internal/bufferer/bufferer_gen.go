@@ -5,14 +5,16 @@ package bufferer
 import "time"
 
 func NewBufferer(
-	size int,
-	duration time.Duration,
+	chanSize int,
+	flushSize int,
+	flushInterval time.Duration,
 	flush func([]byte),
 ) *Bufferer {
 	r := &Bufferer{
-		size:     size,
-		duration: duration,
-		flush:    flush,
+		chanSize:      chanSize,
+		flushSize:     flushSize,
+		flushInterval: flushInterval,
+		flush:         flush,
 	}
 
 	r.init()

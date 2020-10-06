@@ -10,51 +10,58 @@ import (
 )
 
 var (
-	DefaultLogsBufferSize    = 1024
-	DefaultLogsBufferTimeout = time.Second * 2
+	DefaultFlushSize     = 1024
+	DefaultFlushInterval = time.Second * 2
+	DefaultChanSize      = 128
 )
 
 //go:generate gonstructor -type Bufferer -init init
 type Bufferer struct {
-	size     int
-	duration time.Duration
-	flush    func([]byte)
-	pipe     chan []byte   `gonstructor:"-"`
-	done     chan struct{} `gonstructor:"-"`
+	chanSize      int
+	flushSize     int
+	flushInterval time.Duration
+	flush         func([]byte)
+	pipe          chan []byte   `gonstructor:"-"`
+	done          chan struct{} `gonstructor:"-"`
 
-	workers      sync.WaitGroup `gonstructor:"-"`
-	workersMutex sync.Mutex     `gonstructor:"-"`
+	run      sync.WaitGroup `gonstructor:"-"`
+	runMutex sync.Mutex     `gonstructor:"-"`
+
+	writers      sync.WaitGroup `gonstructor:"-"`
+	writersMutex sync.Mutex     `gonstructor:"-"`
 
 	closed     bool       `gonstructor:"-"`
 	closeMutex sync.Mutex `gonstructor:"-"`
 }
 
 func (writer *Bufferer) init() {
-	writer.pipe = make(chan []byte, 128 /* ?? */)
+	writer.pipe = make(chan []byte, writer.chanSize)
 	writer.done = make(chan struct{})
 }
 
 func (writer *Bufferer) Run() {
 	defer audit.Go("bufferer")()
 
-	writer.workersMutex.Lock()
-	writer.workers.Add(1)
-	writer.workersMutex.Unlock()
-	defer writer.workers.Done()
+	writer.runMutex.Lock()
+	writer.run.Add(1)
+	writer.runMutex.Unlock()
+	defer writer.run.Done()
 
-	ticker := utils.NewTicker(writer.duration)
+	ticker := utils.NewTicker(writer.flushInterval)
 	buffer := bytes.NewBuffer(nil)
 	for {
 		select {
 		case text, ok := <-writer.pipe:
 			if !ok {
-				writer.flush(buffer.Bytes())
+				if buffer.Len() != 0 {
+					writer.flush(buffer.Bytes())
+				}
 				return
 			}
 
 			buffer.Write(text)
 
-			if buffer.Len() >= writer.size {
+			if buffer.Len() >= writer.flushSize {
 				writer.flush(buffer.Bytes())
 				buffer.Reset()
 
@@ -68,19 +75,15 @@ func (writer *Bufferer) Run() {
 			}
 
 			ticker.Reset()
-
-		case <-writer.done:
-			writer.flush(buffer.Bytes())
-			return
 		}
 	}
 }
 
 func (writer *Bufferer) Write(data []byte) (int, error) {
-	writer.workersMutex.Lock()
-	writer.workers.Add(1)
-	writer.workersMutex.Unlock()
-	defer writer.workers.Done()
+	writer.writersMutex.Lock()
+	writer.writers.Add(1)
+	writer.writersMutex.Unlock()
+	defer writer.writers.Done()
 
 	select {
 	case <-writer.done:
@@ -108,15 +111,15 @@ func (writer *Bufferer) Close() error {
 
 	close(writer.done)
 
-	go func() {
-		for range writer.pipe {
-			// drain it
-		}
-	}()
+	writer.writersMutex.Lock()
+	writer.writers.Wait()
+	writer.writersMutex.Unlock()
 
-	writer.workersMutex.Lock()
-	writer.workers.Wait()
-	writer.workersMutex.Unlock()
+	close(writer.pipe)
+
+	writer.runMutex.Lock()
+	writer.run.Wait()
+	writer.runMutex.Unlock()
 
 	return nil
 }
