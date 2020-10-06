@@ -4,12 +4,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 )
+
+var reAddress = regexp.MustCompile(`0x[a-h0-9]+`)
 
 func TestUnmarshal(t *testing.T) {
 	test := assert.New(t)
@@ -56,9 +59,8 @@ func TestUnmarshal(t *testing.T) {
 			//    panic(err)
 			//}
 
-			encoded := spew.Sdump(pipeline)
-
-			test.EqualValues(string(contents), string(encoded))
+			encoded := reAddress.ReplaceAllString(spew.Sdump(pipeline), "0x")
+			test.EqualValues(string(contents), string(encoded), match)
 			tested = true
 		}
 

@@ -81,7 +81,7 @@ func (process *Process) Run() error {
 		)
 	}
 
-	err = process.parseVariables()
+	err = process.prepareVariables()
 	if err != nil {
 		process.status = status.FAILED
 		process.fail(FAIL_ALL_JOBS)
@@ -181,7 +181,10 @@ func (process *Process) runJobs() (status.Status, error) {
 	return status.SUCCESS, nil
 }
 
-func (process *Process) runJob(total, index int, job snake.PipelineJob) (status.Status, error) {
+func (process *Process) runJob(
+	total, index int,
+	job snake.PipelineJob,
+) (status.Status, error) {
 	process.log.Infof(
 		nil,
 		"%d/%d starting job: id=%d",
@@ -493,11 +496,11 @@ func (process *Process) updateJob(
 	)
 }
 
-func (process *Process) parseVariables() error {
+func (process *Process) prepareVariables() error {
 	if process.config.Variables != nil {
-		raw, ok := process.config.Variables["DOCKER_AUTH_CONFIG"]
-		if ok {
-			err := json.Unmarshal([]byte(raw), &process.auth.variable)
+		raw := process.config.Variables.Find("DOCKER_AUTH_CONFIG")
+		if raw != nil {
+			err := json.Unmarshal([]byte(raw.Value), &process.auth.variable)
 			if err != nil {
 				return karma.Format(
 					err,

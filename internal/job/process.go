@@ -276,10 +276,10 @@ func (process *Process) getImage() (string, string) {
 
 func (process *Process) getDockerAuthConfig() (executor.Auths, error) {
 	if process.configJob.Variables != nil {
-		raw, ok := process.configJob.Variables["DOCKER_AUTH_CONFIG"]
-		if ok {
+		raw := process.configJob.Variables.Find("DOCKER_AUTH_CONFIG")
+		if raw != nil {
 			var cfg executor.Auths
-			err := json.Unmarshal([]byte(raw), &cfg)
+			err := json.Unmarshal([]byte(raw.Value), &cfg)
 			if err != nil {
 				return cfg, karma.Format(
 					err,
