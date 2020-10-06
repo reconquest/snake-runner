@@ -191,6 +191,8 @@ func (docker *Docker) Create(
 		AttachStderr: true,
 		AttachStdin:  true,
 		Tty:          true,
+		Cmd:          []string{"sh"},
+		Entrypoint:   []string{""},
 	}
 
 	hostConfig := &docker_container.HostConfig{
