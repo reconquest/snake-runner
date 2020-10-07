@@ -53,24 +53,37 @@ type Docker struct {
 	volumes []string
 }
 
-func NewDocker(network string, volumes []string) (*Docker, error) {
+func NewDocker(network string, volumes []string) *Docker {
+	return &Docker{
+		network: network,
+		volumes: volumes,
+	}
+}
+
+func (docker *Docker) Connect() error {
 	var err error
-
-	docker := &Docker{}
-
-	docker.network = network
-	docker.volumes = volumes
-
-	docker.client, err = docker_client.NewClientWithOpts(docker_client.FromEnv,
-		docker_client.WithAPIVersionNegotiation())
+	docker.client, err = docker_client.NewClientWithOpts(
+		docker_client.FromEnv,
+		docker_client.WithAPIVersionNegotiation(),
+	)
 	if err != nil {
-		return nil, karma.Format(
-			err,
-			"unable to initialize docker client",
-		)
+		return err
 	}
 
-	return docker, err
+	info, err := docker.client.Info(context.Background())
+	if err != nil {
+		return err
+	}
+
+	log.Infof(
+		nil,
+		"docker: server_version=%s kernel_version=%s oom_kill_disable=%v",
+		info.ServerVersion,
+		info.KernelVersion,
+		info.OomKillDisable,
+	)
+
+	return err
 }
 
 func (docker *Docker) Type() executor.ExecutorType {

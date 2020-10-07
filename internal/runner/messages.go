@@ -19,7 +19,7 @@ To do so, provide the configuration parameters:
 {{" "}}- The URL of Bitbucket Server with the Snake CI add-on installed.
 {{ end -}}
 {{- if not .RegistrationToken -}}
-{{" "}}- The Registration Token, which can be found in the 'SNAKE CI/CD → Runners' section in Bitbucket Server Admin Panel.
+{{" "}}- The Registration Token, which can be found in the SNAKE CI/CD → Runners section in Bitbucket Server Admin Panel.
 {{ end }}
 
 {{- if .IsDocker }}
@@ -56,7 +56,7 @@ To do so, provide the configuration parameters:
 {{" "}}- The URL of Bitbucket Server with the Snake CI add-on installed.
 {{ end -}}
 {{- if not .RegistrationToken -}}
-{{" "}}- The Registration Token, which can be found in the 'SNAKE CI/CD → Runners' section in Bitbucket Server Admin Panel.
+{{" "}}- The Registration Token, which can be found in the SNAKE CI/CD → Runners section in Bitbucket Server Admin Panel.
 {{- end }}
 
 Specify the configuration parameters in the config file ` + DEFAULT_CONFIG_PATH + `:

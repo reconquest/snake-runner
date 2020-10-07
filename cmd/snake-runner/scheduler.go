@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/reconquest/karma-go"
@@ -14,13 +12,9 @@ import (
 	"github.com/reconquest/snake-runner/internal/api"
 	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/executor"
-	"github.com/reconquest/snake-runner/internal/executor/docker"
-	"github.com/reconquest/snake-runner/internal/executor/shell"
 	"github.com/reconquest/snake-runner/internal/pipeline"
-	"github.com/reconquest/snake-runner/internal/platform"
 	"github.com/reconquest/snake-runner/internal/runner"
 	"github.com/reconquest/snake-runner/internal/safemap"
-	"github.com/reconquest/snake-runner/internal/sidecar"
 	"github.com/reconquest/snake-runner/internal/signal"
 	"github.com/reconquest/snake-runner/internal/sshkey"
 	"github.com/reconquest/snake-runner/internal/tasks"
@@ -49,115 +43,16 @@ type Scheduler struct {
 }
 
 func (snake *Snake) startScheduler() error {
-	ctx := context.Background()
-
-	var execer executor.Executor
-	var err error
-	switch snake.config.Mode {
-	case runner.RUNNER_MODE_DOCKER:
-		log.Infof(nil, "initializing docker provider")
-
-		execer, err = docker.NewDocker(
-			snake.config.Docker.Network,
-			snake.config.Docker.Volumes,
-		)
-		if err != nil {
-			return karma.Format(err, "unable to initialize new container provider")
-		}
-
-	case runner.RUNNER_MODE_SHELL:
-		log.Infof(nil, "initializing shell provider")
-
-		execer, err = shell.NewShell()
-		if err != nil {
-			return karma.Format(
-				err,
-				"unable to initialize new shell provider",
-			)
-		}
-
-		log.Debugf(nil, "checking shell executor prerequisites")
-
-		err = sidecar.NewShellSidecarBuilder().
-			Executor(execer).
-			Build().
-			CheckPrerequisites(ctx)
-		if err != nil {
-			return karma.Format(
-				err,
-				// TODO: Add the documentation link.
-				"prerequisites check failed while running snake-runner with SNAKE_EXEC_MODE=shell;"+
-					" make sure that specified binaries are installed",
-			)
-		}
-
-		if shell.PLATFORM == platform.WINDOWS {
-			detected, err := execer.DetectShell(ctx, nil)
-			if err != nil {
-				return karma.Format(
-					err,
-					"unable to detect shell",
-				)
-			}
-
-			if detected != shell.PREFERRED_SHELL {
-				log.Warningf(
-					nil,
-					"no %s detected on system; use of %s is recommended on Windows",
-					shell.PREFERRED_SHELL,
-					shell.PREFERRED_SHELL,
-				)
-			}
-
-			container, err := execer.Create(ctx, executor.CreateOptions{})
-			if err != nil {
-				return karma.Format(
-					err,
-					"unable to create session for ssh-agent validation",
-				)
-			}
-
-			log.Debugf(nil, "validating ssh-agent version")
-
-			// Using the ability of ssh-agent to run a specified command.
-			// Correct version of ssh-agent will run command: in this case
-			// "cmd.exe /c exit 100", so if no exit error is reported, then
-			// the incorrect version of ssh-agent is used.
-			err = execer.Exec(ctx, container, executor.ExecOptions{
-				Cmd: []string{"ssh-agent", "cmd", "/c exit 100"},
-			})
-			if err != nil {
-				if err, ok := err.(*exec.ExitError); ok {
-					if status, ok := err.Sys().(syscall.WaitStatus); ok {
-						if status.ExitStatus() != 100 {
-							return karma.Format(
-								err,
-								"ssh-agent version validation failed",
-							)
-						}
-					}
-				}
-			} else {
-				return karma.Format(
-					"You are probably using OpenSSH's ssh-agent which is not supported.\n"+
-						"Consider installing Git-BASH and adding Git-BASH's bin as a part of the system $PATH.\n"+
-						"Read more: https://snake-ci.com/docs/throubleshoot/windows-ssh-agent/",
-					"available ssh-agent version is not supported",
-				)
-			}
-		}
-
-	default:
-		return fmt.Errorf(
-			"unexpected runner mode: %s", snake.config.Mode,
-		)
+	executor, err := NewProbeFactory(snake.config).Probe()
+	if err != nil {
+		return err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	scheduler := &Scheduler{
 		client:       snake.client,
-		executor:     execer,
+		executor:     executor,
 		runnerConfig: snake.config,
 		sshKeyFactory: sshkey.NewFactory(
 			ctx,
@@ -171,7 +66,7 @@ func (snake *Snake) startScheduler() error {
 		terminator:   snake,
 	}
 
-	err = execer.Cleanup()
+	err = executor.Cleanup()
 	if err != nil {
 		return karma.Format(err, "unable to cleanup old resources")
 	}

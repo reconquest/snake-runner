@@ -18,8 +18,6 @@ import (
 var configPath *string
 
 func main() {
-	log.Infof(karma.Describe("version", builtin.Version), "starting snake-runner")
-
 	var svcctl ServiceController
 
 	app := cli.New(
@@ -62,6 +60,11 @@ func main() {
 	actions.register(
 		svc.Command("run", "Run as the system service").Hidden(),
 		func() error {
+			log.Infof(
+				karma.Describe("version", builtin.Version),
+				"snake-runner starts a system service",
+			)
+
 			shutdown, err := svcctl.Run()
 			if err != nil {
 				return err
@@ -73,6 +76,11 @@ func main() {
 	actions.register(
 		app.Command("run", "Run pipelines & jobs").Hidden().Default(),
 		func() error {
+			log.Infof(
+				karma.Describe("version", builtin.Version),
+				"snake-runner starts",
+			)
+
 			return run(make(chan struct{}))
 		},
 	)

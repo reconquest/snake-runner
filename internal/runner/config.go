@@ -68,7 +68,7 @@ func (config *Config) GetDockerAuthConfig() executor.Auths {
 }
 
 func LoadConfig(path string, fileRequired ko.RequireFile) (*Config, error) {
-	log.Infof(karma.Describe("path", path), "loading configuration")
+	log.Infof(karma.Describe("path", path), "reading configuration file")
 
 	var config Config
 	err := ko.Load(path, &config, yaml.Unmarshal, fileRequired)
