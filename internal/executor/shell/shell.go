@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os/exec"
 	"sync"
 
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/pkg/log"
-	"github.com/reconquest/snake-runner/internal/audit"
 	"github.com/reconquest/snake-runner/internal/executor"
 	"github.com/reconquest/snake-runner/internal/set"
 	"github.com/reconquest/snake-runner/internal/utils"
@@ -85,56 +83,14 @@ func (shell *Shell) Exec(
 
 	log.Tracef(nil, "shell exec: %s %s", name, args)
 
-	workers := &sync.WaitGroup{}
-
 	cmd := exec.CommandContext(ctx, name, args...)
+
+	writer := &callbackWriter{callback: opts.OutputConsumer}
 	if opts.AttachStdout {
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return karma.Format(
-				err,
-				"can't pipe stdout",
-			)
-		}
-
-		defer stdout.Close()
-
-		workers.Add(1)
-		go func() {
-			defer audit.Go(opts.Cmd, "stdout")()
-
-			defer workers.Done()
-
-			writer := callbackWriter{ctx: ctx, callback: opts.OutputConsumer}
-			_, err := io.Copy(writer, stdout)
-			if err != nil {
-				return
-			}
-		}()
+		cmd.Stdout = writer
 	}
-
 	if opts.AttachStderr {
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return karma.Format(
-				err,
-				"can't pipe stderr",
-			)
-		}
-
-		defer stderr.Close()
-
-		workers.Add(1)
-		go func() {
-			defer audit.Go(opts.Cmd, "stderr")()
-
-			defer workers.Done()
-			writer := callbackWriter{ctx: ctx, callback: opts.OutputConsumer}
-			_, err := io.Copy(writer, stderr)
-			if err != nil {
-				return
-			}
-		}()
+		cmd.Stderr = writer
 	}
 
 	if opts.Stdin != nil {
@@ -155,14 +111,7 @@ func (shell *Shell) Exec(
 
 	box.processes.Put(cmd)
 
-	err = cmd.Wait()
-	if err != nil {
-		return err
-	}
-
-	workers.Wait()
-
-	return nil
+	return cmd.Wait()
 }
 
 func (shell *Shell) Cleanup() error {
@@ -197,18 +146,23 @@ func (shell *Shell) LookPath(
 
 type callbackWriter struct {
 	ctx      context.Context
+	mutex    sync.Mutex
 	callback executor.OutputConsumer
 }
 
-func (callbackWriter callbackWriter) Write(data []byte) (int, error) {
+func (callbackWriter *callbackWriter) Write(data []byte) (int, error) {
 	if callbackWriter.callback == nil {
 		return len(data), nil
 	}
 
-	if utils.IsDone(callbackWriter.ctx) {
-		return 0, context.Canceled
+	if callbackWriter.ctx != nil {
+		if utils.IsDone(callbackWriter.ctx) {
+			return 0, context.Canceled
+		}
 	}
 
+	callbackWriter.mutex.Lock()
+	defer callbackWriter.mutex.Unlock()
 	callbackWriter.callback(string(data))
 
 	return len(data), nil
