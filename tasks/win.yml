@@ -60,6 +60,7 @@ tasks:
         envsubst < conf/envsubst.conf > .task/windows-snake-runner.conf
       - sshpass -p XXXxxx1 ssh {{.host}}
           New-Item -Path C:\\ProgramData\\snake-runner\\config\\ -ItemType Directory -Force \| Out-Null
+      - echo "% Uploading config"
       - sshpass -p XXXxxx1 scp .task/windows-snake-runner.conf {{.host}}:C:\\ProgramData\\snake-runner\\config\\snake-runner.conf
 
   logs:

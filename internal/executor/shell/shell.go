@@ -33,8 +33,8 @@ func (box *Box) ID() string {
 	return box.id
 }
 
-func NewShell() (*Shell, error) {
-	return &Shell{}, nil
+func NewShell() *Shell {
+	return &Shell{}
 }
 
 func (shell *Shell) Type() executor.ExecutorType {

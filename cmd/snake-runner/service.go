@@ -25,7 +25,7 @@ func (ctl *ServiceController) lazyInit() error {
 			svc, err := service.New(Nop{}, &service.Config{
 				Name:        "snake-runner",
 				DisplayName: "snake-runner",
-				Description: "Runs Pipelines & Jobs provided by the Snake CI add-on installed on Bitbucket",
+				Description: "Runs Pipelines & Jobs provided by Snake CI",
 				Executable:  os.Args[0],
 				Arguments:   []string{"service", "run", "--config", *configPath},
 			})
@@ -57,6 +57,16 @@ func (ctl *ServiceController) Install() error {
 			runner.ShowMessageNotInstalledNotConfigured(cfg)
 			os.Exit(1)
 		}
+
+		return karma.Format(
+			err,
+			"unable to load & validate config",
+		)
+	}
+
+	_, err = NewProbeFactory(cfg).Probe()
+	if err != nil {
+		return err
 	}
 
 	log.Info("Installing Snake Runner as a system service")
@@ -194,9 +204,9 @@ func (ctl *ServiceController) Run() (chan struct{}, error) {
 				err,
 				"unable to start the program as a system service",
 			)
+		} else {
+			close(stopped)
 		}
-
-		close(stopped)
 	}()
 
 	return stopped, nil
