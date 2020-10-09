@@ -150,5 +150,8 @@ func (builder *Builder) build() map[string]string {
 	vars[consts.GIT_SSH_COMMAND_VAR] = "ssh -o" + consts.SSH_OPTION_GLOBAL_HOSTS_FILE +
 		"=" + builder.sshKnownHostsPath
 
+	// providing path to generated known_hosts so users can use it with ssh
+	vars["CI_SSH_KNOWN_HOSTS_FILE"] = builder.sshKnownHostsPath
+
 	return vars
 }
