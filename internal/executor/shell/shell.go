@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"sync"
 
@@ -97,7 +98,7 @@ func (shell *Shell) Exec(
 		cmd.Stdin = opts.Stdin
 	}
 
-	cmd.Env = opts.Env
+	cmd.Env = append(os.Environ(), opts.Env...)
 	cmd.Dir = opts.WorkingDir
 
 	err := cmd.Start()
