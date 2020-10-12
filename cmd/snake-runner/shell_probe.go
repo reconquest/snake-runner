@@ -28,9 +28,9 @@ func (probe *ShellProbe) Probe() (executor.Executor, error) {
 	if err != nil {
 		return nil, karma.Format(
 			err,
-			// TODO: Add the documentation link.
-			"prerequisites check failed while running snake-runner with SNAKE_EXEC_MODE=shell;"+
-				" make sure that the specified binaries are installed",
+			"Prerequisites check failed while running snake-runner with SNAKE_EXEC_MODE=shell;"+
+				" make sure that the specified binaries are installed."+
+				"Read more: https://reconquest.link/EZJC1",
 		)
 	}
 
@@ -93,7 +93,7 @@ func (probe *ShellProbe) Probe() (executor.Executor, error) {
 			return nil, karma.Format(
 				"You are probably using the OpenSSH's ssh-agent which is not supported.\n"+
 					"Consider installing Git-BASH and adding the Git-BASH's bin folder as a part of the system $PATH.\n"+
-					"Read more: https://snake-ci.com/docs/throubleshoot/windows-ssh-agent/",
+					"Read more: https://reconquest.link/a56Pd",
 				"The ssh-agent's version is not supported",
 			)
 		}
