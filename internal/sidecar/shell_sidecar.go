@@ -197,11 +197,12 @@ func (sidecar *ShellSidecar) Destroy() {
 		sidecar.sshAgent.Wait()
 	}
 
-	log.Errorf(nil, "removing directory: "+sidecar.baseDir)
-	// err := os.RemoveAll(sidecar.baseDir)
-	// if err != nil {
-	//    log.Errorf(err, "unable to remove git/ssh directories")
-	//}
+	log.Debug("removing directory: " + sidecar.baseDir)
+
+	err := os.RemoveAll(sidecar.baseDir)
+	if err != nil {
+		log.Errorf(err, "unable to remove git/ssh directories")
+	}
 
 	return
 }
