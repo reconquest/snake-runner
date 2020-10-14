@@ -36,7 +36,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/prometheus/common v0.13.0 // indirect
-	github.com/reconquest/cog v0.0.0-20200921103326-58b3758471dd
+	github.com/reconquest/cog v0.0.0-20201014162901-4900a5894129
 	github.com/reconquest/colorgful v0.0.0-20200729095644-21be6c602814 // indirect
 	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
 	github.com/reconquest/lineflushwriter-go v0.0.0-20200921103343-b9b8d10a6851

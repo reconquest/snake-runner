@@ -424,6 +424,8 @@ github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936 h1:jSaVCkKLAGc8VWBR
 github.com/reconquest/cog v0.0.0-20191208202052-266c2467b936/go.mod h1:IYiTfZ8/UKTz5svWOy+2ri5NuS+pJ3ynXMg8V0IHkXU=
 github.com/reconquest/cog v0.0.0-20200921103326-58b3758471dd h1:HBuu+zpE3zHKqfLm7u2MS3KB5+5k/1CrvrGwD4L7zs8=
 github.com/reconquest/cog v0.0.0-20200921103326-58b3758471dd/go.mod h1:IYiTfZ8/UKTz5svWOy+2ri5NuS+pJ3ynXMg8V0IHkXU=
+github.com/reconquest/cog v0.0.0-20201014162901-4900a5894129 h1:ciBUhXaYPkhfkcGXJhZO6oorkZvQtqx7PoDB5BDiK7I=
+github.com/reconquest/cog v0.0.0-20201014162901-4900a5894129/go.mod h1:IYiTfZ8/UKTz5svWOy+2ri5NuS+pJ3ynXMg8V0IHkXU=
 github.com/reconquest/colorgful v0.0.0-20190805091748-28d18b838c4a h1:LGyNu9LpBpJ+puxKBLuB8L+YTBgW8xLmiBqbTKuniec=
 github.com/reconquest/colorgful v0.0.0-20190805091748-28d18b838c4a/go.mod h1:S7SVqgAB8m04PAsywFMzl2UfDPGfBGRqpk3wWZG2y70=
 github.com/reconquest/colorgful v0.0.0-20200729095644-21be6c602814 h1:QmEUwo4P99jYWL6wslpuffIPWEl2noJmI6fytYU67fU=
