@@ -20,6 +20,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/gonuts/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iancoleman/strcase v0.1.2 // indirect
 	github.com/kardianos/service v1.1.0

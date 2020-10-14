@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gonuts/go-shellquote"
 	"github.com/reconquest/snake-runner/internal/builtin"
 	"github.com/reconquest/snake-runner/internal/config"
 	"github.com/reconquest/snake-runner/internal/consts"
@@ -147,8 +148,9 @@ func (builder *Builder) build() map[string]string {
 
 	// special case: providing GIT_SSH_COMMAND with a global known hosts file
 	// specified
-	vars[consts.GIT_SSH_COMMAND_VAR] = "ssh -o" + consts.SSH_OPTION_GLOBAL_HOSTS_FILE +
-		"=" + builder.sshKnownHostsPath
+	vars[consts.GIT_SSH_COMMAND_VAR] = shellquote.Join(
+		"ssh", "-o"+consts.SSH_OPTION_GLOBAL_HOSTS_FILE+"="+builder.sshKnownHostsPath,
+	)
 
 	// providing path to generated known_hosts so users can use it with ssh
 	vars["CI_SSH_KNOWN_HOSTS_FILE"] = builder.sshKnownHostsPath
