@@ -89,6 +89,7 @@ func TestEnvBuilder(t *testing.T) {
 		"CI_RUNNER_VERSION":         builtin.Version,
 		"SSH_AUTH_SOCK":             "/ssh/ssh-agent.sock",
 		"GIT_SSH_COMMAND":           "ssh -oGlobalKnownHostsFile=/ssh/known_hosts",
+		"CI_SSH_KNOWN_HOSTS_FILE":   "/ssh/known_hosts",
 	}
 
 	{
