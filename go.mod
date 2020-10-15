@@ -40,7 +40,7 @@ require (
 	github.com/reconquest/colorgful v0.0.0-20200729095644-21be6c602814 // indirect
 	github.com/reconquest/karma-go v0.0.0-20200326104714-79480464fdb5
 	github.com/reconquest/lineflushwriter-go v0.0.0-20200921103343-b9b8d10a6851
-	github.com/reconquest/pkg v0.0.0-20201001072320-38394b54a9db
+	github.com/reconquest/pkg v0.0.0-20201015092435-8ef7723a855e
 	github.com/reconquest/sign-go v0.0.0-20200921103415-55df7f54ef71
 	github.com/seletskiy/tplutil v0.0.0-20200921103632-f880f6245597
 	github.com/sergi/go-diff v1.1.0 // indirect

@@ -434,8 +434,8 @@ github.com/reconquest/lineflushwriter-go v0.0.0-20200921103343-b9b8d10a6851 h1:o
 github.com/reconquest/lineflushwriter-go v0.0.0-20200921103343-b9b8d10a6851/go.mod h1:tpO+vNC9ppBvJErZXrQpfwiVDuza5k1nRWH7SrutKtY=
 github.com/reconquest/loreley v0.0.0-20200601121626-621c1cd37fd1 h1:J1vuEtEaaHo01+gxE6jIMtTwLrYzsraHmnqbNvha2Jw=
 github.com/reconquest/loreley v0.0.0-20200601121626-621c1cd37fd1/go.mod h1:1NF/j951kWm+ZnRXpOkBqweImgwhlzFVwTA4A0V7TEU=
-github.com/reconquest/pkg v0.0.0-20201001072320-38394b54a9db h1:fHAL3DTOidxfMsmRnepyfDv1bKUVoyH7jV2B7YCDhnk=
-github.com/reconquest/pkg v0.0.0-20201001072320-38394b54a9db/go.mod h1:T3ej/s+DtNaxXSOhM8rZX9bTlhnfHeETwQpK5PAPvwo=
+github.com/reconquest/pkg v0.0.0-20201015092435-8ef7723a855e h1:NVgNsh9FXLn9Yj/O4T4fA7HY1wCeTOccRyzOIvNhwrw=
+github.com/reconquest/pkg v0.0.0-20201015092435-8ef7723a855e/go.mod h1:T3ej/s+DtNaxXSOhM8rZX9bTlhnfHeETwQpK5PAPvwo=
 github.com/reconquest/sign-go v0.0.0-20200921103415-55df7f54ef71 h1:2a0rYZOu87+9Jg8cWL5hPeG2k1lkIYB8itY6D1Lhg60=
 github.com/reconquest/sign-go v0.0.0-20200921103415-55df7f54ef71/go.mod h1:MPyIlpjbOJ4DOJ0Gqza0muaI3UN1wqJrCxqGDJfvY6s=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
