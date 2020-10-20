@@ -55,7 +55,7 @@ type CloudSidecar struct {
 
 func (sidecar *CloudSidecar) ContainerVolumes() []executor.Volume {
 	return []executor.Volume{
-		executor.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_GIT + ":" + sidecar.gitDir),
+		executor.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_GIT + "/" + sidecar.slug + ":" + sidecar.gitDir),
 		executor.Volume(sidecar.hostSubDir + "/" + consts.SUBDIR_SSH + ":" + sidecar.sshDir),
 	}
 }
@@ -206,8 +206,8 @@ func (sidecar *CloudSidecar) Serve(
 
 	// cloning git repository and switching commit
 	commands := [][]string{
-		{`git`, `clone`, "--recursive", opts.CloneURL, sidecar.gitDir},
-		{`git`, `-C`, sidecar.gitDir, `checkout`, opts.Commit},
+		{"git", "-C", sidecar.gitDir, "clone", "--recursive", opts.CloneURL, "."},
+		{"git", "-C", sidecar.gitDir, "checkout", opts.Commit},
 	}
 
 	for _, cmd := range commands {
