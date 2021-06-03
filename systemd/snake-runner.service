@@ -1,0 +1,9 @@
+[Unit]
+Description=Snake Runner
+
+[Service]
+ExecStart=/usr/bin/snake-runner
+Restart=always
+
+[Install]
+WantedBy=basic.target
