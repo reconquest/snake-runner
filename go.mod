@@ -12,7 +12,7 @@ require (
 	github.com/containerd/containerd v1.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/cli v0.0.0-20200116142428-c6d10b6da090
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/docker v1.4.2-0.20200117050326-e5c8eca2eebf
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
