@@ -19,7 +19,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
-	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gonuts/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iancoleman/strcase v0.1.2 // indirect
@@ -52,8 +52,6 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/theupdateframework/notary v0.6.2-0.20200804143915-84287fd8df4f // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
-	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
 	google.golang.org/appengine v1.6.2 // indirect
 	google.golang.org/genproto v0.0.0-20200921165018-b9da36f5f452 // indirect
 	google.golang.org/grpc v1.32.0 // indirect
